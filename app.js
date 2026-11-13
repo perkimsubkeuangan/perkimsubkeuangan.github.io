@@ -300,7 +300,6 @@ function ubahLabelNpdKontrak() {
     const labelUraian = document.getElementById('label-uraian');
     const boxCv = document.getElementById('box-cv');
     const boxTahap = document.getElementById('box-tahap');
-    const boxLsExtra = document.getElementById('box-ls-extra'); // Tambahan
     
     if (jenis === 'LS') { 
         if(labelNpd) labelNpd.innerText = 'Nomor Kontrak / SPK'; 
@@ -308,14 +307,12 @@ function ubahLabelNpdKontrak() {
         if(labelUraian) labelUraian.innerHTML = 'Nama Pekerjaan <span class="text-red-500">*</span>';
         if(boxCv) boxCv.classList.remove('hidden');
         if(boxTahap) boxTahap.classList.remove('hidden');
-        if(boxLsExtra) boxLsExtra.classList.remove('hidden'); // Tampilkan form tambahan LS
     } else { 
         if(labelNpd) labelNpd.innerText = 'Nomor NPD'; 
         if(inputNpd) inputNpd.placeholder = 'Cth: 001/NPD/2026'; 
         if(labelUraian) labelUraian.innerHTML = 'Uraian / Deskripsi SPJ <span class="text-red-500">*</span>';
         if(boxCv) boxCv.classList.add('hidden');
         if(boxTahap) boxTahap.classList.add('hidden');
-        if(boxLsExtra) boxLsExtra.classList.add('hidden'); // Sembunyikan form tambahan LS
     }
 }
 
