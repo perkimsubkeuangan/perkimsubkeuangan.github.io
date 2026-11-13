@@ -557,8 +557,6 @@ if(elSiapPb) elSiapPb.innerText = totalSiapPb;
         
         let jenisSurat = String(item.jenisSurat || 'GU');
         let jenisBadge = jenisSurat === 'LS' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200';
-        if (akun.role === 'BENDAHARA') roleBadge = `<span class="px-2.5 py-1 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-md border border-purple-200">BENDAHARA</span>`;
-        if (akun.role === 'PIMPINAN') roleBadge = `<span class="px-2.5 py-1 bg-sky-50 text-sky-700 text-[10px] font-bold rounded-md border border-sky-200">PIMPINAN</span>`;
         let tdJenisHtml = filterJenis === 'ALL' ? `<td class="py-4 px-4 text-xs align-top text-center whitespace-nowrap"><span class="px-2 py-1 rounded-md border font-bold text-[10px] ${jenisBadge}">${jenisSurat}</span></td>` : ``;
 
         let cvText = jenisSurat === 'LS' && item.namaCv ? item.namaCv : '-';
