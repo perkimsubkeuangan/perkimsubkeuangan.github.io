@@ -515,8 +515,8 @@ if(elSiapPb) elSiapPb.innerText = totalSiapPb;
         
         let jenisSurat = String(item.jenisSurat || 'GU');
         let jenisBadge = jenisSurat === 'LS' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200';
-        let actionBtnText = sesiAktif.role === 'VERIFIKATOR' || sesiAktif.role === 'SUPER_ADMIN' ? 'Verifikasi' : 'Detail'; 
-        let actionBtnColor = sesiAktif.role === 'VERIFIKATOR' || sesiAktif.role === 'SUPER_ADMIN' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-800 hover:bg-slate-900';
+        if (akun.role === 'BENDAHARA') roleBadge = `<span class="px-2.5 py-1 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-md border border-purple-200">BENDAHARA</span>`;
+        if (akun.role === 'PIMPINAN') roleBadge = `<span class="px-2.5 py-1 bg-sky-50 text-sky-700 text-[10px] font-bold rounded-md border border-sky-200">PIMPINAN</span>`;
         let tdJenisHtml = filterJenis === 'ALL' ? `<td class="py-4 px-4 text-xs align-top text-center whitespace-nowrap"><span class="px-2 py-1 rounded-md border font-bold text-[10px] ${jenisBadge}">${jenisSurat}</span></td>` : ``;
 
         let cvText = jenisSurat === 'LS' && item.namaCv ? item.namaCv : '-';
@@ -861,12 +861,38 @@ function bukaModalVerifikasi(id) {
     document.getElementById('panelPptkRevisi').classList.add('hidden');
     document.getElementById('catatanRevisiInput').value = ""; 
 
-    if (sesiAktif.role === 'VERIFIKATOR' || sesiAktif.role === 'SUPER_ADMIN') {
-        document.getElementById('panelAksiVerifikator').classList.remove('hidden'); 
-        let cleanPhone = String(item.wa || '').replace(/[^0-9]/g, ''); if (cleanPhone.startsWith('0')) { cleanPhone = '62' + cleanPhone.slice(1); } else if (cleanPhone.startsWith('8')) { cleanPhone = '62' + cleanPhone; }        
-        let waText = `Yth. PPTK,\nUpdate SPJ (NPD: ${item.npd}):\n*Status: ${item.status}*\n`; if(item.status === 'REVISI' || item.status === 'DITOLAK') waText += `Catatan:\n${String(item.catatanRevisi).replace(/<br>/g, '\n')}\n`;
-        const btnSendWa = document.getElementById('btnSendWa'); if (btnSendWa) btnSendWa.href = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(waText)}`;
-    } else {
+    if (sesiAktif.role === 'VERIFIKATOR' || sesiAktif.role === 'SUPER_ADMIN' || sesiAktif.role === 'BENDAHARA') {
+    document.getElementById('panelAksiVerifikator').classList.remove('hidden'); 
+    
+    // Logika Pemisahan Wewenang Tombol
+    const btnSetuju = document.getElementById('btnSetuju');
+    const btnRevisi = document.getElementById('btnRevisi');
+    const btnTolak = document.getElementById('btnTolak');
+    const btnPb = document.getElementById('btnPb');
+    
+    if(btnSetuju && btnRevisi && btnTolak && btnPb) {
+        if (sesiAktif.role === 'BENDAHARA') {
+            // Bendahara HANYA bisa PB. Sembunyikan tombol lain, lebarkan tombol PB jadi 1 kolom penuh
+            btnSetuju.style.display = 'none'; btnRevisi.style.display = 'none'; btnTolak.style.display = 'none';
+            btnPb.style.display = 'flex';
+            document.getElementById('gridTombolAksi').className = "grid grid-cols-1 gap-2 mb-2";
+        } else if (sesiAktif.role === 'VERIFIKATOR') {
+            // Verifikator HANYA bisa Setuju/Tolak/Revisi (3 tombol)
+            btnSetuju.style.display = 'flex'; btnRevisi.style.display = 'flex'; btnTolak.style.display = 'flex';
+            btnPb.style.display = 'none'; 
+            document.getElementById('gridTombolAksi').className = "grid grid-cols-3 gap-2 mb-2";
+        } else {
+            // SUPER_ADMIN bisa semuanya (4 tombol)
+            btnSetuju.style.display = 'flex'; btnRevisi.style.display = 'flex'; btnTolak.style.display = 'flex';
+            btnPb.style.display = 'flex'; 
+            document.getElementById('gridTombolAksi').className = "grid grid-cols-4 gap-2 mb-2";
+        }
+    }
+
+    let cleanPhone = String(item.wa || '').replace(/[^0-9]/g, ''); if (cleanPhone.startsWith('0')) { cleanPhone = '62' + cleanPhone.slice(1); } else if (cleanPhone.startsWith('8')) { cleanPhone = '62' + cleanPhone; }        
+    let waText = `Yth. PPTK,\nUpdate SPJ (NPD: ${item.npd}):\n*Status: ${item.status}*\n`; if(item.status === 'REVISI' || item.status === 'DITOLAK') waText += `Catatan:\n${String(item.catatanRevisi).replace(/<br>/g, '\n')}\n`;
+    const btnSendWa = document.getElementById('btnSendWa'); if (btnSendWa) btnSendWa.href = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(waText)}`;
+} else {
         document.getElementById('panelAksiVerifikator').classList.add('hidden'); 
         if(item.status === 'REVISI' || item.status === 'BELUM_DIPROSES') {
             document.getElementById('panelPptkRevisi').classList.remove('hidden');
