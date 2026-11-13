@@ -356,8 +356,8 @@ function kirimPengajuanSpjBaru(e) {
                     divSukses.innerHTML = `<div class="text-5xl text-emerald-500 mb-2"><i class="fa-solid fa-circle-check"></i></div><h3 class="text-lg font-bold text-slate-800">Perbaikan Data Berhasil!</h3><button onclick="closeModal('modalNewSpj');" class="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md">Tutup</button>`;
                     document.getElementById('formNewSpj').parentElement.appendChild(divSukses);
                 } else {
-                    const formUrlGU = `https://docs.google.com/forms/d/e/1FAIpQLSfCvsVCiHDjMtDos9giKhhljCFlfXuWNbC5wgP_IXsmBGyqPw/viewform?usp=pp_url&entry.1525941067=${idSistem}`;
-                    const formUrlLS = `https://docs.google.com/forms/d/e/1FAIpQLSen-_GnKkn-ye7qZKdmV8wlGf7PnXnZ7yZHhDGo8aseu0RW_g/viewform?usp=pp_url&entry.1525941067=${idSistem}`;
+                    const formUrlGU = `https://docs.google.com/forms/d/e/1FAIpQLSfsYK2c5ucvUX7SOXkXLR3_WPIwJZ5h2sNMnHNWQlZF67G1ag/viewform?usp=pp_url&entry.1525941067=${idSistem}`;
+                    const formUrlLS = `https://docs.google.com/forms/d/e/1FAIpQLSfeB478TimX9oyEsyf3ibuVyrCBnw_hNs0A_XJ2LHbAwuuNSw/viewform?usp=pp_url&entry.1525941067=${idSistem}`;
 
                     const divSukses = document.createElement('div'); divSukses.id = "pesanSuksesDiv"; divSukses.className = "text-center py-4 space-y-4";
                     
@@ -634,8 +634,8 @@ function showToast(msg) { const toast = document.getElementById('toast'); docume
 function jadikanLink(textUrl, idItem, formType) {
     if (!textUrl || textUrl === "-" || textUrl === "") {
         let formUrl = "";
-        if (formType === 'GU') formUrl = `https://docs.google.com/forms/d/e/1FAIpQLSfCvsVCiHDjMtDos9giKhhljCFlfXuWNbC5wgP_IXsmBGyqPw/viewform?usp=pp_url&entry.1525941067=${idItem}`;
-        else if (formType === 'LS') formUrl = `https://docs.google.com/forms/d/e/1FAIpQLSen-_GnKkn-ye7qZKdmV8wlGf7PnXnZ7yZHhDGo8aseu0RW_g/viewform?usp=pp_url&entry.1525941067=${idItem}`;
+        if (formType === 'GU') formUrl = `https://docs.google.com/forms/d/e/1FAIpQLSfsYK2c5ucvUX7SOXkXLR3_WPIwJZ5h2sNMnHNWQlZF67G1ag/viewform?usp=pp_url&entry.1525941067=${idItem}`;
+        else if (formType === 'LS') formUrl = `https://docs.google.com/forms/d/e/1FAIpQLSfeB478TimX9oyEsyf3ibuVyrCBnw_hNs0A_XJ2LHbAwuuNSw/viewform?usp=pp_url&entry.1525941067=${idItem}`;
 
         return `<span class="text-slate-400 italic block mb-2">Belum dilampirkan</span>
                 <a href="${formUrl}" target="_blank" class="px-2 py-1 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded text-[10px] font-bold inline-block border border-blue-200"><i class="fa-solid fa-cloud-arrow-up me-1"></i> Upload Berkas</a>`;
@@ -849,7 +849,7 @@ function bukaModalVerifikasi(id) {
             document.getElementById('panelPptkRevisi').classList.remove('hidden');
             if(item.status === 'BELUM_DIPROSES') document.getElementById('teksRevisiPptk').innerText = "Anda masih dapat mengubah data teks atau mengunggah ulang berkas.";
             if(item.status === 'REVISI') document.getElementById('teksRevisiPptk').innerHTML = "Catatan Verifikator: <br>" + String(item.catatanRevisi || "-");
-            document.getElementById('btnUploadRevisi').href = `https://docs.google.com/forms/d/e/1FAIpQLScJt4ZSHFLsPdP8FO06i3LXuZVe3xw8q_m9T5wquH6dUGynDQ/viewform?usp=pp_url&entry.1525941067=${item.id}`;
+            document.getElementById('btnUploadRevisi').href = `https://docs.google.com/forms/d/e/1FAIpQLSfFAommHUUMIQXhq16CtjtIspZqiYc0_eCAoqvNFN3f3vpShg/viewform?usp=pp_url&entry.1525941067=${item.id}`;
             let existingEditBtnPptk = document.getElementById('btnEditDataPptk'); if(existingEditBtnPptk) existingEditBtnPptk.remove();
             const editBtnPptkHtml = `<button id="btnEditDataPptk" onclick="bukaFormEdit()" class="w-full mt-2 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded font-bold text-xs shadow-sm transition-colors flex items-center justify-center gap-1.5"><i class="fa-solid fa-pen-to-square"></i> EDIT DATA TEKS</button>`;
             document.getElementById('panelPptkRevisi').insertAdjacentHTML('beforeend', editBtnPptkHtml);
