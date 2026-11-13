@@ -182,6 +182,8 @@ function tarikDataDariServer() {
             if(data.pagu) { window.CONFIG.PAGU_TAHUNAN = data.pagu.tahunan; window.CONFIG.PAGU_TRIWULAN = data.pagu.triwulan; }
             if(data.spj) spjData = data.spj.reverse(); 
             if(data.referensi) referensiData = data.referensi;
+            // TAMBAHKAN INI:
+            window.DATABASE_KONTRAK = data.kontrakLS || [];
             renderTabelSpj(); hitungAnggaran(); isiDropdownProgram();
             const tbAkun = document.getElementById('tabelAkunBody'); if(tbAkun && tbAkun.innerHTML !== '') renderTabelAkunAdmin();
         })
@@ -294,25 +296,63 @@ function setJenisTampilan(jenis) {
 
 function ubahLabelNpdKontrak() {
     const jenis = document.getElementById('inputJenisSurat').value; 
-    const labelNpd = document.getElementById('label-npd-kontrak'); 
-    const inputNpd = document.getElementById('inputNpd');
+    const boxBap = document.getElementById('box-pilih-bap');
+    const inputPilihBap = document.getElementById('inputPilihBap');
     
-    const labelUraian = document.getElementById('label-uraian');
-    const boxCv = document.getElementById('box-cv');
-    const boxTahap = document.getElementById('box-tahap');
-    
+    // Elemen yang akan di-Readonly jika LS
+    const arrInput = ['inputNpd', 'inputProgram', 'inputKegiatan', 'inputSubkegiatan', 'inputUraian', 'inputNominal'];
+
     if (jenis === 'LS') { 
-        if(labelNpd) labelNpd.innerText = 'Nomor Kontrak / SPK'; 
-        if(inputNpd) inputNpd.placeholder = 'Cth: 027/01/SPK/2026'; 
-        if(labelUraian) labelUraian.innerHTML = 'Nama Pekerjaan <span class="text-red-500">*</span>';
-        if(boxCv) boxCv.classList.remove('hidden');
-        if(boxTahap) boxTahap.classList.remove('hidden');
+        document.getElementById('label-npd-kontrak').innerText = 'Nomor Kontrak / SPK'; 
+        document.getElementById('box-cv').classList.remove('hidden');
+        document.getElementById('box-tahap').classList.remove('hidden');
+        
+        // Tampilkan kotak BAP & kunci manual input
+        if(boxBap) boxBap.classList.remove('hidden');
+        arrInput.forEach(id => { const el = document.getElementById(id); if(el) el.style.pointerEvents = 'none'; });
+        
+        // Isi isi dropdown BAP
+        if(inputPilihBap && window.DATABASE_KONTRAK) {
+            inputPilihBap.innerHTML = '<option value="" disabled selected>-- Pilih Kontrak BAP Anda --</option>';
+            // Hanya BAP milik PPTK yang sedang login
+            const bapMilikPptk = window.DATABASE_KONTRAK.filter(k => k.pptk === sesiAktif.namaLengkap);
+            bapMilikPptk.forEach(k => {
+                inputPilihBap.innerHTML += `<option value="${k.kodeSpj}">${k.noKontrak} - ${k.pelaksana}</option>`;
+            });
+        }
     } else { 
-        if(labelNpd) labelNpd.innerText = 'Nomor NPD'; 
-        if(inputNpd) inputNpd.placeholder = 'Cth: 001/NPD/2026'; 
-        if(labelUraian) labelUraian.innerHTML = 'Uraian / Deskripsi SPJ <span class="text-red-500">*</span>';
-        if(boxCv) boxCv.classList.add('hidden');
-        if(boxTahap) boxTahap.classList.add('hidden');
+        document.getElementById('label-npd-kontrak').innerText = 'Nomor NPD'; 
+        document.getElementById('inputNpd').placeholder = 'Cth: 001/NPD/2026';
+        document.getElementById('box-cv').classList.add('hidden');
+        document.getElementById('box-tahap').classList.add('hidden');
+        
+        // Sembunyikan kotak BAP & buka manual input
+        if(boxBap) boxBap.classList.add('hidden');
+        arrInput.forEach(id => { const el = document.getElementById(id); if(el) { el.style.pointerEvents = 'auto'; el.value = ""; }});
+    }
+}
+
+function autoFillDariBap() {
+    const idBap = document.getElementById('inputPilihBap').value;
+    const dataBap = window.DATABASE_KONTRAK.find(k => k.kodeSpj === idBap);
+    
+    if (dataBap) {
+        // Isi Form SPJ secara otomatis
+        document.getElementById('inputNpd').value = dataBap.noKontrak;
+        document.getElementById('inputUraian').value = dataBap.uraian;
+        document.getElementById('inputNominal').value = dataBap.nilaiBayar;
+        document.getElementById('inputCv').value = dataBap.pelaksana;
+        document.getElementById('inputTahap').value = dataBap.tahapBayar;
+
+        // Paksa isi Dropdown Program & Kegiatan (karena pointerEvents dinonaktifkan)
+        const progEl = document.getElementById('inputProgram');
+        progEl.innerHTML = `<option value="${dataBap.program || 'Diambil dari BAP'}" selected>${dataBap.program || 'Diambil dari BAP'}</option>`;
+        
+        const kegEl = document.getElementById('inputKegiatan');
+        kegEl.innerHTML = `<option value="${dataBap.kegiatan}" selected>${dataBap.kegiatan}</option>`;
+        
+        const subkegEl = document.getElementById('inputSubkegiatan');
+        subkegEl.innerHTML = `<option value="${dataBap.subKegiatan}" selected>${dataBap.subKegiatan}</option>`;
     }
 }
 
