@@ -88,8 +88,13 @@
         <div>
             <label class="block text-[10px] font-bold text-slate-600 mb-1">Tahap Pembayaran <span class="text-red-500">*</span></label>
             <select id="bapTahap" required class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-xs bg-white text-slate-700">
-                <option value="UM">Uang Muka (UM)</option><option value="Termin I (100%)">Termin I (100%)</option><option value="Termin 100%">Termin 100%</option>
-            </select>
+    <option value="" disabled selected>-- Pilih Tahap Pembayaran --</option>
+    <option value="UM">UM (Uang Muka Fisik)</option>
+    <option value="UM JASA">UM JASA (Uang Muka Konsultansi)</option>
+    <option value="100">100 (Termin 100% Fisik)</option>
+    <option value="100 JASA">100 JASA (Termin 100% Konsultansi)</option>
+    <option value="I (100)">I (100) (Termin 1)</option>
+</select>
         </div>
         <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Nilai Bayar Tahap Ini (Rp) <span class="text-red-500">*</span></label><input type="number" id="bapNilaiBayar" required class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-xs font-mono text-slate-700"></div>
         <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Nomor BAP (Cetak lalu input ke sini)</label><input type="text" id="bapNoBap" placeholder="Cth: 027/BAP/2026" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-xs text-slate-700"></div>
