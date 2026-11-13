@@ -329,19 +329,34 @@ function kirimPengajuanSpjBaru(e) {
     const idSistem = isEditMode ? editIdTarget : generatedId; 
     const actionType = isEditMode ? 'update_data_teks' : 'create';
 
+    const jenisSuratVal = document.getElementById('inputJenisSurat').value;
     const inputCv = document.getElementById('inputCv');
     const inputTahap = document.getElementById('inputTahap');
+    
+    // Ambil input baru untuk BAP (Jika LS)
+    const inputBank = document.getElementById('inputBank');
+    const inputNoRek = document.getElementById('inputNoRek');
+    const inputDirektur = document.getElementById('inputDirektur');
+    const inputNpwp = document.getElementById('inputNpwp');
+    const inputTglKontrak = document.getElementById('inputTglKontrak');
 
     const payload = {
         action: actionType, id: idSistem, createdAt: rawDate, username: sesiAktif.namaLengkap,
-        jenisSurat: document.getElementById('inputJenisSurat').value, pptk: document.getElementById('inputPptk').value, emailPptk: document.getElementById('inputEmail').value, 
+        jenisSurat: jenisSuratVal, pptk: document.getElementById('inputPptk').value, emailPptk: document.getElementById('inputEmail').value, 
         unitKerja: document.getElementById('inputUnitKerja').value, npd: document.getElementById('inputNpd').value, 
         program: document.getElementById('inputProgram').value, kegiatan: document.getElementById('inputKegiatan').value, 
         subKegiatan: document.getElementById('inputSubkegiatan').value, nominal: document.getElementById('inputNominal').value, 
         uraian: document.getElementById('inputUraian').value, wa: document.getElementById('inputWa').value,
         namaCv: inputCv ? inputCv.value : "",
         tahap: inputTahap ? inputTahap.value : "",
-        status: 'BELUM_DIPROSES'
+        status: 'BELUM_DIPROSES',
+        
+        // Data Tambahan untuk DB_PENYEDIA dan DB_KONTRAK_LS
+        bank: inputBank ? inputBank.value : "",
+        noRek: inputNoRek ? inputNoRek.value : "",
+        direktur: inputDirektur ? inputDirektur.value : "",
+        npwp: inputNpwp ? inputNpwp.value : "",
+        tglKontrak: inputTglKontrak ? inputTglKontrak.value : ""
     };
 
     fetch(CONFIG.APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) })
