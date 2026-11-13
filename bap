@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cetak BAP LS (Beta) - ERP SPJ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: { sipd: { navy: '#101D38', emerald: '#059669', slate: '#1E293B' } } } } }
+    </script>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800">
+    
+    <!-- HEADER -->
+    <header class="bg-sipd-navy text-white px-6 py-4 shadow-md flex items-center justify-between sticky top-0 z-50">
+        <div class="flex items-center gap-3">
+            <button onclick="window.location.href='index.html'" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"><i class="fa-solid fa-arrow-left"></i></button>
+            <div>
+                <h1 class="font-bold text-lg leading-tight">Modul Cetak BAP (Beta)</h1>
+                <p class="text-[10px] text-slate-300 font-medium tracking-wide">Sistem ERP SPJ GU & LS</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <select id="jenisBapSelector" class="bg-white/10 border border-white/20 rounded px-3 py-1.5 text-sm text-white outline-none focus:border-sipd-emerald cursor-pointer font-bold">
+                <option value="UM" class="text-slate-800">BAP Uang Muka (Fisik)</option>
+                <option value="UM_JASA" class="text-slate-800">BAP Uang Muka (Jasa Konsultansi)</option>
+                <option value="TERMIN_100" class="text-slate-800">BAP Termin 100% (Fisik)</option>
+                <option value="TERMIN_100_JASA" class="text-slate-800">BAP Termin 100% (Jasa Konsultansi)</option>
+            </select>
+        </div>
+    </header>
+
+    <!-- KONTEN UTAMA -->
+    <main class="p-6 max-w-7xl mx-auto">
+        
+        <!-- PANEL PENCARIAN & DAFTAR KONTRAK -->
+        <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden mb-6">
+            <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h2 class="font-bold text-sipd-slate"><i class="fa-solid fa-file-contract text-blue-500 me-2"></i>Daftar Kontrak LS Siap Cetak</h2>
+                <div class="relative w-72">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                    <input type="text" id="cariKontrak" placeholder="Cari Nama CV atau No Kontrak..." class="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-sipd-emerald outline-none">
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto max-h-[400px]">
+                <table class="w-full text-left text-sm whitespace-nowrap">
+                    <thead class="bg-slate-100 text-slate-600 font-bold uppercase text-[10px] sticky top-0 shadow-sm">
+                        <tr>
+                            <th class="py-3 px-4">No Kontrak</th>
+                            <th class="py-3 px-4">Penyedia / CV</th>
+                            <th class="py-3 px-4">Nilai Tagihan</th>
+                            <th class="py-3 px-4">Tahap</th>
+                            <th class="py-3 px-4 text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelKontrakBody" class="divide-y divide-slate-100">
+                        <tr><td colspan="5" class="text-center py-8 text-slate-400 font-medium">Sedang memuat data dari database...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="config.js?v=54"></script>
+    <!-- Nanti kita akan buat bap.js, untuk saat ini dibiarkan kosong agar error tidak muncul -->
+    <script>
+        // Logika javascript akan menyusul setelah struktur database dikonfirmasi
+    </script>
+</body>
+</html>
