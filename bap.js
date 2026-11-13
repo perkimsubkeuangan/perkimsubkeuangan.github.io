@@ -6,7 +6,8 @@ let roleAktif = sessionStorage.getItem('sesiAktif_role');
 let namaPptkAktif = sessionStorage.getItem('sesiAktif_namaLengkap');
 
 document.addEventListener('DOMContentLoaded', () => {
-    if (roleAktif === 'PPTK') { const btn = document.getElementById('btnTambahBap'); if(btn) btn.classList.remove('hidden'); }
+    const btn = document.getElementById('btnTambahBap'); 
+    if(btn) btn.classList.remove('hidden'); // Menghapus syarat if (roleAktif === 'PPTK')
     ambilDataBAP();
 });
 
