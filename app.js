@@ -449,6 +449,29 @@ function terapkanFilterDanSort() {
 
 function renderTabelSpj() {
     const tbody = document.getElementById('spjTableBody'); tbody.innerHTML = '';
+    // --- TAMBAHAN LOGIKA ACTIONABLE COUNTERS ---
+let totalMenunggu = 0;
+let totalRevisi = 0;
+let totalSiapPb = 0;
+
+spjData.forEach(item => {
+    // Jika Verifikator/Admin/Bendahara/KPA yang login, hitung semua dokumen.
+    // Jika PPTK yang login, hitung hanya dokumen miliknya sendiri.
+    if (sesiAktif.role === 'PPTK' && item.pptk !== sesiAktif.namaLengkap) return;
+
+    if (item.status === 'BELUM_DIPROSES') totalMenunggu++;
+    if (item.status === 'REVISI') totalRevisi++;
+    if (item.status === 'DISETUJUI') totalSiapPb++; // Sudah disetujui tapi belum PB
+});
+
+const elMenunggu = document.getElementById('countMenunggu');
+const elRevisi = document.getElementById('countRevisi');
+const elSiapPb = document.getElementById('countSiapPb');
+
+if(elMenunggu) elMenunggu.innerText = totalMenunggu;
+if(elRevisi) elRevisi.innerText = totalRevisi;
+if(elSiapPb) elSiapPb.innerText = totalSiapPb;
+// ------------------------------------------
     
     let filteredData = [...spjData]; 
     if (filterJenis !== 'ALL') {
