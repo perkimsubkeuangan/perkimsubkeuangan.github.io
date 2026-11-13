@@ -492,28 +492,24 @@ function terapkanFilterDanSort() {
 function renderTabelSpj() {
     const tbody = document.getElementById('spjTableBody'); tbody.innerHTML = '';
     // --- TAMBAHAN LOGIKA ACTIONABLE COUNTERS ---
-let totalMenunggu = 0;
-let totalRevisi = 0;
-let totalSiapPb = 0;
+    let totalMenunggu = 0;
+    let totalRevisi = 0;
+    let totalSiapPb = 0;
 
-spjData.forEach(item => {
-    // Jika Verifikator/Admin/Bendahara/KPA yang login, hitung semua dokumen.
-    // Jika PPTK yang login, hitung hanya dokumen miliknya sendiri.
-    if (sesiAktif.role === 'PPTK' && item.pptk !== sesiAktif.namaLengkap) return;
+    spjData.forEach(item => {
+        if (sesiAktif.role === 'PPTK' && item.pptk !== sesiAktif.namaLengkap) return;
+        if (item.status === 'BELUM_DIPROSES') totalMenunggu++;
+        if (item.status === 'REVISI') totalRevisi++;
+        if (item.status === 'DISETUJUI') totalSiapPb++; 
+    });
 
-    if (item.status === 'BELUM_DIPROSES') totalMenunggu++;
-    if (item.status === 'REVISI') totalRevisi++;
-    if (item.status === 'DISETUJUI') totalSiapPb++; // Sudah disetujui tapi belum PB
-});
+    const elMenunggu = document.getElementById('countMenunggu');
+    const elRevisi = document.getElementById('countRevisi');
+    const elSiapPb = document.getElementById('countSiapPb');
 
-const elMenunggu = document.getElementById('countMenunggu');
-const elRevisi = document.getElementById('countRevisi');
-const elSiapPb = document.getElementById('countSiapPb');
-
-if(elMenunggu) elMenunggu.innerText = totalMenunggu;
-if(elRevisi) elRevisi.innerText = totalRevisi;
-if(elSiapPb) elSiapPb.innerText = totalSiapPb;
-// ------------------------------------------
+    if(elMenunggu) elMenunggu.innerText = totalMenunggu;
+    if(elRevisi) elRevisi.innerText = totalRevisi;
+    if(elSiapPb) elSiapPb.innerText = totalSiapPb;
     
     let filteredData = [...spjData]; 
     if (filterJenis !== 'ALL') {
@@ -531,7 +527,6 @@ if(elSiapPb) elSiapPb.innerText = totalSiapPb;
         let valB = Number(b.nominal) || 0;
         let dateA = new Date(a.createdAt);
         let dateB = new Date(b.createdAt);
-
         if (sortType === 'NOMINAL_DESC') return valB - valA;
         if (sortType === 'NOMINAL_ASC') return valA - valB;
         if (sortType === 'TGL_ASC') return dateA - dateB;
@@ -548,20 +543,17 @@ if(elSiapPb) elSiapPb.innerText = totalSiapPb;
     let colSpanNum = filterJenis === 'ALL' ? 12 : (filterJenis === 'LS' ? 10 : 9);
     if (dataHalamanIni.length === 0) { tbody.innerHTML = `<tr><td colspan="${colSpanNum}" class="text-center py-10 text-slate-500 font-medium">Belum ada data SPJ untuk ditampilkan.</td></tr>`; return; }
 
-   dataHalamanIni.forEach(item => {
+    dataHalamanIni.forEach(item => {
         let badge = `<span class="px-2.5 py-1 rounded-full border border-slate-200 font-bold text-slate-600 bg-slate-100 text-[10px] tracking-wide">MENUNGGU</span>`;
         if(item.status === 'DISETUJUI') badge = `<span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200 text-[10px] tracking-wide">DISETUJUI</span>`;
         if(item.status === 'REVISI') badge = `<span class="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-bold border border-amber-200 text-[10px] tracking-wide">REVISI</span>`;
         if(item.status === 'DITOLAK') badge = `<span class="px-2.5 py-1 rounded-full bg-red-50 text-red-700 font-bold border border-red-200 text-[10px] tracking-wide">DITOLAK</span>`;
         if(item.status === 'SUDAH DIPINDAHBUKUKAN') badge = `<span class="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-200 text-[10px] tracking-wide">SELESAI PB</span>`;
         
-        // --- TAMBAHKAN 3 BARIS INI KEMBALI ---
         let actionBtnText = sesiAktif.role === 'PPTK' ? '<i class="fa-solid fa-folder-open"></i> DETAIL' : '<i class="fa-solid fa-clipboard-check"></i> VERIFIKASI';
         let actionBtnColor = sesiAktif.role === 'PPTK' ? 'bg-slate-700 hover:bg-slate-800' : 'bg-sipd-navy hover:bg-slate-800';
         if (sesiAktif.role === 'BENDAHARA') { actionBtnText = '<i class="fa-solid fa-money-bill-transfer"></i> EKSEKUSI PB'; actionBtnColor = 'bg-blue-600 hover:bg-blue-700'; }
-        // -------------------------------------
 
-        let jenisSurat = String(item.jenisSurat || 'GU');        
         let jenisSurat = String(item.jenisSurat || 'GU');
         let jenisBadge = jenisSurat === 'LS' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200';
         let tdJenisHtml = filterJenis === 'ALL' ? `<td class="py-4 px-4 text-xs align-top text-center whitespace-nowrap"><span class="px-2 py-1 rounded-md border font-bold text-[10px] ${jenisBadge}">${jenisSurat}</span></td>` : ``;
