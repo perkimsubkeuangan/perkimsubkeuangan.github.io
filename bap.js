@@ -215,3 +215,22 @@ function updateSubkegiatanBap() {
         });
     }
 }
+
+function generateNomorBap() {
+    // Menghitung jumlah data BAP di database untuk nomor urut selanjutnya
+    const urutanKe = dataKontrakTersimpan.length + 1; 
+    
+    // Mengubah angka "1" menjadi "00001"
+    const urutanFormat = String(urutanKe).padStart(5, '0');
+    const tahun = new Date().getFullYear(); 
+    
+    // Format otomatis dinas
+    const otomatisNoBap = `B/BAP-LS/${urutanFormat}/409.13.1/${tahun}`;
+    
+    const inputNomor = document.getElementById('bapNomor'); // Sesuaikan dengan ID form Anda
+    if (inputNomor) {
+        inputNomor.value = otomatisNoBap;
+        inputNomor.readOnly = true; // Kunci agar tidak diketik manual
+        inputNomor.classList.add('bg-slate-100', 'cursor-not-allowed', 'text-slate-500'); 
+    }
+}
