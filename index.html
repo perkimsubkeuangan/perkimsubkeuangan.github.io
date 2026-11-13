@@ -177,6 +177,35 @@
                         <div class="text-xl font-bold text-sipd-slate tracking-tight" id="totalCairVal">Rp 0</div>
                     </div>
                 </div>
+    <!-- ACTIONABLE COUNTERS -->
+<div class="grid grid-cols-3 gap-4 mb-6">
+    <!-- Kotak Menunggu Verifikasi -->
+    <div class="bg-slate-50 rounded-lg border border-slate-200 p-4 shadow-sm flex items-center justify-between transition-colors hover:bg-slate-100">
+        <div>
+            <h3 class="text-[10px] text-slate-500 font-bold mb-0.5 uppercase tracking-wider">Antrean Baru</h3>
+            <div class="text-sm font-bold text-slate-700">Perlu Verifikasi</div>
+        </div>
+        <div class="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center text-slate-700 font-black text-lg border border-slate-300" id="countMenunggu">0</div>
+    </div>
+    
+    <!-- Kotak Butuh Perbaikan / Revisi -->
+    <div class="bg-amber-50 rounded-lg border border-amber-200 p-4 shadow-sm flex items-center justify-between transition-colors hover:bg-amber-100">
+        <div>
+            <h3 class="text-[10px] text-amber-600 font-bold mb-0.5 uppercase tracking-wider">Dikembalikan</h3>
+            <div class="text-sm font-bold text-amber-800">Perlu Revisi</div>
+        </div>
+        <div class="w-10 h-10 bg-amber-200 rounded-full flex items-center justify-center text-amber-800 font-black text-lg border border-amber-300" id="countRevisi">0</div>
+    </div>
+
+    <!-- Kotak Siap Pindah Buku -->
+    <div class="bg-emerald-50 rounded-lg border border-emerald-200 p-4 shadow-sm flex items-center justify-between transition-colors hover:bg-emerald-100">
+        <div>
+            <h3 class="text-[10px] text-emerald-600 font-bold mb-0.5 uppercase tracking-wider">Siap Cair</h3>
+            <div class="text-sm font-bold text-emerald-800">Tunggu Transfer PB</div>
+        </div>
+        <div class="w-10 h-10 bg-emerald-200 rounded-full flex items-center justify-center text-emerald-800 font-black text-lg border border-emerald-300" id="countSiapPb">0</div>
+    </div>
+</div>
 
                 <section class="bg-white rounded-lg shadow-sm border border-slate-200 p-4 relative z-0">
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 px-1 gap-3">
