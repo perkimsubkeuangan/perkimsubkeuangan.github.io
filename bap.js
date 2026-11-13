@@ -176,3 +176,42 @@ function cetakBapBerdasarkanJenis(kodeSpj) {
     printWindow.document.write(`<html><head><title>Cetak BAP</title><style>@media print { @page { margin: 20mm; } } body { font-family: 'Times New Roman', serif; font-size: 14px; padding: 15px; }</style></head><body>${htmlBapKonten}<script>setTimeout(function(){ window.print(); }, 800);<\/script></body></html>`);
     printWindow.document.close();
 }
+
+// Tambahkan 3 fungsi ini di file bap.js
+function populasiProgramBap() {
+    const progSelect = document.getElementById('bapProgram');
+    if(!progSelect) return;
+    progSelect.innerHTML = '<option value="" disabled selected>-- Pilih Program --</option>';
+    for (let prog in referensiDataBap) {
+        progSelect.innerHTML += `<option value="${prog}">${prog}</option>`;
+    }
+}
+
+function updateKegiatanBap() {
+    const prog = document.getElementById('bapProgram').value;
+    const kegSelect = document.getElementById('bapKegiatan');
+    const subSelect = document.getElementById('bapSubKegiatan');
+    
+    kegSelect.innerHTML = '<option value="" disabled selected>-- Pilih Kegiatan --</option>';
+    subSelect.innerHTML = '<option value="" disabled selected>-- Pilih Subkegiatan --</option>';
+    
+    if (prog && referensiDataBap[prog]) {
+        for (let keg in referensiDataBap[prog]) {
+            kegSelect.innerHTML += `<option value="${keg}">${keg}</option>`;
+        }
+    }
+}
+
+function updateSubkegiatanBap() {
+    const prog = document.getElementById('bapProgram').value;
+    const keg = document.getElementById('bapKegiatan').value;
+    const subSelect = document.getElementById('bapSubKegiatan');
+    
+    subSelect.innerHTML = '<option value="" disabled selected>-- Pilih Subkegiatan --</option>';
+    
+    if (prog && keg && referensiDataBap[prog][keg]) {
+        referensiDataBap[prog][keg].forEach(sub => {
+            subSelect.innerHTML += `<option value="${sub}">${sub}</option>`;
+        });
+    }
+}
