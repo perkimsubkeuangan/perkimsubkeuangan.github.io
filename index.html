@@ -109,22 +109,22 @@
                 <div class="px-2 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Penatausahaan</div>
                 <ul class="space-y-1 mb-8">
                     <li><button onclick="bukaFormSpjBaru()" class="w-full flex items-center justify-between px-3 py-2.5 text-slate-600 hover:bg-sipd-navy hover:text-white rounded text-sm font-medium transition-colors border border-transparent group"><div class="flex items-center gap-3"><i class="fa-solid fa-file-circle-plus w-5 text-center text-sipd-emerald group-hover:text-emerald-400"></i> Buat SPJ Baru</div></button></li>
+                    
+                    <!-- TOMBOL BAP DIPINDAHKAN KE SINI AGAR PPTK BISA KLIK -->
+                    <li>
+                        <a href="bap.html" target="_blank" class="w-full flex items-center justify-between px-3 py-2.5 text-white bg-blue-600 hover:bg-blue-700 rounded text-sm font-bold transition-colors shadow-sm relative overflow-hidden group">
+                            <div class="flex items-center gap-3 relative z-10"><i class="fa-solid fa-print w-5 text-center text-white"></i> Modul BAP LS <span class="text-[9px] bg-red-500 px-1.5 py-0.5 rounded ml-1 font-black">BETA</span></div>
+                            <div class="absolute inset-0 bg-gradient-to-r from-blue-700 to-transparent translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-300"></div>
+                        </a>
+                    </li>
                 </ul>
 
                 <div id="sidebarSuperAdmin" class="hidden flex-col">
-    <div class="px-2 mb-2 text-[10px] font-bold text-amber-500 uppercase tracking-widest border-t border-slate-100 pt-6">Khusus Admin</div>
-    <ul class="space-y-2">
-        <li><button onclick="bukaModalSuperAdmin()" class="w-full flex items-center justify-between px-3 py-2.5 text-slate-700 bg-amber-50 hover:bg-amber-100 hover:text-amber-800 rounded text-sm font-bold transition-colors border border-amber-200/50"><div class="flex items-center gap-3"><i class="fa-solid fa-gears w-5 text-center text-amber-500"></i> Pengaturan Master</div></button></li>
-        
-        <!-- TOMBOL BAP BETA -->
-        <li>
-            <a href="bap.html" target="_blank" class="w-full flex items-center justify-between px-3 py-2.5 text-white bg-blue-600 hover:bg-blue-700 rounded text-sm font-bold transition-colors shadow-sm relative overflow-hidden group">
-                <div class="flex items-center gap-3 relative z-10"><i class="fa-solid fa-print w-5 text-center text-white"></i> Cetak BAP LS <span class="text-[9px] bg-red-500 px-1.5 py-0.5 rounded ml-1 font-black">BETA</span></div>
-                <div class="absolute inset-0 bg-gradient-to-r from-blue-700 to-transparent translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-300"></div>
-            </a>
-        </li>
-    </ul>
-</div>
+                    <div class="px-2 mb-2 text-[10px] font-bold text-amber-500 uppercase tracking-widest border-t border-slate-100 pt-6">Khusus Admin</div>
+                    <ul class="space-y-2">
+                        <li><button onclick="bukaModalSuperAdmin()" class="w-full flex items-center justify-between px-3 py-2.5 text-slate-700 bg-amber-50 hover:bg-amber-100 hover:text-amber-800 rounded text-sm font-bold transition-colors border border-amber-200/50"><div class="flex items-center gap-3"><i class="fa-solid fa-gears w-5 text-center text-amber-500"></i> Pengaturan Master</div></button></li>
+                    </ul>
+                </div>
             </div>
             
             <div class="p-4 border-t border-slate-100 flex-shrink-0">
