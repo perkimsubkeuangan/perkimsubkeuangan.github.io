@@ -6,16 +6,25 @@ let roleAktif = sessionStorage.getItem('sesiAktif_role');
 let namaPptkAktif = sessionStorage.getItem('sesiAktif_namaLengkap');
 
 document.addEventListener('DOMContentLoaded', () => {
-    const btn = document.getElementById('btnTambahBap'); 
-    if(btn) btn.classList.remove('hidden'); // Menghapus syarat if (roleAktif === 'PPTK')
+    const inputCari = document.getElementById('cariKontrak');
+    if (inputCari) {
+        inputCari.addEventListener('keyup', renderTabelKontrak);
+    }
     ambilDataBAP();
 });
 
-function formatRupiah(angka) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(angka || 0); }
-function formatTanggal(dateStr) { if(!dateStr) return '-'; if(dateStr.includes('T')) return dateStr.split('T')[0]; return dateStr; }
+function formatRupiah(angka) { 
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(angka || 0); 
+}
+function formatTanggal(dateStr) { 
+    if(!dateStr) return '-'; 
+    if(String(dateStr).includes('T')) return String(dateStr).split('T')[0]; 
+    return dateStr; 
+}
 
 function ambilDataBAP() {
     const tbody = document.getElementById('tabelKontrakBody');
+    const btnTambah = document.getElementById('btnTambahBap');
     tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400 font-medium"><i class="fa-solid fa-spinner fa-spin me-2 text-blue-500"></i> Memuat data dari server...</td></tr>`;
 
     fetch(CONFIG.APPS_SCRIPT_URL)
@@ -25,26 +34,51 @@ function ambilDataBAP() {
                 dataKontrakTersimpan = data.kontrakLS || [];
                 dataPenyediaTersimpan = data.penyediaCV || [];
                 referensiDataBap = data.referensi || {};
+
+                // Langsung isi dropdown Program begitu data server tiba
+                isiDropdownProgramBap();
                 renderTabelKontrak();
+
+                // Aktifkan tombol Input Data BAP setelah referensi siap
+                if (btnTambah) {
+                    btnTambah.disabled = false;
+                    btnTambah.classList.remove('bg-slate-400', 'cursor-not-allowed', 'hidden');
+                    btnTambah.classList.add('bg-emerald-600', 'hover:bg-emerald-700', 'cursor-pointer');
+                    btnTambah.innerHTML = `<i class="fa-solid fa-plus"></i> Input Data BAP`;
+                }
+            } else {
+                alert("Gagal memuat data server: " + data.message);
             }
         })
-        .catch(e => console.error(e));
+        .catch(e => {
+            console.error(e);
+            if (btnTambah) {
+                btnTambah.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Gagal Koneksi`;
+            }
+        });
 }
 
 function renderTabelKontrak() {
-    const tbody = document.getElementById('tabelKontrakBody'); tbody.innerHTML = '';
-    searchQuery = document.getElementById('cariKontrak').value.toLowerCase();
+    const tbody = document.getElementById('tabelKontrakBody'); 
+    tbody.innerHTML = '';
+    const inputCari = document.getElementById('cariKontrak');
+    searchQuery = inputCari ? inputCari.value.toLowerCase() : "";
 
     let filteredData = dataKontrakTersimpan.filter(item => {
         if (roleAktif === 'PPTK' && String(item.pptk).trim() !== String(namaPptkAktif).trim()) return false;
         return `${item.pelaksana} ${item.noKontrak} ${item.uraian}`.toLowerCase().includes(searchQuery);
     });
 
-    if (filteredData.length === 0) { tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400 font-medium">Data Kontrak belum tersedia.</td></tr>`; return; }
+    if (filteredData.length === 0) { 
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400 font-medium">Data Kontrak belum tersedia.</td></tr>`; 
+        return; 
+    }
 
     filteredData.forEach((kontrak) => {
         const profilCV = dataPenyediaTersimpan.find(cv => String(cv.pelaksana).trim().toUpperCase() === String(kontrak.pelaksana).trim().toUpperCase());
-        const adaDataCV = profilCV ? `<span class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold ms-2">CV Terdaftar</span>` : `<span class="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold ms-2">Bank Kosong</span>`;
+        const adaDataCV = profilCV 
+            ? `<span class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold ms-2">CV Terdaftar</span>` 
+            : `<span class="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold ms-2">Bank Kosong</span>`;
 
         tbody.innerHTML += `
             <tr class="hover:bg-blue-50/30 border-b border-slate-100">
@@ -57,8 +91,6 @@ function renderTabelKontrak() {
     });
 }
 
-document.getElementById('cariKontrak').addEventListener('keyup', renderTabelKontrak);
-
 // --- LOGIKA FORM BAP ---
 function bukaFormBap() {
     document.getElementById('formBap').reset();
@@ -67,18 +99,47 @@ function bukaFormBap() {
 }
 
 function isiDropdownProgramBap() {
-    const sel = document.getElementById('bapProgram'); sel.innerHTML = '<option value="" disabled selected>-- Pilih Program --</option>';
-    for (let prog in referensiDataBap) sel.innerHTML += `<option value="${prog}">${prog}</option>`;
+    const progSelect = document.getElementById('bapProgram');
+    const kegSelect = document.getElementById('bapKegiatan');
+    const subSelect = document.getElementById('bapSubKegiatan');
+    if (!progSelect) return;
+
+    progSelect.innerHTML = '<option value="" disabled selected>-- Pilih Program --</option>';
+    if (kegSelect) kegSelect.innerHTML = '<option value="" disabled selected>-- Pilih Program Terlebih Dahulu --</option>';
+    if (subSelect) subSelect.innerHTML = '<option value="" disabled selected>-- Pilih Kegiatan Terlebih Dahulu --</option>';
+
+    for (let prog in referensiDataBap) {
+        progSelect.innerHTML += `<option value="${prog}">${prog}</option>`;
+    }
 }
+
 function updateKegiatanBap() {
-    const p = document.getElementById('bapProgram').value; const sel = document.getElementById('bapKegiatan'); document.getElementById('bapSubKegiatan').innerHTML = '';
-    sel.innerHTML = '<option value="" disabled selected>-- Pilih Kegiatan --</option>';
-    if(p && referensiDataBap[p]) for (let keg in referensiDataBap[p]) sel.innerHTML += `<option value="${keg}">${keg}</option>`;
+    const prog = document.getElementById('bapProgram').value;
+    const kegSelect = document.getElementById('bapKegiatan');
+    const subSelect = document.getElementById('bapSubKegiatan');
+    
+    kegSelect.innerHTML = '<option value="" disabled selected>-- Pilih Kegiatan --</option>';
+    subSelect.innerHTML = '<option value="" disabled selected>-- Pilih Kegiatan Terlebih Dahulu --</option>';
+    
+    if (prog && referensiDataBap[prog]) {
+        for (let keg in referensiDataBap[prog]) {
+            kegSelect.innerHTML += `<option value="${keg}">${keg}</option>`;
+        }
+    }
 }
+
 function updateSubkegiatanBap() {
-    const p = document.getElementById('bapProgram').value; const k = document.getElementById('bapKegiatan').value; const sel = document.getElementById('bapSubKegiatan');
-    sel.innerHTML = '<option value="" disabled selected>-- Pilih Subkegiatan --</option>';
-    if(p && k && referensiDataBap[p][k]) referensiDataBap[p][k].forEach(sub => sel.innerHTML += `<option value="${sub}">${sub}</option>`);
+    const prog = document.getElementById('bapProgram').value;
+    const keg = document.getElementById('bapKegiatan').value;
+    const subSelect = document.getElementById('bapSubKegiatan');
+    
+    subSelect.innerHTML = '<option value="" disabled selected>-- Pilih Sub Kegiatan --</option>';
+    
+    if (prog && keg && referensiDataBap[prog] && referensiDataBap[prog][keg]) {
+        referensiDataBap[prog][keg].forEach(sub => {
+            subSelect.innerHTML += `<option value="${sub}">${sub}</option>`;
+        });
+    }
 }
 
 // Auto-fill CV jika sudah pernah didaftarkan
@@ -95,9 +156,10 @@ function cekCvOtomatis() {
 
 function simpanBapKeServer(e) {
     e.preventDefault();
-    const btn = document.getElementById('btnSubmitBap'); btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Menyimpan...'; btn.disabled = true;
+    const btn = document.getElementById('btnSubmitBap'); 
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Menyimpan...'; 
+    btn.disabled = true;
 
-    // Generate ID BAP
     const now = new Date();
     const idBapBaru = `BAP-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
 
@@ -105,6 +167,7 @@ function simpanBapKeServer(e) {
         action: 'create_bap',
         kodeSpj: idBapBaru,
         pptk: namaPptkAktif,
+        program: document.getElementById('bapProgram').value,
         kegiatan: document.getElementById('bapKegiatan').value,
         subKegiatan: document.getElementById('bapSubKegiatan').value,
         uraian: document.getElementById('bapUraian').value,
@@ -175,62 +238,4 @@ function cetakBapBerdasarkanJenis(kodeSpj) {
     const printWindow = window.open('', '_blank', 'width=800,height=900');
     printWindow.document.write(`<html><head><title>Cetak BAP</title><style>@media print { @page { margin: 20mm; } } body { font-family: 'Times New Roman', serif; font-size: 14px; padding: 15px; }</style></head><body>${htmlBapKonten}<script>setTimeout(function(){ window.print(); }, 800);<\/script></body></html>`);
     printWindow.document.close();
-}
-
-// Tambahkan 3 fungsi ini di file bap.js
-function populasiProgramBap() {
-    const progSelect = document.getElementById('bapProgram');
-    if(!progSelect) return;
-    progSelect.innerHTML = '<option value="" disabled selected>-- Pilih Program --</option>';
-    for (let prog in referensiDataBap) {
-        progSelect.innerHTML += `<option value="${prog}">${prog}</option>`;
-    }
-}
-
-function updateKegiatanBap() {
-    const prog = document.getElementById('bapProgram').value;
-    const kegSelect = document.getElementById('bapKegiatan');
-    const subSelect = document.getElementById('bapSubKegiatan');
-    
-    kegSelect.innerHTML = '<option value="" disabled selected>-- Pilih Kegiatan --</option>';
-    subSelect.innerHTML = '<option value="" disabled selected>-- Pilih Subkegiatan --</option>';
-    
-    if (prog && referensiDataBap[prog]) {
-        for (let keg in referensiDataBap[prog]) {
-            kegSelect.innerHTML += `<option value="${keg}">${keg}</option>`;
-        }
-    }
-}
-
-function updateSubkegiatanBap() {
-    const prog = document.getElementById('bapProgram').value;
-    const keg = document.getElementById('bapKegiatan').value;
-    const subSelect = document.getElementById('bapSubKegiatan');
-    
-    subSelect.innerHTML = '<option value="" disabled selected>-- Pilih Subkegiatan --</option>';
-    
-    if (prog && keg && referensiDataBap[prog][keg]) {
-        referensiDataBap[prog][keg].forEach(sub => {
-            subSelect.innerHTML += `<option value="${sub}">${sub}</option>`;
-        });
-    }
-}
-
-function generateNomorBap() {
-    // Menghitung jumlah data BAP di database untuk nomor urut selanjutnya
-    const urutanKe = dataKontrakTersimpan.length + 1; 
-    
-    // Mengubah angka "1" menjadi "00001"
-    const urutanFormat = String(urutanKe).padStart(5, '0');
-    const tahun = new Date().getFullYear(); 
-    
-    // Format otomatis dinas
-    const otomatisNoBap = `B/BAP-LS/${urutanFormat}/409.13.1/${tahun}`;
-    
-    const inputNomor = document.getElementById('bapNomor'); // Sesuaikan dengan ID form Anda
-    if (inputNomor) {
-        inputNomor.value = otomatisNoBap;
-        inputNomor.readOnly = true; // Kunci agar tidak diketik manual
-        inputNomor.classList.add('bg-slate-100', 'cursor-not-allowed', 'text-slate-500'); 
-    }
 }
