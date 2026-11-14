@@ -58,10 +58,11 @@ function inisialisasiServer() {
         .then(data => {
             if (data.status !== 'error') {
                 window.DATABASE_AKUN = data.akun || [];
+                window.DATABASE_KONTRAK = data.kontrakLS || [];
                 if(data.pagu) {
-                    window.CONFIG = window.CONFIG || {};
-                    window.CONFIG.PAGU_TAHUNAN = data.pagu.tahunan || 0;
-                    window.CONFIG.PAGU_TRIWULAN = data.pagu.triwulan || 0;
+                    
+                    CONFIG.PAGU_TAHUNAN = data.pagu.tahunan || 0;
+                    CONFIG.PAGU_TRIWULAN = data.pagu.triwulan || 0;
                 }
                 if(data.spj) spjData = data.spj.reverse(); 
                 if(data.referensi) referensiData = data.referensi;
@@ -81,7 +82,11 @@ function checkLogin() {
         
         const uname = document.getElementById('username-input').value.trim().toLowerCase();
         const pass = document.getElementById('password-input').value;
-        const userFound = window.DATABASE_AKUN.find(u => u.username === uname && u.password === pass);
+        if (!uname || !pass) {
+            const pe = document.getElementById('pin-error');
+            pe.innerText = "Username dan Password wajib diisi!"; pe.classList.remove('hidden'); return;
+        }
+        const userFound = window.DATABASE_AKUN.find(u => u.username && String(u.username).trim().toLowerCase() === uname && String(u.password) === pass);
         
         if (userFound) { 
             sesiAktif = { role: userFound.role, username: userFound.username, namaLengkap: userFound.namaLengkap };
@@ -179,7 +184,7 @@ function tarikDataDariServer() {
         .then(data => {
             if (data.status === 'error') { alert("Gagal mengambil data dari Google Sheets."); return; }
             if(data.akun) window.DATABASE_AKUN = data.akun;
-            if(data.pagu) { window.CONFIG.PAGU_TAHUNAN = data.pagu.tahunan; window.CONFIG.PAGU_TRIWULAN = data.pagu.triwulan; }
+            if(data.pagu) { CONFIG.PAGU_TAHUNAN = data.pagu.tahunan; CONFIG.PAGU_TRIWULAN = data.pagu.triwulan; }
             if(data.spj) spjData = data.spj.reverse(); 
             if(data.referensi) referensiData = data.referensi;
             // TAMBAHKAN INI:
@@ -294,66 +299,97 @@ function setJenisTampilan(jenis) {
     renderTabelSpj();
 }
 
+function escapeHtml(s) {
+    return String(s === null || s === undefined ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Isi <select>; kalau nilainya belum ada di daftar opsi, opsinya ditambahkan dulu
+function setSelectValue(el, val) {
+    if (!el) return;
+    val = String(val === null || val === undefined ? '' : val);
+    if (val && !Array.from(el.options).some(o => o.value === val)) {
+        el.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(val)}">${escapeHtml(val)}</option>`);
+    }
+    el.value = val;
+}
+
 function ubahLabelNpdKontrak() {
-    const jenis = document.getElementById('inputJenisSurat').value; 
+    const jenis = document.getElementById('inputJenisSurat').value;
     const boxBap = document.getElementById('box-pilih-bap');
     const inputPilihBap = document.getElementById('inputPilihBap');
-    
-    // Elemen yang akan di-Readonly jika LS
-    const arrInput = ['inputNpd', 'inputProgram', 'inputKegiatan', 'inputSubkegiatan', 'inputUraian', 'inputNominal'];
+    const inputTeks = ['inputNpd', 'inputUraian', 'inputNominal'].map(id => document.getElementById(id));
+    const selectAnggaran = ['inputProgram', 'inputKegiatan', 'inputSubkegiatan'].map(id => document.getElementById(id));
 
-    if (jenis === 'LS') { 
-        document.getElementById('label-npd-kontrak').innerText = 'Nomor Kontrak / SPK'; 
+    if (jenis === 'LS') {
+        document.getElementById('label-npd-kontrak').innerText = 'Nomor Kontrak / SPK';
         document.getElementById('box-cv').classList.remove('hidden');
         document.getElementById('box-tahap').classList.remove('hidden');
-        
-        // Tampilkan kotak BAP & kunci manual input
-        if(boxBap) boxBap.classList.remove('hidden');
-        arrInput.forEach(id => { const el = document.getElementById(id); if(el) el.style.pointerEvents = 'none'; });
-        
-        // Isi isi dropdown BAP
-        if(inputPilihBap && window.DATABASE_KONTRAK) {
-            inputPilihBap.innerHTML = '<option value="" disabled selected>-- Pilih Kontrak BAP Anda --</option>';
-            // Hanya BAP milik PPTK yang sedang login
-            const bapMilikPptk = window.DATABASE_KONTRAK.filter(k => k.pptk === sesiAktif.namaLengkap);
-            bapMilikPptk.forEach(k => {
-                inputPilihBap.innerHTML += `<option value="${k.kodeSpj}">${k.noKontrak} - ${k.pelaksana}</option>`;
+
+        // Data LS diambil dari BAP -> kolom dikunci
+        if (boxBap) boxBap.classList.remove('hidden');
+        inputTeks.forEach(el => { if (el) { el.readOnly = true; el.classList.add('bg-slate-100'); } });
+        selectAnggaran.forEach(el => { if (el) { el.style.pointerEvents = 'none'; el.tabIndex = -1; el.classList.add('bg-slate-100'); } });
+
+        if (inputPilihBap) {
+            inputPilihBap.required = !isEditMode;
+            // PPTK hanya melihat BAP miliknya; peran lain melihat semua
+            const daftar = (window.DATABASE_KONTRAK || []).filter(k =>
+                sesiAktif.role !== 'PPTK' || String(k.pptk).trim() === String(sesiAktif.namaLengkap).trim());
+            let html = daftar.length
+                ? '<option value="" disabled selected>-- Pilih Kontrak BAP Anda --</option>'
+                : '<option value="" disabled selected>-- Belum ada data BAP (isi dulu di Modul BAP LS) --</option>';
+            daftar.forEach(k => {
+                html += `<option value="${escapeHtml(k.kodeSpj)}">${escapeHtml(k.noKontrak)} - ${escapeHtml(k.pelaksana)} (${escapeHtml(k.tahapBayar)})</option>`;
             });
+            inputPilihBap.innerHTML = html;
         }
-    } else { 
-        document.getElementById('label-npd-kontrak').innerText = 'Nomor NPD'; 
+    } else {
+        document.getElementById('label-npd-kontrak').innerText = 'Nomor NPD';
         document.getElementById('inputNpd').placeholder = 'Cth: 001/NPD/2026';
         document.getElementById('box-cv').classList.add('hidden');
         document.getElementById('box-tahap').classList.add('hidden');
-        
-        // Sembunyikan kotak BAP & buka manual input
-        if(boxBap) boxBap.classList.add('hidden');
-        arrInput.forEach(id => { const el = document.getElementById(id); if(el) { el.style.pointerEvents = 'auto'; el.value = ""; }});
+
+        if (boxBap) boxBap.classList.add('hidden');
+        if (inputPilihBap) inputPilihBap.required = false;
+        inputTeks.forEach(el => { if (el) { el.readOnly = false; el.classList.remove('bg-slate-100'); el.value = ""; } });
+        selectAnggaran.forEach(el => { if (el) { el.style.pointerEvents = 'auto'; el.tabIndex = 0; el.classList.remove('bg-slate-100'); } });
+
+        // Pulihkan dropdown anggaran yang sebelumnya dikunci jadi 1 pilihan oleh autoFillDariBap()
+        isiDropdownProgram();
+        document.getElementById('inputKegiatan').innerHTML = '<option value="" disabled selected>-- Pilih Kegiatan --</option>';
+        document.getElementById('inputSubkegiatan').innerHTML = '<option value="" disabled selected>-- Pilih Subkegiatan --</option>';
     }
 }
 
 function autoFillDariBap() {
     const idBap = document.getElementById('inputPilihBap').value;
-    const dataBap = window.DATABASE_KONTRAK.find(k => k.kodeSpj === idBap);
-    
-    if (dataBap) {
-        // Isi Form SPJ secara otomatis
-        document.getElementById('inputNpd').value = dataBap.noKontrak;
-        document.getElementById('inputUraian').value = dataBap.uraian;
-        document.getElementById('inputNominal').value = dataBap.nilaiBayar;
-        document.getElementById('inputCv').value = dataBap.pelaksana;
-        document.getElementById('inputTahap').value = dataBap.tahapBayar;
+    const dataBap = (window.DATABASE_KONTRAK || []).find(k => String(k.kodeSpj) === String(idBap));
+    if (!dataBap) return;
 
-        // Paksa isi Dropdown Program & Kegiatan (karena pointerEvents dinonaktifkan)
-        const progEl = document.getElementById('inputProgram');
-        progEl.innerHTML = `<option value="${dataBap.program || 'Diambil dari BAP'}" selected>${dataBap.program || 'Diambil dari BAP'}</option>`;
-        
-        const kegEl = document.getElementById('inputKegiatan');
-        kegEl.innerHTML = `<option value="${dataBap.kegiatan}" selected>${dataBap.kegiatan}</option>`;
-        
-        const subkegEl = document.getElementById('inputSubkegiatan');
-        subkegEl.innerHTML = `<option value="${dataBap.subKegiatan}" selected>${dataBap.subKegiatan}</option>`;
+    document.getElementById('inputNpd').value = dataBap.noKontrak || '';
+    document.getElementById('inputUraian').value = dataBap.uraian || '';
+    document.getElementById('inputNominal').value = dataBap.nilaiBayar || '';
+    document.getElementById('inputCv').value = dataBap.pelaksana || '';
+    setSelectValue(document.getElementById('inputTahap'), dataBap.tahapBayar);
+
+    // Program tidak disimpan di DB_KONTRAK_LS pada data lama -> cari dari tabel referensi
+    let program = dataBap.program || '';
+    if (!program) {
+        for (const prog in referensiData) {
+            const subs = referensiData[prog][dataBap.kegiatan];
+            if (subs && subs.indexOf(dataBap.subKegiatan) !== -1) { program = prog; break; }
+        }
     }
+    if (!program) {
+        for (const prog in referensiData) { if (referensiData[prog][dataBap.kegiatan]) { program = prog; break; } }
+    }
+
+    const satuOpsi = (id, val) => { document.getElementById(id).innerHTML = `<option value="${escapeHtml(val)}" selected>${escapeHtml(val)}</option>`; };
+    satuOpsi('inputProgram', program || '-');
+    satuOpsi('inputKegiatan', dataBap.kegiatan || '-');
+    satuOpsi('inputSubkegiatan', dataBap.subKegiatan || '-');
 }
 
 function kirimPengajuanSpjBaru(e) {
@@ -560,7 +596,7 @@ function renderTabelSpj() {
 
         let cvText = jenisSurat === 'LS' && item.namaCv ? item.namaCv : '-';
         let tahapText = jenisSurat === 'LS' && item.tahap ? item.tahap : '-';
-        let tglPbText = item.tglPb ? item.tglPb : '-';
+        let tglPbText = item.tglPb ? formatTanggalIndo(String(item.tglPb)) : '-';
         let uraianPekerjaan = String(item.uraian || '-');
 
         let tdCvHtml = (filterJenis === 'ALL' || filterJenis === 'LS') ? `<td class="py-4 px-4 text-xs align-top font-bold text-purple-700">${cvText}</td>` : ``;
@@ -602,11 +638,17 @@ function openModal(id) {
 }
 
 function switchTabAdmin(tabName) {
-    document.querySelectorAll('.admin-tab-content').forEach(el => el.classList.add('hidden'));
-    document.querySelectorAll('.admin-tab-btn').forEach(el => { el.classList.remove('bg-blue-600/20', 'text-blue-400', 'border-blue-500/30'); el.classList.add('hover:bg-slate-700/50', 'hover:text-white'); });
+    document.querySelectorAll('.admin-tab-content').forEach(el => { el.classList.add('hidden'); el.classList.remove('flex'); });
+    document.querySelectorAll('.admin-tab-btn').forEach(el => {
+        el.classList.remove('bg-sipd-navy', 'text-white', 'font-bold');
+        el.classList.add('text-slate-600', 'hover:bg-slate-100', 'font-medium');
+    });
     const activeTab = document.getElementById(`tab-content-${tabName}`); const activeBtn = document.getElementById(`tab-btn-${tabName}`);
-    if(activeTab) { activeTab.classList.remove('hidden'); activeTab.classList.add('flex'); }
-    if(activeBtn) { activeBtn.classList.add('bg-blue-600/20', 'text-blue-400', 'border-blue-500/30'); activeBtn.classList.remove('hover:bg-slate-700/50', 'hover:text-white'); }
+    if (activeTab) { activeTab.classList.remove('hidden'); activeTab.classList.add('flex'); }
+    if (activeBtn) {
+        activeBtn.classList.remove('text-slate-600', 'hover:bg-slate-100', 'font-medium');
+        activeBtn.classList.add('bg-sipd-navy', 'text-white', 'font-bold');
+    }
 }
 
 function renderTabelAkunAdmin() {
@@ -800,7 +842,7 @@ function bukaModalVerifikasi(id) {
 
     const buktiPbBox = document.getElementById('detailBuktiPbBox');
     if (item.status === 'SUDAH DIPINDAHBUKUKAN' && item.buktiPb) {
-        document.getElementById('detailBuktiPbTeks').innerText = `No PB: ${item.noPb} (${item.tglPb})`;
+        document.getElementById('detailBuktiPbTeks').innerText = `No PB: ${item.noPb} (${formatTanggalIndo(String(item.tglPb))})`;
         let buktiLink = String(item.buktiPb || '');
         if(buktiLink.startsWith('http')) { document.getElementById('detailBuktiPbLink').innerHTML = `<a href="${buktiLink}" target="_blank" class="text-blue-600 underline font-bold text-xs"><i class="fa-solid fa-file-invoice"></i> Buka Bukti PB</a>`; } 
         else { document.getElementById('detailBuktiPbLink').innerHTML = `<span class="text-slate-700 font-bold">Kata Kunci Arsip: ${buktiLink}</span>`; }
@@ -968,11 +1010,11 @@ function bukaFormEdit() {
     document.getElementById('inputJenisSurat').value = item.jenisSurat || 'GU'; ubahLabelNpdKontrak();
     document.getElementById('inputNpd').value = item.npd; document.getElementById('inputPptk').value = item.pptk;
     document.getElementById('inputUnitKerja').value = item.unitKerja; document.getElementById('inputEmail').value = item.emailPptk; document.getElementById('inputWa').value = item.wa;
-    document.getElementById('inputProgram').value = item.program; updateKegiatanDropdown(); document.getElementById('inputKegiatan').value = item.kegiatan; updateSubkegiatanDropdown(); document.getElementById('inputSubkegiatan').value = item.subKegiatan;
+    isiDropdownProgram(); setSelectValue(document.getElementById('inputProgram'), item.program); updateKegiatanDropdown(); setSelectValue(document.getElementById('inputKegiatan'), item.kegiatan); updateSubkegiatanDropdown(); setSelectValue(document.getElementById('inputSubkegiatan'), item.subKegiatan);
     document.getElementById('inputNominal').value = item.nominal; document.getElementById('inputUraian').value = item.uraian;
     if (item.jenisSurat === 'LS') {
         const inputCv = document.getElementById('inputCv'); const inputTahap = document.getElementById('inputTahap');
-        if(inputCv) inputCv.value = item.namaCv || ""; if(inputTahap) inputTahap.value = item.tahap || "UM";
+        if(inputCv) inputCv.value = item.namaCv || ""; if(inputTahap) setSelectValue(inputTahap, item.tahap || "UM");
     }
     
     document.getElementById('btnSubmitNew').innerText = "Simpan Perubahan (Edit)";
@@ -1004,7 +1046,7 @@ function prosesUpdateStatusAksi() {
         else { alert("GAGAL UPDATE:\n" + res.message); }
     })
     .catch(err => { alert("KONEKSI TERPUTUS:\n" + err.message); })
-    .finally(() => { if (btn) { btn.innerText = 'Simpan Keputusan'; btn.disabled = false; } });
+    .finally(() => { if (btn) { btn.innerText = 'Simpan'; btn.disabled = false; } });
 }
 
 function kirimEmailManual() {
