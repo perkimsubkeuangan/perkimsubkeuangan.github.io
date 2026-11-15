@@ -2,6 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+    <meta name="referrer" content="no-referrer">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem ERP SPJ GU & LS - DISPERKIMTAN</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -150,7 +151,7 @@
                                 <div class="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-lg text-slate-400 shadow-sm"><i class="fa-solid fa-user-tie"></i></div>
                                 <div><h4 id="dd-nama" class="text-sm font-bold text-sipd-slate leading-tight">Nama User</h4><p id="dd-role" class="text-[10px] text-slate-500 font-bold uppercase mt-0.5">Role</p></div>
                             </div>
-                            <div class="p-2"><a href="#" onclick="location.reload()" class="flex items-center gap-3 px-3 py-2 text-sm text-red-500 hover:bg-red-50 rounded-lg transition-colors mt-1 font-medium"><i class="fa-solid fa-arrow-right-from-bracket w-4 text-center"></i> Keluar (Logout)</a></div>
+                            <div class="p-2"><a href="#" onclick="keluarSistem(); return false;" class="flex items-center gap-3 px-3 py-2 text-sm text-red-500 hover:bg-red-50 rounded-lg transition-colors mt-1 font-medium"><i class="fa-solid fa-arrow-right-from-bracket w-4 text-center"></i> Keluar (Logout)</a></div>
                         </div>
                     </div>
                 </div>
@@ -162,29 +163,28 @@
                     <div class="flex gap-2 w-full sm:w-auto"><button onclick="bukaFormSpjBaru()" class="px-4 py-2 bg-sipd-navy hover:bg-slate-800 border border-transparent rounded text-xs font-bold text-white shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap"><i class="fa-solid fa-plus"></i> Buat SPJ Baru</button></div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6" id="dashboard-cards">
-                    <div class="bg-white rounded-lg border border-slate-200 p-5 shadow-sm relative overflow-hidden flex flex-col group">
-                        <div class="flex justify-between items-start mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5" id="dashboard-cards">
+                    <div class="bg-white rounded-lg border border-slate-200 p-5 shadow-sm relative overflow-hidden flex flex-col">
+                        <div class="flex justify-between items-start mb-5">
                             <div class="w-10 h-10 bg-emerald-50 text-sipd-emerald rounded flex items-center justify-center text-lg"><i class="fa-solid fa-vault"></i></div>
-                            <button onclick="bukaModalEditPagu('TAHUNAN')" class="hidden group-hover:block btn-edit-pagu text-[10px] bg-slate-50 hover:bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold border border-slate-200"><i class="fa-solid fa-pen"></i> Set Pagu</button>
                         </div>
                         <h3 class="text-[11px] text-slate-400 font-bold mb-1 uppercase tracking-wider">Sisa Pagu Tahunan</h3>
                         <div class="text-xl font-bold text-sipd-slate tracking-tight" id="sisaTahunanVal">Rp 0</div>
-                    </div>
-                    <div class="bg-white rounded-lg border border-slate-200 p-5 shadow-sm relative overflow-hidden flex flex-col group">
-                        <div class="flex justify-between items-start mb-6">
-                            <div class="w-10 h-10 bg-sky-50 text-sky-600 rounded flex items-center justify-center text-lg"><i class="fa-solid fa-wallet"></i></div>
-                            <button onclick="bukaModalEditPagu('TRIWULAN')" class="hidden group-hover:block btn-edit-pagu text-[10px] bg-slate-50 hover:bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold border border-slate-200"><i class="fa-solid fa-pen"></i> Set Pagu</button>
-                        </div>
-                        <h3 class="text-[11px] text-slate-400 font-bold mb-1 uppercase tracking-wider">Sisa Pagu Triwulan</h3>
-                        <div class="text-xl font-bold text-sipd-slate tracking-tight" id="sisaTriwulanVal">Rp 0</div>
+                        <div class="text-[10px] text-slate-400 mt-1" id="paguTahunanInfo"></div>
                     </div>
                     <div class="bg-white rounded-lg border border-slate-200 p-5 shadow-sm relative overflow-hidden flex flex-col">
-                        <div class="flex justify-between items-start mb-6"><div class="w-10 h-10 bg-amber-50 text-amber-500 rounded flex items-center justify-center text-lg"><i class="fa-solid fa-money-bill-trend-up"></i></div></div>
+                        <div class="flex justify-between items-start mb-5"><div class="w-10 h-10 bg-amber-50 text-amber-500 rounded flex items-center justify-center text-lg"><i class="fa-solid fa-money-bill-trend-up"></i></div></div>
                         <h3 class="text-[11px] text-slate-400 font-bold mb-1 uppercase tracking-wider">Total Cair (Realisasi)</h3>
                         <div class="text-xl font-bold text-sipd-slate tracking-tight" id="totalCairVal">Rp 0</div>
                     </div>
                 </div>
+
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Pagu Per Triwulan &mdash; TA <span id="labelTahunAnggaran"></span></h3>
+                    <button onclick="bukaModalEditPagu()" class="hidden btn-edit-pagu text-[10px] bg-slate-50 hover:bg-slate-100 text-slate-600 px-2.5 py-1 rounded font-bold border border-slate-200"><i class="fa-solid fa-pen"></i> Atur Pagu</button>
+                </div>
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-2" id="kartuTriwulan"></div>
+                <p class="text-[10px] text-slate-400 mb-6 leading-relaxed" id="infoPaguCatatan"></p>
     <!-- ACTIONABLE COUNTERS -->
 <div class="grid grid-cols-3 gap-4 mb-6">
     <!-- Kotak Menunggu Verifikasi -->
@@ -273,16 +273,22 @@
     </div>
 
 
-    <!-- MODAL EDIT PAGU -->
+    <!-- MODAL EDIT PAGU (Tahunan + 4 Triwulan) -->
     <div id="modalEditPagu" class="fixed inset-0 bg-sipd-navy/60 backdrop-blur-sm z-[200] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg shadow-xl max-w-sm w-full relative overflow-hidden">
-            <div class="p-5 border-b border-slate-100 bg-slate-50"><h2 class="text-base font-bold text-sipd-slate" id="titleEditPagu">Edit Pagu</h2></div>
-            <div class="p-5">
-                <label class="block text-xs font-bold text-slate-700 mb-1">Masukkan Nominal (Rp)</label>
-                <input type="number" id="inputEditPagu" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none font-mono text-sm text-slate-700 mb-4" placeholder="Cth: 15000000000">
-                <div class="flex justify-end gap-2">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full relative overflow-hidden">
+            <div class="p-5 border-b border-slate-100 bg-slate-50"><h2 class="text-base font-bold text-sipd-slate">Atur Pagu Anggaran</h2><p class="text-[10px] text-slate-500 mt-0.5">Realisasi tiap triwulan dihitung otomatis dari bulan pada nomor NPD.</p></div>
+            <div class="p-5 space-y-3">
+                <div><label class="block text-xs font-bold text-slate-700 mb-1">Pagu Tahunan (Rp)</label><input type="number" min="0" step="any" id="inputPaguTahunan" oninput="hitungSelisihPagu()" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none font-mono text-sm text-slate-700"></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-[11px] font-bold text-slate-600 mb-1">Triwulan I (Jan&ndash;Mar)</label><input type="number" min="0" step="any" id="inputPaguTw1" oninput="hitungSelisihPagu()" class="w-full px-3 py-2 border border-slate-300 rounded outline-none font-mono text-xs text-slate-700"></div>
+                    <div><label class="block text-[11px] font-bold text-slate-600 mb-1">Triwulan II (Apr&ndash;Jun)</label><input type="number" min="0" step="any" id="inputPaguTw2" oninput="hitungSelisihPagu()" class="w-full px-3 py-2 border border-slate-300 rounded outline-none font-mono text-xs text-slate-700"></div>
+                    <div><label class="block text-[11px] font-bold text-slate-600 mb-1">Triwulan III (Jul&ndash;Sep)</label><input type="number" min="0" step="any" id="inputPaguTw3" oninput="hitungSelisihPagu()" class="w-full px-3 py-2 border border-slate-300 rounded outline-none font-mono text-xs text-slate-700"></div>
+                    <div><label class="block text-[11px] font-bold text-slate-600 mb-1">Triwulan IV (Okt&ndash;Des)</label><input type="number" min="0" step="any" id="inputPaguTw4" oninput="hitungSelisihPagu()" class="w-full px-3 py-2 border border-slate-300 rounded outline-none font-mono text-xs text-slate-700"></div>
+                </div>
+                <p id="infoSelisihPagu" class="text-[11px] text-slate-500"></p>
+                <div class="flex justify-end gap-2 pt-1">
                     <button onclick="closeModal('modalEditPagu')" class="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded text-xs transition-colors">Batal</button>
-                    <button onclick="simpanPaguBaru()" class="px-4 py-1.5 bg-sipd-emerald hover:bg-emerald-700 text-white font-bold rounded shadow-sm text-xs transition-colors">Simpan Pagu</button>
+                    <button onclick="simpanPaguBaru()" id="btnSimpanPagu" class="px-4 py-1.5 bg-sipd-emerald hover:bg-emerald-700 text-white font-bold rounded shadow-sm text-xs transition-colors">Simpan Pagu</button>
                 </div>
             </div>
         </div>
@@ -481,7 +487,7 @@
     <option value="SUPER_ADMIN">SUPER_ADMIN</option>
 </select></div>
                                 <div><label class="block text-[9px] font-bold text-slate-600 mb-1">Username</label><input type="text" id="akunUsername" class="w-full px-2 py-1 border border-slate-300 rounded text-xs outline-none font-mono focus:border-sipd-navy"></div>
-                                <div><label class="block text-[9px] font-bold text-slate-600 mb-1">Password</label><input type="text" id="akunPassword" class="w-full px-2 py-1 border border-slate-300 rounded text-xs outline-none font-mono focus:border-sipd-navy"></div>
+                                <div><label class="block text-[9px] font-bold text-slate-600 mb-1">Password</label><input type="password" id="akunPassword" autocomplete="new-password" placeholder="Min. 8 karakter" class="w-full px-2 py-1 border border-slate-300 rounded text-xs outline-none font-mono focus:border-sipd-navy"></div>
                             </div>
                         </div>
 
@@ -497,8 +503,8 @@
 
     <div id="toast" class="fixed top-5 right-5 bg-sipd-navy text-white px-5 py-2.5 rounded shadow-lg transform -translate-y-20 opacity-0 transition-all duration-300 z-[9999] flex items-center gap-2"><i class="fa-solid fa-circle-check text-sipd-emerald"></i><span id="toastMessage" class="text-xs font-bold tracking-wide">Sukses!</span></div>
 
-    <script src="config.js?v=53"></script>
-    <script src="app.js?v=53"></script>
+    <script src="config.js?v=60"></script>
+    <script src="app.js?v=60"></script>
     
     <script>
         const catatanRevisiArea = document.getElementById('catatanRevisiInput');
