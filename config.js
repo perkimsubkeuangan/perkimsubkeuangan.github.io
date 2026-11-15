@@ -42,6 +42,22 @@ const BAP_CONFIG = {
 };
 
 // ==========================================
+// GOOGLE FORM UNTUK FILE > 10 MB
+// ID Pengajuan terisi otomatis lewat parameter entry (satu entry yang sama pada ketiga Form).
+// ==========================================
+const FORM_UPLOAD = {
+    GU: "https://docs.google.com/forms/d/e/1FAIpQLSfsYK2c5ucvUX7SOXkXLR3_WPIwJZ5h2sNMnHNWQlZF67G1ag/viewform",
+    LS: "https://docs.google.com/forms/d/e/1FAIpQLSfeB478TimX9oyEsyf3ibuVyrCBnw_hNs0A_XJ2LHbAwuuNSw/viewform",
+    REVISI: "https://docs.google.com/forms/d/e/1FAIpQLSfFAommHUUMIQXhq16CtjtIspZqiYc0_eCAoqvNFN3f3vpShg/viewform",
+    ENTRY_ID: "entry.1525941067"
+};
+function urlFormUpload(jenis, idSpj) {
+    const dasar = FORM_UPLOAD[jenis];
+    if (!dasar) return '#';
+    return dasar + '?usp=pp_url&' + FORM_UPLOAD.ENTRY_ID + '=' + encodeURIComponent(String(idSpj));
+}
+
+// ==========================================
 // PEMANGGIL API BERTOKEN (dipakai index.html & bap.html)
 // ==========================================
 function paksaLogout(pesan) {
