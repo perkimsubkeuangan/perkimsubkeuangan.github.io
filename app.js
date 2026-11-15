@@ -506,8 +506,6 @@ function kirimPengajuanSpjBaru(e) {
                     divSukses.innerHTML = `<div class="text-5xl text-emerald-500 mb-2"><i class="fa-solid fa-circle-check"></i></div><h3 class="text-lg font-bold text-slate-800">Perbaikan Data Berhasil!</h3><button onclick="closeModal('modalNewSpj');" class="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md">Tutup</button>`;
                     document.getElementById('formNewSpj').parentElement.appendChild(divSukses);
                 } else {
-                    const formUrlGU = `https://docs.google.com/forms/d/e/1FAIpQLSfsYK2c5ucvUX7SOXkXLR3_WPIwJZ5h2sNMnHNWQlZF67G1ag/viewform?usp=pp_url&entry.1525941067=${res.id || idSistem}`;
-                    const formUrlLS = `https://docs.google.com/forms/d/e/1FAIpQLSfeB478TimX9oyEsyf3ibuVyrCBnw_hNs0A_XJ2LHbAwuuNSw/viewform?usp=pp_url&entry.1525941067=${res.id || idSistem}`;
 
                     const divSukses = document.createElement('div'); divSukses.id = "pesanSuksesDiv"; divSukses.className = "text-center py-4 space-y-4";
                     
@@ -519,15 +517,13 @@ function kirimPengajuanSpjBaru(e) {
                         divSukses.innerHTML = `
                             <div class="text-4xl text-purple-500 mb-2"><i class="fa-solid fa-file-invoice"></i></div><h3 class="text-lg font-bold text-slate-800">Pengajuan LS Berhasil Disimpan!</h3>
                             <div class="bg-purple-50 border border-purple-200 p-4 rounded-lg my-4 text-center mx-auto max-w-sm"><p class="text-xs text-purple-600 font-bold mb-1">NOMOR URUT / ANTREAN LS ANDA</p><h2 class="text-3xl font-black text-purple-800 tracking-widest">${noUrut}</h2></div>
-                            <p class="text-sm text-slate-600 mb-4 font-medium">Harap Lanjut Klik Tombol Upload Berkas: Kwitansi & Berkas Pencairan.</p>
-                            <a href="${formUrlLS}" target="_blank" onclick="closeModal('modalNewSpj');" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md mb-3"><i class="fa-solid fa-cloud-arrow-up me-2"></i> Lanjut Upload Berkas LS</a><br>
+                            ${panelUploadHtml(res.id || idSistem, 'LS')}
                             <button onclick="cetakNomorUrut('${noUrut}', '${safeNpd}', '${payload.createdAt}')" class="text-xs text-slate-500 hover:text-slate-800 underline font-bold transition-colors"><i class="fa-solid fa-print"></i> Unduh / Cetak Bukti Antrean LS</button>
                         `;
                     } else {
                         divSukses.innerHTML = `
                             <div class="text-5xl text-emerald-500 mb-2"><i class="fa-solid fa-circle-check"></i></div><h3 class="text-lg font-bold text-slate-800">Data Pengajuan Berhasil Disimpan!</h3>
-                            <p class="text-sm text-slate-600 mb-4 bg-amber-50 border border-amber-200 p-3 rounded text-left"><strong>PENTING:</strong> Pengajuan belum selesai. Lanjut klik tombol di bawah untuk Upload Berkas Keuangan & SPJ GU.</p>
-                            <a href="${formUrlGU}" target="_blank" onclick="closeModal('modalNewSpj');" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md"><i class="fa-solid fa-cloud-arrow-up me-2"></i> Lanjut Upload Berkas GU</a>`;
+                            ${panelUploadHtml(res.id || idSistem, 'GU')}`;
                     }
                     document.getElementById('formNewSpj').parentElement.appendChild(divSukses);
                 }
@@ -818,22 +814,26 @@ function bukaModalSuperAdmin() { const profileDd = document.getElementById('prof
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 function showToast(msg) { const toast = document.getElementById('toast'); document.getElementById('toastMessage').innerText = msg; toast.classList.remove('-translate-y-20', 'opacity-0'); setTimeout(() => toast.classList.add('-translate-y-20', 'opacity-0'), 3500); }
 
-function jadikanLink(textUrl, idItem, formType) {
+// Pemilik SPJ (PPTK) atau SUPER_ADMIN boleh mengunggah selama status BELUM_DIPROSES / REVISI
+function bolehUnggah(item) {
+    const pemilik = sesiAktif.role === 'PPTK' && String(item.pptk).trim() === String(sesiAktif.namaLengkap).trim();
+    return (pemilik || sesiAktif.role === 'SUPER_ADMIN') && (item.status === 'BELUM_DIPROSES' || item.status === 'REVISI');
+}
+
+function jadikanLink(textUrl, idItem, formType, slot, boleh) {
+    const idq = escapeHtml(String(idItem));
+    const tombol = (teks, ikon) => `<button type="button" onclick="pilihBerkas('${idq}','${slot}')" class="px-2 py-1 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded text-[10px] font-bold inline-block border border-blue-200"><i class="fa-solid ${ikon} me-1"></i> ${teks}</button>`;
     if (!textUrl || textUrl === "-" || textUrl === "") {
-        let formUrl = "";
-        const idq = encodeURIComponent(String(idItem));
-        if (formType === 'GU') formUrl = `https://docs.google.com/forms/d/e/1FAIpQLSfsYK2c5ucvUX7SOXkXLR3_WPIwJZ5h2sNMnHNWQlZF67G1ag/viewform?usp=pp_url&entry.1525941067=${idq}`;
-        else if (formType === 'LS') formUrl = `https://docs.google.com/forms/d/e/1FAIpQLSfeB478TimX9oyEsyf3ibuVyrCBnw_hNs0A_XJ2LHbAwuuNSw/viewform?usp=pp_url&entry.1525941067=${idq}`;
-        return `<span class="text-slate-400 italic block mb-2">Belum dilampirkan</span>
-                <a href="${formUrl}" target="_blank" rel="noopener noreferrer" class="px-2 py-1 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded text-[10px] font-bold inline-block border border-blue-200"><i class="fa-solid fa-cloud-arrow-up me-1"></i> Upload Berkas</a>`;
+        return `<span class="text-slate-400 italic block mb-2">Belum dilampirkan</span>` + (boleh ? tombol('Upload Berkas', 'fa-cloud-arrow-up') : '');
     }
     // Satu sel dapat berisi beberapa berkas (satu per baris): "url|nama"
-    return String(textUrl).split('\n').map(s => s.trim()).filter(Boolean).map(line => {
+    const daftar = String(textUrl).split('\n').map(x => x.trim()).filter(Boolean).map(line => {
         let url = line, namaFile = "Dokumen_Lampiran";
         if (line.includes("|")) { const parts = line.split("|"); url = parts[0]; namaFile = parts.slice(1).join("|"); }
         else { const matchId = line.match(/[-\w]{25,}/); if (matchId) namaFile = "File_" + matchId[0].substring(0, 8) + "..."; }
         return `<a href="${escapeHtml(amanUrl(url))}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-bold bg-blue-50 hover:bg-blue-100 border border-blue-100 px-2 py-1.5 rounded inline-block mt-1 transition-colors flex items-center gap-1.5 w-fit"><i class="fa-solid fa-file-pdf text-red-500"></i> <span class="truncate max-w-[200px]">${escapeHtml(namaFile)}</span></a>`;
     }).join('');
+    return daftar + (boleh ? `<div class="mt-2">${tombol('Tambah Berkas', 'fa-plus')}</div>` : '');
 }
 
 function renderListRevisi(textRaw) {
@@ -909,8 +909,8 @@ function bukaModalVerifikasi(id) {
         boxBerkas.innerHTML = `<div class="text-sm"><span class="font-bold text-slate-700 block mb-1">1. Dok. Keuangan (SPP/SPM/Pajak)</span><div id="linkDokKeuangan"></div></div><div class="text-sm mt-3"><span class="font-bold text-slate-700 block mb-1">2. SPJ Fungsional (Kwitansi/Nota/Absen)</span><div id="linkDokSpj"></div></div>`;
     }
     
-    document.getElementById('linkDokKeuangan').innerHTML = jadikanLink(item.linkKeuangan, item.id, item.jenisSurat); 
-    document.getElementById('linkDokSpj').innerHTML = jadikanLink(item.linkSpj, item.id, item.jenisSurat); 
+    document.getElementById('linkDokKeuangan').innerHTML = jadikanLink(item.linkKeuangan, item.id, item.jenisSurat, 'keuangan', bolehUnggah(item)); 
+    document.getElementById('linkDokSpj').innerHTML = jadikanLink(item.linkSpj, item.id, item.jenisSurat, 'spj', bolehUnggah(item)); 
     document.getElementById('linkDokRevisi').innerHTML = renderListRevisi(item.linkRevisi);
 
     const buktiPbBox = document.getElementById('detailBuktiPbBox');
@@ -960,6 +960,7 @@ function bukaModalVerifikasi(id) {
                 let isCatatan = isiHtml.includes('- Catatan:');
                 let isPb = isiHtml.includes('PINDAHBUKU SELESAI') || isiHtml.includes('DIPINDAHBUKUKAN');
                 let isRevisiUpload = isiHtml.includes('BERKAS REVISI DIUPLOAD');
+                let isUpload = isiHtml.includes('BERKAS DIUNGGAH');
                 let badgeClass = "text-white px-3 py-1.5 rounded-md shadow-sm font-bold uppercase inline-flex items-center gap-1.5 text-xs mb-1";
                 
                 if (isCatatan) {
@@ -986,6 +987,7 @@ function bukaModalVerifikasi(id) {
                                    <span class="text-[10px] text-blue-700 font-bold uppercase">NO PB:</span> <span class="text-sm font-black text-blue-900 tracking-widest">${noPb}</span></div>`;
                     } else { isiHtml = `<span class="bg-blue-600 ${badgeClass}"><i class="fa-solid fa-money-bill-transfer"></i> ${isiHtml}</span>`; }
                 }
+                else if (isUpload) { dotColor = 'bg-blue-500 ring-blue-200'; isiHtml = `<div><span class="bg-blue-600 ${badgeClass}"><i class="fa-solid fa-cloud-arrow-up"></i> ${isiHtml}</span></div>${extraLinkHtml}`; }
                 else if (isRevisiUpload) { dotColor = 'bg-orange-500 ring-orange-200'; isiHtml = `<div><span class="bg-orange-500 ${badgeClass}"><i class="fa-solid fa-cloud-arrow-up"></i> ${isiHtml}</span></div>${extraLinkHtml}`; }
                 else if (isiHtml.includes('REVISI')) { dotColor = 'bg-orange-500 ring-orange-200'; isiHtml = `<span class="bg-orange-500 ${badgeClass}"><i class="fa-solid fa-rotate-left"></i> ${isiHtml}</span>`; }
                 else if (isiHtml.includes('DITOLAK')) { dotColor = 'bg-red-600 ring-red-200'; isiHtml = `<span class="bg-red-600 ${badgeClass}"><i class="fa-solid fa-circle-xmark"></i> ${isiHtml}</span>`; } 
@@ -1052,7 +1054,7 @@ function bukaModalVerifikasi(id) {
             document.getElementById('panelPptkRevisi').classList.remove('hidden');
             if(item.status === 'BELUM_DIPROSES') document.getElementById('teksRevisiPptk').innerText = "Anda masih dapat mengubah data teks atau mengunggah ulang berkas.";
             if(item.status === 'REVISI') document.getElementById('teksRevisiPptk').innerHTML = "Catatan Verifikator: <br>" + teksCatatan(item.catatanRevisi || "-");
-            document.getElementById('btnUploadRevisi').href = `https://docs.google.com/forms/d/e/1FAIpQLSfFAommHUUMIQXhq16CtjtIspZqiYc0_eCAoqvNFN3f3vpShg/viewform?usp=pp_url&entry.1525941067=${encodeURIComponent(item.id)}`;
+            const btnRev = document.getElementById('btnUploadRevisi'); btnRev.setAttribute('href', '#'); btnRev.removeAttribute('target'); btnRev.onclick = (ev) => { ev.preventDefault(); pilihBerkas(item.id, 'revisi'); };
             let existingEditBtnPptk = document.getElementById('btnEditDataPptk'); if(existingEditBtnPptk) existingEditBtnPptk.remove();
             const editBtnPptkHtml = `<button id="btnEditDataPptk" onclick="bukaFormEdit()" class="w-full mt-2 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded font-bold text-xs shadow-sm transition-colors flex items-center justify-center gap-1.5"><i class="fa-solid fa-pen-to-square"></i> EDIT DATA TEKS</button>`;
             document.getElementById('panelPptkRevisi').insertAdjacentHTML('beforeend', editBtnPptkHtml);
@@ -1140,4 +1142,85 @@ function keluarSistem() {
     if (t) { try { fetch(CONFIG.APPS_SCRIPT_URL, { method: 'POST', keepalive: true, body: JSON.stringify({ action: 'logout', token: t }) }).catch(() => {}); } catch (e) {} }
     sessionStorage.clear(); sesiAktif = { role: "", username: "", namaLengkap: "" };
     window.location.reload();
+}
+
+// ================== UNGGAH BERKAS LANGSUNG (tanpa Google Form) ==================
+// Tersimpan ke Drive: ROOT / GU atau LS / Program / Kegiatan / Sub Kegiatan / [Revisi]
+const EKSTENSI_BOLEH = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx'];
+const MAKS_BYTE_UNGGAH = 10 * 1024 * 1024;
+const ACCEPT_UNGGAH = '.pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx';
+
+function bacaFileBase64(file) {
+    return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result).split(',')[1] || '');
+        r.onerror = () => reject(new Error('Gagal membaca file "' + file.name + '".'));
+        r.readAsDataURL(file);
+    });
+}
+
+async function unggahSatuFile(idSpj, slot, file) {
+    const ext = (file.name.includes('.') ? file.name.split('.').pop() : '').toLowerCase();
+    if (!EKSTENSI_BOLEH.includes(ext)) throw new Error('"' + file.name + '": tipe file tidak diizinkan (PDF, JPG, PNG, DOC, DOCX, XLS, XLSX).');
+    if (file.size > MAKS_BYTE_UNGGAH) throw new Error('"' + file.name + '": ukuran melebihi 10 MB.');
+    const data = await bacaFileBase64(file);
+    const res = await apiPost({ action: 'upload_berkas', id: idSpj, slot: slot, nama: file.name, data: data });
+    if (res.status !== 'success') throw new Error('"' + file.name + '": ' + (res.message || 'gagal diunggah.'));
+    return res;
+}
+
+// Dari modal detail: pilih file lalu unggah
+function pilihBerkas(idSpj, slot) {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.multiple = true; inp.accept = ACCEPT_UNGGAH;
+    inp.onchange = async () => {
+        const files = Array.from(inp.files || []); if (!files.length) return;
+        showToast('Mengunggah ' + files.length + ' berkas...');
+        let ok = 0; const gagal = [];
+        for (const f of files) {
+            try { await unggahSatuFile(idSpj, slot, f); ok++; }
+            catch (e) { if (String(e.message) === 'Sesi berakhir') return; gagal.push(e.message); }
+        }
+        if (gagal.length) alert('Sebagian berkas gagal:\n' + gagal.join('\n'));
+        if (ok) showToast(ok + ' berkas berhasil diunggah.');
+        await tarikDataDariServer();
+        if (String(activeSelectedId) === String(idSpj)) bukaModalVerifikasi(idSpj);
+    };
+    inp.click();
+}
+
+// Panel unggah pada layar "berhasil disimpan"
+function panelUploadHtml(idSpj, jenis) {
+    const l1 = jenis === 'LS' ? 'Kwitansi Kontrak / SPK' : 'Dok. Keuangan (SPP/SPM/Pajak)';
+    const l2 = jenis === 'LS' ? 'Berkas Pencairan LS' : 'SPJ Fungsional (Kwitansi/Nota/Absen)';
+    const kotak = (slot, label, no) => `<div><label class="block text-xs font-bold text-slate-700 mb-1">${no}. ${label}</label>
+        <input type="file" id="fileUp_${slot}" multiple accept="${ACCEPT_UNGGAH}" class="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:bg-blue-100 file:text-blue-700 file:font-bold">
+        <div id="statusUp_${slot}" class="text-[11px] mt-1 space-y-0.5"></div></div>`;
+    return `<div class="text-left bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3 mb-3">
+        <p class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2"><strong>PENTING:</strong> pengajuan belum lengkap sebelum berkas diunggah. Format PDF/JPG/PNG/Word/Excel, maksimal 10 MB per berkas.</p>
+        ${kotak('keuangan', l1, 1)}${kotak('spj', l2, 2)}
+        <button type="button" id="btnUnggahPanel" onclick="unggahDariPanel('${escapeHtml(idSpj)}')" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md text-sm"><i class="fa-solid fa-cloud-arrow-up me-2"></i> Unggah Berkas</button>
+        <button type="button" onclick="closeModal('modalNewSpj')" class="w-full text-xs text-slate-500 hover:text-slate-800 underline">Unggah nanti (lewat tombol Detail pada tabel)</button>
+    </div>`;
+}
+
+async function unggahDariPanel(idSpj) {
+    const btn = document.getElementById('btnUnggahPanel');
+    const adaFile = ['keuangan', 'spj'].some(sl => (document.getElementById('fileUp_' + sl).files || []).length);
+    if (!adaFile) { alert('Pilih minimal satu berkas terlebih dahulu.'); return; }
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Mengunggah...';
+    let ok = 0, gagal = 0;
+    for (const slot of ['keuangan', 'spj']) {
+        const files = Array.from(document.getElementById('fileUp_' + slot).files || []);
+        const st = document.getElementById('statusUp_' + slot); st.innerHTML = '';
+        for (const f of files) {
+            const baris = document.createElement('div'); baris.className = 'text-slate-500';
+            baris.textContent = '⏳ ' + f.name + ' ...'; st.appendChild(baris);
+            try { await unggahSatuFile(idSpj, slot, f); baris.className = 'text-emerald-600'; baris.textContent = '✔ ' + f.name; ok++; }
+            catch (e) { if (String(e.message) === 'Sesi berakhir') return; baris.className = 'text-red-600'; baris.textContent = '✖ ' + e.message; gagal++; }
+        }
+    }
+    btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up me-2"></i> Unggah Berkas';
+    if (ok) showToast(ok + ' berkas tersimpan di Drive' + (gagal ? ' (' + gagal + ' gagal)' : '.'));
+    tarikDataDariServer();
 }
