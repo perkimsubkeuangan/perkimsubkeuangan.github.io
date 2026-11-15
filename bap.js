@@ -8,6 +8,7 @@ const LOGO_BAP = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAAByCAAAAACU
 let dataKontrakTersimpan = [];
 let dataPenyediaTersimpan = [];
 let referensiDataBap = {};
+let daftarPptkBap = [];
 const roleAktif = sessionStorage.getItem('sesiAktif_role');
 const namaPptkAktif = sessionStorage.getItem('sesiAktif_namaLengkap');
 const sesiValid = !!(roleAktif && namaPptkAktif && sessionStorage.getItem('sesi_token'));
@@ -17,8 +18,9 @@ if (!sesiValid) { window.location.replace('index.html'); }
 
 document.addEventListener('DOMContentLoaded', () => {
     if (!sesiValid) return;
+    // Input BAP: hanya PPTK & SUPER_ADMIN (VERIFIKATOR & PIMPINAN hanya melihat/mencetak). Server menegakkan aturan yang sama.
     const btn = document.getElementById('btnTambahBap');
-    if (btn) { btn.classList.remove('hidden'); btn.classList.add('flex'); }
+    if (btn && (roleAktif === 'PPTK' || roleAktif === 'SUPER_ADMIN')) { btn.classList.remove('hidden'); btn.classList.add('flex'); }
     const cari = document.getElementById('cariKontrak');
     if (cari) cari.addEventListener('input', renderTabelKontrak);
     const tbody = document.getElementById('tabelKontrakBody');
@@ -86,6 +88,7 @@ function ambilDataBAP() {
             dataKontrakTersimpan = data.kontrakLS || [];
             dataPenyediaTersimpan = data.penyediaCV || [];
             referensiDataBap = data.referensi || {};
+            daftarPptkBap = (data.akun || []).filter(a => a.role === 'PPTK');
             renderTabelKontrak();
         })
         .catch(e => {
@@ -153,7 +156,12 @@ function bangunGridSpd() {
 }
 
 function bukaFormBap() {
+    if (roleAktif !== 'PPTK' && roleAktif !== 'SUPER_ADMIN') { alert('Peran Anda tidak memiliki hak menambah data BAP.'); return; }
     document.getElementById('formBap').reset();
+    const adaPicker = roleAktif === 'SUPER_ADMIN';
+    tampil('boxBapPptk', adaPicker);
+    const selPptk = document.getElementById('bapPptk'); selPptk.required = adaPicker;
+    selPptk.innerHTML = '<option value="" disabled selected>-- Pilih PPTK --</option>' + daftarPptkBap.map(p => `<option value="${escapeHtml(p.namaLengkap)}">${escapeHtml(p.namaLengkap)}</option>`).join('');
     bangunGridSpd();
     isiDropdownProgramBap();
     document.getElementById('bapKegiatan').innerHTML = OPT_KEG;
@@ -261,6 +269,7 @@ function simpanBapKeServer(e) {
     const jam = !!t.jaminan, bast = !!t.bast;
     const payload = {
         action: 'create_bap',
+        pptk: roleAktif === 'SUPER_ADMIN' ? v('bapPptk') : '',
         program: v('bapProgram'), kegiatan: v('bapKegiatan'), subKegiatan: v('bapSubKegiatan'), uraian: v('bapUraian'),
         noKontrak: v('bapNoKontrak'), tglKontrak: v('bapTglKontrak'), nilaiKontrak, tahapBayar: v('bapTahap'),
         nilaiBayar, tglBap: v('bapTglBap'),
