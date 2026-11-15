@@ -822,9 +822,13 @@ function bolehUnggah(item) {
 
 function jadikanLink(textUrl, idItem, formType, slot, boleh) {
     const idq = escapeHtml(String(idItem));
-    const tombol = (teks, ikon) => `<button type="button" onclick="pilihBerkas('${idq}','${slot}')" class="px-2 py-1 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded text-[10px] font-bold inline-block border border-blue-200"><i class="fa-solid ${ikon} me-1"></i> ${teks}</button>`;
+    // Dua pilihan unggah: langsung (<= 10 MB) atau lewat Google Form (> 10 MB, ID Pengajuan terisi otomatis)
+    const duaTombol = () => `<div class="flex flex-wrap gap-1.5 mt-2">
+        <button type="button" onclick="pilihBerkas('${idq}','${slot}')" class="px-2.5 py-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded text-[10px] font-bold shadow-sm"><i class="fa-solid fa-cloud-arrow-up me-1"></i> Upload Langsung <span class="font-normal opacity-80">(&le; 10 MB)</span></button>
+        <a href="${escapeHtml(urlFormUpload(formType, idItem))}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1.5 bg-white text-blue-700 hover:bg-blue-50 border border-blue-300 rounded text-[10px] font-bold"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Via Google Form <span class="font-normal opacity-80">(&gt; 10 MB)</span></a>
+    </div>`;
     if (!textUrl || textUrl === "-" || textUrl === "") {
-        return `<span class="text-slate-400 italic block mb-2">Belum dilampirkan</span>` + (boleh ? tombol('Upload Berkas', 'fa-cloud-arrow-up') : '');
+        return `<span class="text-slate-400 italic block">Belum dilampirkan</span>` + (boleh ? duaTombol() : '');
     }
     // Satu sel dapat berisi beberapa berkas (satu per baris): "url|nama"
     const daftar = String(textUrl).split('\n').map(x => x.trim()).filter(Boolean).map(line => {
@@ -833,7 +837,7 @@ function jadikanLink(textUrl, idItem, formType, slot, boleh) {
         else { const matchId = line.match(/[-\w]{25,}/); if (matchId) namaFile = "File_" + matchId[0].substring(0, 8) + "..."; }
         return `<a href="${escapeHtml(amanUrl(url))}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-bold bg-blue-50 hover:bg-blue-100 border border-blue-100 px-2 py-1.5 rounded inline-block mt-1 transition-colors flex items-center gap-1.5 w-fit"><i class="fa-solid fa-file-pdf text-red-500"></i> <span class="truncate max-w-[200px]">${escapeHtml(namaFile)}</span></a>`;
     }).join('');
-    return daftar + (boleh ? `<div class="mt-2">${tombol('Tambah Berkas', 'fa-plus')}</div>` : '');
+    return daftar + (boleh ? duaTombol() : '');
 }
 
 function renderListRevisi(textRaw) {
@@ -1055,6 +1059,7 @@ function bukaModalVerifikasi(id) {
             if(item.status === 'BELUM_DIPROSES') document.getElementById('teksRevisiPptk').innerText = "Anda masih dapat mengubah data teks atau mengunggah ulang berkas.";
             if(item.status === 'REVISI') document.getElementById('teksRevisiPptk').innerHTML = "Catatan Verifikator: <br>" + teksCatatan(item.catatanRevisi || "-");
             const btnRev = document.getElementById('btnUploadRevisi'); btnRev.setAttribute('href', '#'); btnRev.removeAttribute('target'); btnRev.onclick = (ev) => { ev.preventDefault(); pilihBerkas(item.id, 'revisi'); };
+            const btnRevForm = document.getElementById('btnUploadRevisiForm'); if (btnRevForm) btnRevForm.setAttribute('href', urlFormUpload('REVISI', item.id));
             let existingEditBtnPptk = document.getElementById('btnEditDataPptk'); if(existingEditBtnPptk) existingEditBtnPptk.remove();
             const editBtnPptkHtml = `<button id="btnEditDataPptk" onclick="bukaFormEdit()" class="w-full mt-2 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded font-bold text-xs shadow-sm transition-colors flex items-center justify-center gap-1.5"><i class="fa-solid fa-pen-to-square"></i> EDIT DATA TEKS</button>`;
             document.getElementById('panelPptkRevisi').insertAdjacentHTML('beforeend', editBtnPptkHtml);
@@ -1144,12 +1149,69 @@ function keluarSistem() {
     window.location.reload();
 }
 
-// ================== UNGGAH BERKAS LANGSUNG (tanpa Google Form) ==================
-// Tersimpan ke Drive: ROOT / GU atau LS / Program / Kegiatan / Sub Kegiatan / [Revisi]
+// ================== UNGGAH BERKAS ==================
+// Dua pilihan: (1) Upload Langsung (<= 10 MB, tersimpan otomatis ke folder Drive) dan
+// (2) Upload via Google Form (> 10 MB; ID Pengajuan terisi otomatis, diarsipkan otomatis oleh trigger).
 const EKSTENSI_BOLEH = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx'];
 const MAKS_BYTE_UNGGAH = 10 * 1024 * 1024;
 const ACCEPT_UNGGAH = '.pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx';
 
+// ---------- Animasi proses unggah ----------
+const IKON_PROSES = `<div style="position:absolute;inset:0;border-radius:50%;border:5px solid #dbeafe"></div>
+    <div style="position:absolute;inset:0;border-radius:50%;border:5px solid #2563eb;border-top-color:transparent;animation:unggahPutar .9s linear infinite"></div>
+    <i class="fa-solid fa-cloud-arrow-up" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#2563eb;font-size:18px"></i>`;
+const IKON_OK = `<div class="unggah-ok" style="position:absolute;inset:0;border-radius:50%;background:#059669;display:flex;align-items:center;justify-content:center;color:#fff;font-size:26px"><i class="fa-solid fa-check"></i></div>`;
+
+function siapkanOverlayUnggah() {
+    if (document.getElementById('overlayUnggah')) return;
+    const st = document.createElement('style');
+    st.textContent = `@keyframes unggahPutar{to{transform:rotate(360deg)}}
+        @keyframes unggahGeser{0%{transform:translateX(-110%)}100%{transform:translateX(360%)}}
+        @keyframes unggahMuncul{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+        .unggah-bar{width:30%;animation:unggahGeser 1.2s ease-in-out infinite}
+        .unggah-ok{animation:unggahMuncul .4s ease-out}`;
+    document.head.appendChild(st);
+    const el = document.createElement('div'); el.id = 'overlayUnggah';
+    el.style.cssText = 'display:none;position:fixed;inset:0;z-index:500;background:rgba(16,29,56,.6);backdrop-filter:blur(2px);align-items:center;justify-content:center;padding:16px';
+    el.innerHTML = `<div style="background:#fff;border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.35);width:100%;max-width:360px;padding:26px;text-align:center">
+        <div id="ovIkon" style="position:relative;width:60px;height:60px;margin:0 auto 12px"></div>
+        <div id="ovJudul" style="font-weight:700;color:#1e293b;font-size:15px"></div>
+        <div id="ovTahap" style="font-size:12px;color:#2563eb;margin-top:4px;font-weight:600;min-height:16px"></div>
+        <div id="ovNama" style="font-size:11px;color:#64748b;margin-top:4px;word-break:break-all;min-height:14px"></div>
+        <div style="height:8px;background:#e2e8f0;border-radius:99px;margin-top:16px;overflow:hidden"><div id="ovBar" style="height:100%;border-radius:99px"></div></div>
+        <div id="ovCatatan" style="font-size:11px;color:#94a3b8;margin-top:12px">Mohon jangan menutup halaman ini</div></div>`;
+    document.body.appendChild(el);
+}
+function ovMulai() {
+    siapkanOverlayUnggah();
+    document.getElementById('ovIkon').innerHTML = IKON_PROSES;
+    document.getElementById('ovJudul').textContent = 'Sedang mengunggah...';
+    document.getElementById('ovTahap').textContent = 'Menyiapkan...';
+    document.getElementById('ovNama').textContent = '';
+    document.getElementById('ovCatatan').textContent = 'Mohon jangan menutup halaman ini';
+    const bar = document.getElementById('ovBar'); bar.className = 'unggah-bar'; bar.style.width = ''; bar.style.background = 'linear-gradient(90deg,#3b82f6,#2563eb)';
+    document.getElementById('overlayUnggah').style.display = 'flex';
+}
+function ovFile(i, total, nama) {
+    document.getElementById('ovJudul').textContent = total > 1 ? 'Mengunggah berkas ' + i + ' dari ' + total : 'Sedang mengunggah...';
+    document.getElementById('ovNama').textContent = nama;
+}
+function ovTahap(teks) { const el = document.getElementById('ovTahap'); if (el) el.textContent = teks; }
+function ovTutup() { const el = document.getElementById('overlayUnggah'); if (el) el.style.display = 'none'; }
+// Tampilkan hasil sebentar (centang animasi) lalu tutup
+function ovSelesai(ok, gagal) {
+    const bar = document.getElementById('ovBar'); bar.className = ''; bar.style.width = '100%';
+    if (ok > 0) {
+        document.getElementById('ovIkon').innerHTML = IKON_OK; bar.style.background = '#059669';
+        document.getElementById('ovJudul').textContent = gagal ? ok + ' berkas berhasil, ' + gagal + ' gagal' : (ok > 1 ? ok + ' berkas berhasil diunggah' : 'Berhasil diunggah');
+        document.getElementById('ovTahap').textContent = 'Tersimpan di Google Drive'; document.getElementById('ovNama').textContent = '';
+        document.getElementById('ovCatatan').textContent = '';
+        return new Promise(r => setTimeout(() => { ovTutup(); r(); }, 1200));
+    }
+    ovTutup(); return Promise.resolve();
+}
+
+// ---------- Unggah langsung ----------
 function bacaFileBase64(file) {
     return new Promise((resolve, reject) => {
         const r = new FileReader();
@@ -1159,11 +1221,19 @@ function bacaFileBase64(file) {
     });
 }
 
-async function unggahSatuFile(idSpj, slot, file) {
+function pesanFileBesar(daftarNama) {
+    return 'File berikut lebih dari 10 MB sehingga tidak bisa diunggah langsung:\n- ' + daftarNama.join('\n- ') +
+        '\n\nGunakan tombol "Upload via Google Form" untuk file di atas 10 MB (ID Pengajuan akan terisi otomatis).';
+}
+
+// onTahap(teks) opsional: dipakai untuk memperbarui animasi proses
+async function unggahSatuFile(idSpj, slot, file, onTahap) {
     const ext = (file.name.includes('.') ? file.name.split('.').pop() : '').toLowerCase();
     if (!EKSTENSI_BOLEH.includes(ext)) throw new Error('"' + file.name + '": tipe file tidak diizinkan (PDF, JPG, PNG, DOC, DOCX, XLS, XLSX).');
-    if (file.size > MAKS_BYTE_UNGGAH) throw new Error('"' + file.name + '": ukuran melebihi 10 MB.');
+    if (file.size > MAKS_BYTE_UNGGAH) throw new Error('"' + file.name + '": lebih dari 10 MB. Gunakan Upload via Google Form.');
+    if (onTahap) onTahap('Membaca file...');
     const data = await bacaFileBase64(file);
+    if (onTahap) onTahap('Mengirim & menyimpan ke Google Drive...');
     const res = await apiPost({ action: 'upload_berkas', id: idSpj, slot: slot, nama: file.name, data: data });
     if (res.status !== 'success') throw new Error('"' + file.name + '": ' + (res.message || 'gagal diunggah.'));
     return res;
@@ -1174,22 +1244,29 @@ function pilihBerkas(idSpj, slot) {
     const inp = document.createElement('input');
     inp.type = 'file'; inp.multiple = true; inp.accept = ACCEPT_UNGGAH;
     inp.onchange = async () => {
-        const files = Array.from(inp.files || []); if (!files.length) return;
-        showToast('Mengunggah ' + files.length + ' berkas...');
+        const semua = Array.from(inp.files || []); if (!semua.length) return;
+        const besar = semua.filter(f => f.size > MAKS_BYTE_UNGGAH), layak = semua.filter(f => f.size <= MAKS_BYTE_UNGGAH);
+        if (besar.length) alert(pesanFileBesar(besar.map(f => f.name)));
+        if (!layak.length) return;
+
+        ovMulai();
         let ok = 0; const gagal = [];
-        for (const f of files) {
-            try { await unggahSatuFile(idSpj, slot, f); ok++; }
-            catch (e) { if (String(e.message) === 'Sesi berakhir') return; gagal.push(e.message); }
+        for (let i = 0; i < layak.length; i++) {
+            ovFile(i + 1, layak.length, layak[i].name);
+            try { await unggahSatuFile(idSpj, slot, layak[i], ovTahap); ok++; }
+            catch (e) { if (String(e.message) === 'Sesi berakhir') { ovTutup(); return; } gagal.push(e.message); }
         }
+        ovTahap('Memperbarui daftar berkas...');
+        await tarikDataDariServer();
+        await ovSelesai(ok, gagal.length);
         if (gagal.length) alert('Sebagian berkas gagal:\n' + gagal.join('\n'));
         if (ok) showToast(ok + ' berkas berhasil diunggah.');
-        await tarikDataDariServer();
         if (String(activeSelectedId) === String(idSpj)) bukaModalVerifikasi(idSpj);
     };
     inp.click();
 }
 
-// Panel unggah pada layar "berhasil disimpan"
+// Panel unggah pada layar "berhasil disimpan": dua pilihan
 function panelUploadHtml(idSpj, jenis) {
     const l1 = jenis === 'LS' ? 'Kwitansi Kontrak / SPK' : 'Dok. Keuangan (SPP/SPM/Pajak)';
     const l2 = jenis === 'LS' ? 'Berkas Pencairan LS' : 'SPJ Fungsional (Kwitansi/Nota/Absen)';
@@ -1197,30 +1274,44 @@ function panelUploadHtml(idSpj, jenis) {
         <input type="file" id="fileUp_${slot}" multiple accept="${ACCEPT_UNGGAH}" class="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:bg-blue-100 file:text-blue-700 file:font-bold">
         <div id="statusUp_${slot}" class="text-[11px] mt-1 space-y-0.5"></div></div>`;
     return `<div class="text-left bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3 mb-3">
-        <p class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2"><strong>PENTING:</strong> pengajuan belum lengkap sebelum berkas diunggah. Format PDF/JPG/PNG/Word/Excel, maksimal 10 MB per berkas.</p>
+        <p class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2"><strong>PENTING:</strong> pengajuan belum lengkap sebelum berkas diunggah. Pilih salah satu cara di bawah.</p>
+        <div class="text-[11px] font-bold text-slate-600">Pilihan 1 &mdash; Upload langsung <span class="font-normal text-slate-500">(maks. 10 MB per berkas; PDF/JPG/PNG/Word/Excel)</span></div>
         ${kotak('keuangan', l1, 1)}${kotak('spj', l2, 2)}
         <button type="button" id="btnUnggahPanel" onclick="unggahDariPanel('${escapeHtml(idSpj)}')" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md text-sm"><i class="fa-solid fa-cloud-arrow-up me-2"></i> Unggah Berkas</button>
+        <div class="flex items-center gap-2 text-[10px] text-slate-400"><div class="flex-1 h-px bg-slate-200"></div>ATAU<div class="flex-1 h-px bg-slate-200"></div></div>
+        <div class="text-[11px] font-bold text-slate-600">Pilihan 2 &mdash; Untuk file lebih dari 10 MB</div>
+        <a href="${escapeHtml(urlFormUpload(jenis, idSpj))}" target="_blank" rel="noopener noreferrer" class="block w-full text-center py-2.5 bg-white border-2 border-blue-600 text-blue-700 hover:bg-blue-50 font-bold rounded-lg text-sm"><i class="fa-solid fa-arrow-up-right-from-square me-2"></i> Upload via Google Form</a>
+        <p class="text-[10px] text-slate-500 leading-relaxed">ID Pengajuan terisi otomatis. Setelah mengirim Form, tunggu &plusmn; 1 menit lalu tekan tombol <b>Refresh</b> pada tabel agar berkas tampil.</p>
         <button type="button" onclick="closeModal('modalNewSpj')" class="w-full text-xs text-slate-500 hover:text-slate-800 underline">Unggah nanti (lewat tombol Detail pada tabel)</button>
     </div>`;
 }
 
 async function unggahDariPanel(idSpj) {
     const btn = document.getElementById('btnUnggahPanel');
-    const adaFile = ['keuangan', 'spj'].some(sl => (document.getElementById('fileUp_' + sl).files || []).length);
-    if (!adaFile) { alert('Pilih minimal satu berkas terlebih dahulu.'); return; }
-    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Mengunggah...';
-    let ok = 0, gagal = 0;
+    const antrean = [];
     for (const slot of ['keuangan', 'spj']) {
-        const files = Array.from(document.getElementById('fileUp_' + slot).files || []);
         const st = document.getElementById('statusUp_' + slot); st.innerHTML = '';
-        for (const f of files) {
-            const baris = document.createElement('div'); baris.className = 'text-slate-500';
-            baris.textContent = '⏳ ' + f.name + ' ...'; st.appendChild(baris);
-            try { await unggahSatuFile(idSpj, slot, f); baris.className = 'text-emerald-600'; baris.textContent = '✔ ' + f.name; ok++; }
-            catch (e) { if (String(e.message) === 'Sesi berakhir') return; baris.className = 'text-red-600'; baris.textContent = '✖ ' + e.message; gagal++; }
-        }
+        Array.from(document.getElementById('fileUp_' + slot).files || []).forEach(f => {
+            const baris = document.createElement('div'); st.appendChild(baris);
+            if (f.size > MAKS_BYTE_UNGGAH) { baris.className = 'text-red-600'; baris.textContent = '✖ ' + f.name + ' lebih dari 10 MB: gunakan Upload via Google Form'; }
+            else { baris.className = 'text-slate-500'; baris.textContent = '• ' + f.name + ' (menunggu)'; antrean.push({ slot, f, baris }); }
+        });
     }
+    if (!antrean.length) { alert('Pilih minimal satu berkas (maks. 10 MB per berkas) terlebih dahulu.'); return; }
+
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Mengunggah...';
+    ovMulai();
+    let ok = 0, gagal = 0;
+    for (let i = 0; i < antrean.length; i++) {
+        const { slot, f, baris } = antrean[i];
+        ovFile(i + 1, antrean.length, f.name);
+        baris.className = 'text-blue-600'; baris.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ' + escapeHtml(f.name);
+        try { await unggahSatuFile(idSpj, slot, f, ovTahap); baris.className = 'text-emerald-600'; baris.textContent = '✔ ' + f.name; ok++; }
+        catch (e) { if (String(e.message) === 'Sesi berakhir') { ovTutup(); return; } baris.className = 'text-red-600'; baris.textContent = '✖ ' + e.message; gagal++; }
+    }
+    ovTahap('Memperbarui data...');
+    await tarikDataDariServer();
+    await ovSelesai(ok, gagal);
     btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up me-2"></i> Unggah Berkas';
     if (ok) showToast(ok + ' berkas tersimpan di Drive' + (gagal ? ' (' + gagal + ' gagal)' : '.'));
-    tarikDataDariServer();
 }
