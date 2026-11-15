@@ -13,7 +13,7 @@ let searchQuery = '';
 let sortType = 'TGL_DESC';
 
 let editIndexAkun = -1; let editIndexPptk = -1;
-let paguItems = [];
+let realisasiPagu = null;   // hasil hitung server: PPTK = ringkasan, peran lain = rincian triwulan
 
 // ---------- Helper keamanan tampilan ----------
 // Link hanya boleh mengarah ke Google Drive / Docs (cegah link berbahaya dari isian sel)
@@ -128,11 +128,10 @@ function masukSistem() {
         if(sidebarSuperAdmin) { sidebarSuperAdmin.classList.add('hidden'); sidebarSuperAdmin.classList.remove('flex'); }
     }
     
-    if (sesiAktif.role === 'SUPER_ADMIN' || sesiAktif.role === 'VERIFIKATOR') {
-        document.querySelectorAll('.btn-edit-pagu').forEach(btn => btn.style.display = 'block');
-    } else {
-        document.querySelectorAll('.btn-edit-pagu').forEach(btn => btn.style.display = 'none');
-    }
+    // Atur Pagu: hanya SUPER_ADMIN
+    document.querySelectorAll('.btn-edit-pagu').forEach(btn => btn.style.display = (sesiAktif.role === 'SUPER_ADMIN') ? 'block' : 'none');
+    // Buat Pengajuan: hanya PPTK & SUPER_ADMIN (VERIFIKATOR & PIMPINAN hanya melihat / memverifikasi)
+    document.querySelectorAll('.btn-buat-spj').forEach(btn => { const li = btn.closest('li'); (li || btn).style.display = bisaBuatSpj() ? '' : 'none'; });
     
     isiDropdownPptkUtama(); kunciPptkLogin(); renderTabelSpj(); hitungAnggaran(); isiDropdownProgram();
 }
@@ -184,7 +183,8 @@ function tarikDataDariServer() {
             window.DATABASE_PENYEDIA = data.penyediaCV || [];
             if (data.pagu) { CONFIG.PAGU_TAHUNAN = data.pagu.tahunan || 0; CONFIG.PAGU_TW = data.pagu.tw || [0, 0, 0, 0]; }
             spjData = (data.spj || []).reverse();
-            paguItems = data.paguItems || [];
+            realisasiPagu = data.realisasi || null;
+            if (data.tahunAnggaran) CONFIG.TAHUN_ANGGARAN = data.tahunAnggaran;
             referensiData = data.referensi || {};
             renderTabelSpj(); hitungAnggaran(); isiDropdownProgram(); isiDropdownPptkUtama();
             const tbAkun = document.getElementById('tabelAkunBody'); if (tbAkun && tbAkun.innerHTML !== '') renderTabelAkunAdmin();
@@ -199,66 +199,40 @@ function formatRupiah(amount) { return new Intl.NumberFormat('id-ID', { style: '
 const TW_NAMA = ['Triwulan I', 'Triwulan II', 'Triwulan III', 'Triwulan IV'];
 const TW_BULAN = ['Jan – Mar', 'Apr – Jun', 'Jul – Sep', 'Okt – Des'];
 
-// Nomor NPD berakhiran .../P2/4/2026  ->  bulan 4, tahun 2026
-function bulanDariNpd(npd) {
-    const p = String(npd || '').split('/').map(x => x.trim()).filter(Boolean);
-    if (p.length < 2) return null;
-    const th = p[p.length - 1], bl = p[p.length - 2];
-    if (/^\d{4}$/.test(th) && /^\d{1,2}$/.test(bl) && +bl >= 1 && +bl <= 12) return { bulan: +bl, tahun: +th };
-    return null;
-}
-function bulanDariTanggal(s) {
-    const m = String(s || '').split('T')[0].match(/^(\d{4})-(\d{2})-/);
-    return m && +m[2] >= 1 && +m[2] <= 12 ? { tahun: +m[1], bulan: +m[2] } : null;
-}
-// GU: bulan dari nomor NPD. LS (nomor kontrak tidak memuat bulan): tanggal pindahbuku, jika belum ada tanggal pengajuan.
-function tentukanPeriode(item) {
-    if (String(item.jenisSurat || 'GU') === 'GU') { const n = bulanDariNpd(item.npd); if (n) return n; }
-    return (item.status === 'SUDAH DIPINDAHBUKUKAN' ? bulanDariTanggal(item.tglPb) : null) || bulanDariTanggal(item.createdAt);
-}
-
+// Realisasi dihitung di SERVER (Code.gs): GU = bulan pada nomor NPD (.../P2/4/2026 = bulan 4),
+// LS = tanggal pindahbuku. PPTK hanya menerima ringkasan; VERIFIKATOR/PIMPINAN/SUPER_ADMIN menerima rincian.
 function hitungAnggaran() {
-    const tahun = CONFIG.TAHUN_ANGGARAN;
-    const cair = [0, 0, 0, 0], proses = [0, 0, 0, 0];
-    let tanpaPeriode = 0, luarTahun = 0;
-
-    (paguItems || []).forEach(it => {
-        if (it.status === 'DITOLAK') return;
-        const nom = Number(it.nominal) || 0;
-        const per = tentukanPeriode(it);
-        if (!per) { tanpaPeriode++; return; }
-        if (per.tahun !== tahun) { luarTahun++; return; }
-        const tw = Math.floor((per.bulan - 1) / 3);
-        if (it.status === 'SUDAH DIPINDAHBUKUKAN') cair[tw] += nom; else proses[tw] += nom;
-    });
-
-    const totalCair = cair.reduce((a, b) => a + b, 0);
-    const paguTw = CONFIG.PAGU_TW || [0, 0, 0, 0];
+    const real = realisasiPagu || { ringkasan: true, totalCair: 0 };
+    const totalCair = Number(real.totalCair) || 0;
     const set = (id, txt) => { const el = document.getElementById(id); if (el) el.innerText = txt; };
     set('sisaTahunanVal', formatRupiah((CONFIG.PAGU_TAHUNAN || 0) - totalCair));
     set('paguTahunanInfo', 'dari pagu ' + formatRupiah(CONFIG.PAGU_TAHUNAN || 0));
     set('totalCairVal', formatRupiah(totalCair));
-    set('labelTahunAnggaran', String(tahun));
+    set('labelTahunAnggaran', String(CONFIG.TAHUN_ANGGARAN));
 
+    const ringkas = !!real.ringkasan || sesiAktif.role === 'PPTK';
+    ['headerTriwulan', 'kartuTriwulan', 'infoPaguCatatan'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ringkas ? 'none' : ''; });
+    if (ringkas) return;
+
+    const paguTw = CONFIG.PAGU_TW || [0, 0, 0, 0];
     const wadah = document.getElementById('kartuTriwulan');
     if (wadah) {
         wadah.innerHTML = TW_NAMA.map((nama, i) => {
-            const pagu = Number(paguTw[i]) || 0, sisa = pagu - cair[i];
-            const persen = pagu > 0 ? Math.min(100, cair[i] / pagu * 100) : 0;
+            const pagu = Number(paguTw[i]) || 0, cair = Number((real.cair || [])[i]) || 0, proses = Number((real.proses || [])[i]) || 0;
+            const sisa = pagu - cair, persen = pagu > 0 ? Math.min(100, cair / pagu * 100) : 0;
             const warnaBar = sisa < 0 ? 'bg-red-500' : (persen >= 85 ? 'bg-amber-500' : 'bg-sipd-emerald');
             return `<div class="bg-white rounded-lg border ${sisa < 0 ? 'border-red-300' : 'border-slate-200'} p-4 shadow-sm">
                 <div class="flex justify-between items-baseline"><h4 class="text-[11px] font-bold uppercase tracking-wider text-slate-500">${nama}</h4><span class="text-[10px] text-slate-400">${TW_BULAN[i]}</span></div>
                 <div class="text-lg font-bold mt-1 ${sisa < 0 ? 'text-red-600' : 'text-sipd-slate'}">${formatRupiah(sisa)}</div>
                 <div class="text-[10px] text-slate-400">sisa dari ${formatRupiah(pagu)}</div>
                 <div class="h-1.5 bg-slate-100 rounded mt-2 overflow-hidden"><div class="h-full ${warnaBar}" style="width:${persen.toFixed(1)}%"></div></div>
-                <div class="flex justify-between text-[10px] mt-1.5 gap-2"><span class="text-slate-500">Cair ${formatRupiah(cair[i])}</span><span class="text-amber-600">Proses ${formatRupiah(proses[i])}</span></div>
+                <div class="flex justify-between text-[10px] mt-1.5 gap-2"><span class="text-slate-500">Cair ${formatRupiah(cair)}</span><span class="text-amber-600">Proses ${formatRupiah(proses)}</span></div>
             </div>`;
         }).join('');
     }
-
     let cat = 'Triwulan ditentukan dari bulan pada nomor NPD (contoh <b>.../P2/<u>4</u>/2026</b> = bulan 4) untuk GU, dan dari tanggal pindahbuku untuk LS. “Cair” = sudah dipindahbukukan; “Proses” = diajukan namun belum cair (ditolak tidak dihitung).';
-    if (tanpaPeriode) cat += ` <span class="text-amber-600">${tanpaPeriode} pengajuan tidak terhitung karena bulan tidak dapat dibaca.</span>`;
-    if (luarTahun) cat += ` <span class="text-slate-500">${luarTahun} pengajuan di luar TA ${tahun} tidak dihitung.</span>`;
+    if (real.tanpaPeriode) cat += ` <span class="text-amber-600">${real.tanpaPeriode} pengajuan tidak terhitung karena bulan tidak dapat dibaca.</span>`;
+    if (real.luarTahun) cat += ` <span class="text-slate-500">${real.luarTahun} pengajuan di luar TA ${CONFIG.TAHUN_ANGGARAN} tidak dihitung.</span>`;
     const elCat = document.getElementById('infoPaguCatatan'); if (elCat) elCat.innerHTML = cat;
 }
 
@@ -292,7 +266,17 @@ function simpanPaguBaru() {
         .finally(() => { if (btn) { btn.disabled = false; btn.innerText = 'Simpan Pagu'; } });
 }
 
-function bukaFormSpjBaru() { isEditMode = false; editIdTarget = null; openModal('modalNewSpj'); }
+// ---------- Hak akses di tampilan (penegakan sebenarnya ada di server / Code.gs) ----------
+function bisaBuatSpj() { return sesiAktif.role === 'PPTK' || sesiAktif.role === 'SUPER_ADMIN'; }
+function bisaVerifikasi() { return sesiAktif.role === 'VERIFIKATOR' || sesiAktif.role === 'SUPER_ADMIN'; }
+function bisaEditItem(item) {
+    if (sesiAktif.role === 'SUPER_ADMIN') return true;
+    return sesiAktif.role === 'PPTK' && String(item.pptk).trim() === String(sesiAktif.namaLengkap).trim() && (item.status === 'BELUM_DIPROSES' || item.status === 'REVISI');
+}
+function bukaFormSpjBaru() {
+    if (!bisaBuatSpj()) { alert('Peran Anda tidak memiliki hak membuat pengajuan.'); return; }
+    isEditMode = false; editIdTarget = null; openModal('modalNewSpj');
+}
 
 function isiDropdownProgram() {
     const progSelect = document.getElementById('inputProgram'); if(!progSelect) return;
@@ -654,9 +638,9 @@ function renderTabelSpj() {
         if(item.status === 'DITOLAK') badge = `<span class="px-2.5 py-1 rounded-full bg-red-50 text-red-700 font-bold border border-red-200 text-[10px] tracking-wide">DITOLAK</span>`;
         if(item.status === 'SUDAH DIPINDAHBUKUKAN') badge = `<span class="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-200 text-[10px] tracking-wide">SELESAI PB</span>`;
         
-        let actionBtnText = sesiAktif.role === 'PPTK' ? '<i class="fa-solid fa-folder-open"></i> DETAIL' : '<i class="fa-solid fa-clipboard-check"></i> VERIFIKASI';
-        let actionBtnColor = sesiAktif.role === 'PPTK' ? 'bg-slate-700 hover:bg-slate-800' : 'bg-sipd-navy hover:bg-slate-800';
-        if (sesiAktif.role === 'BENDAHARA') { actionBtnText = '<i class="fa-solid fa-money-bill-transfer"></i> EKSEKUSI PB'; actionBtnColor = 'bg-blue-600 hover:bg-blue-700'; }
+        const bacaSaja = (sesiAktif.role === 'PPTK' || sesiAktif.role === 'PIMPINAN');
+        let actionBtnText = bacaSaja ? '<i class="fa-solid fa-folder-open"></i> DETAIL' : '<i class="fa-solid fa-clipboard-check"></i> VERIFIKASI';
+        let actionBtnColor = bacaSaja ? 'bg-slate-700 hover:bg-slate-800' : 'bg-sipd-navy hover:bg-slate-800';
 
         let jenisSurat = String(item.jenisSurat || 'GU');
         let jenisBadge = jenisSurat === 'LS' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200';
@@ -719,6 +703,17 @@ function switchTabAdmin(tabName) {
     }
 }
 
+function infoPasswordAkun(akun) {
+    if (!akun.username) return '<span class="text-slate-400 text-[10px]">-</span>';
+    const peta = { HASH: ['bg-emerald-50 text-emerald-700 border-emerald-200', 'Ter-hash ✔'], TEKS_BIASA: ['bg-red-50 text-red-700 border-red-200', 'Teks biasa ⚠'], KOSONG: ['bg-slate-100 text-slate-600 border-slate-200', 'Belum ada'] };
+    const f = peta[akun.passwordFormat] || peta.KOSONG;
+    let html = `<span class="px-2 py-0.5 ${f[0]} border rounded text-[9px] font-bold">${f[1]}</span>`;
+    if (akun.passwordDefault) html += ` <span class="px-2 py-0.5 bg-red-600 text-white rounded text-[9px] font-bold">Password default</span>`;
+    html += `<div class="text-[9px] text-slate-400 mt-0.5">${akun.passwordDiubah ? 'Diubah: ' + escapeHtml(akun.passwordDiubah) + (akun.passwordDiubahOleh ? '<br>oleh ' + escapeHtml(akun.passwordDiubahOleh) : '') : 'Perubahan belum tercatat'}</div>`;
+    if (akun.roleValid === false) html += '<div class="text-[9px] text-red-600 font-bold mt-0.5">ROLE TIDAK VALID — ubah ke salah satu dari 4 role</div>';
+    return html;
+}
+
 function renderTabelAkunAdmin() {
     const tbody = document.getElementById('tabelAkunBody'); const tbPptk = document.getElementById('tabelPptkBody');
     if (!tbody || !tbPptk) return; tbody.innerHTML = ''; tbPptk.innerHTML = '';
@@ -737,16 +732,19 @@ function renderTabelAkunAdmin() {
         }
         const warna = { SUPER_ADMIN: 'bg-amber-50 text-amber-700 border-amber-200', PPTK: 'bg-blue-50 text-blue-700 border-blue-200', VERIFIKATOR: 'bg-emerald-50 text-emerald-700 border-emerald-200' }[akun.role] || 'bg-slate-100 text-slate-700 border-slate-200';
         const roleBadge = `<span class="px-2.5 py-1 ${warna} text-[10px] font-bold rounded-md border">${escapeHtml(akun.role)}</span>`;
+        const infoPw = infoPasswordAkun(akun);
+        const tombolUji = akun.username ? `<button onclick="bukaUjiPassword(${index})" title="Uji kecocokan password" class="px-2 py-1 bg-sky-50 text-sky-700 border border-sky-200 rounded text-[10px] font-bold hover:bg-sky-100 mr-1"><i class="fa-solid fa-key"></i></button>` : '';
         const identitasLogin = akun.username
-            ? `<span class="text-blue-600 font-bold">${escapeHtml(akun.username)}</span><br><span class="text-[9px] text-slate-400">Password tersimpan terenkripsi</span>`
+            ? `<span class="text-blue-600 font-bold">${escapeHtml(akun.username)}</span>`
             : `<span class="text-red-500 italic text-[10px]">Belum Punya Akun</span>`;
         tbody.innerHTML += `
             <tr class="hover:bg-slate-50 transition-colors">
                 <td class="p-3 px-4 border-b border-slate-200 font-bold text-slate-800 text-xs">${nama}</td>
                 <td class="p-3 px-4 border-b border-slate-200 text-slate-500 font-mono text-[11px]">${identitasLogin}</td>
                 <td class="p-3 px-4 border-b border-slate-200 text-xs">${roleBadge}</td>
+                <td class="p-3 px-4 border-b border-slate-200 text-xs">${infoPw}</td>
                 <td class="p-3 px-4 border-b border-slate-200 text-center whitespace-nowrap">
-                    <button onclick="editDataAkun(${index})" class="px-2 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded text-[10px] font-bold hover:bg-amber-100"><i class="fa-solid fa-pen"></i></button>
+                    ${tombolUji}<button onclick="editDataAkun(${index})" class="px-2 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded text-[10px] font-bold hover:bg-amber-100"><i class="fa-solid fa-pen"></i></button>
                     <button onclick="hapusDataAkun(${index})" class="px-2 py-1 bg-red-50 text-red-600 border border-red-200 rounded text-[10px] font-bold hover:bg-red-100 ml-1"><i class="fa-solid fa-trash"></i></button>
                 </td>
             </tr>`;
@@ -816,8 +814,9 @@ function showToast(msg) { const toast = document.getElementById('toast'); docume
 
 // Pemilik SPJ (PPTK) atau SUPER_ADMIN boleh mengunggah selama status BELUM_DIPROSES / REVISI
 function bolehUnggah(item) {
+    if (sesiAktif.role === 'SUPER_ADMIN') return true;   // override: semua pengajuan & status (tercatat di riwayat/LOG)
     const pemilik = sesiAktif.role === 'PPTK' && String(item.pptk).trim() === String(sesiAktif.namaLengkap).trim();
-    return (pemilik || sesiAktif.role === 'SUPER_ADMIN') && (item.status === 'BELUM_DIPROSES' || item.status === 'REVISI');
+    return pemilik && (item.status === 'BELUM_DIPROSES' || item.status === 'REVISI');
 }
 
 function jadikanLink(textUrl, idItem, formType, slot, boleh) {
@@ -915,7 +914,9 @@ function bukaModalVerifikasi(id) {
     
     document.getElementById('linkDokKeuangan').innerHTML = jadikanLink(item.linkKeuangan, item.id, item.jenisSurat, 'keuangan', bolehUnggah(item)); 
     document.getElementById('linkDokSpj').innerHTML = jadikanLink(item.linkSpj, item.id, item.jenisSurat, 'spj', bolehUnggah(item)); 
-    document.getElementById('linkDokRevisi').innerHTML = renderListRevisi(item.linkRevisi);
+    document.getElementById('linkDokRevisi').innerHTML = renderListRevisi(item.linkRevisi) + (sesiAktif.role === 'SUPER_ADMIN'
+        ? `<div class="flex flex-wrap gap-1.5 mt-2"><button type="button" onclick="pilihBerkas('${escapeHtml(String(item.id))}','revisi')" class="px-2.5 py-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded text-[10px] font-bold shadow-sm"><i class="fa-solid fa-cloud-arrow-up me-1"></i> Upload Revisi <span class="font-normal opacity-80">(admin, &le; 10 MB)</span></button>
+           <a href="${escapeHtml(urlFormUpload('REVISI', item.id))}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1.5 bg-white text-blue-700 hover:bg-blue-50 border border-blue-300 rounded text-[10px] font-bold"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Via Google Form <span class="font-normal opacity-80">(&gt; 10 MB)</span></a></div>` : '');
 
     const buktiPbBox = document.getElementById('detailBuktiPbBox');
     if (item.status === 'SUDAH DIPINDAHBUKUKAN' && item.buktiPb) {
@@ -1021,7 +1022,7 @@ function bukaModalVerifikasi(id) {
     document.getElementById('panelPptkRevisi').classList.add('hidden');
     document.getElementById('catatanRevisiInput').value = ""; 
 
-    if (sesiAktif.role === 'VERIFIKATOR' || sesiAktif.role === 'SUPER_ADMIN' || sesiAktif.role === 'BENDAHARA') {
+    if (bisaVerifikasi()) {
     document.getElementById('panelAksiVerifikator').classList.remove('hidden'); 
     
     // Logika Pemisahan Wewenang Tombol
@@ -1031,30 +1032,20 @@ function bukaModalVerifikasi(id) {
     const btnPb = document.getElementById('btnPb');
     
     if(btnSetuju && btnRevisi && btnTolak && btnPb) {
-        if (sesiAktif.role === 'BENDAHARA') {
-            // Bendahara HANYA bisa PB. Sembunyikan tombol lain, lebarkan tombol PB jadi 1 kolom penuh
-            btnSetuju.style.display = 'none'; btnRevisi.style.display = 'none'; btnTolak.style.display = 'none';
-            btnPb.style.display = 'flex';
-            document.getElementById('gridTombolAksi').className = "grid grid-cols-1 gap-2 mb-2";
-        } else if (sesiAktif.role === 'VERIFIKATOR') {
-            // Verifikator HANYA bisa Setuju/Tolak/Revisi (3 tombol)
-            btnSetuju.style.display = 'flex'; btnRevisi.style.display = 'flex'; btnTolak.style.display = 'flex';
-            btnPb.style.display = 'none'; 
-            document.getElementById('gridTombolAksi').className = "grid grid-cols-3 gap-2 mb-2";
-        } else {
-            // SUPER_ADMIN bisa semuanya (4 tombol)
-            btnSetuju.style.display = 'flex'; btnRevisi.style.display = 'flex'; btnTolak.style.display = 'flex';
-            btnPb.style.display = 'flex'; 
-            document.getElementById('gridTombolAksi').className = "grid grid-cols-4 gap-2 mb-2";
-        }
+        // VERIFIKATOR: Setuju/Revisi/Tolak + PB. SUPER_ADMIN: sama (override/cadangan).
+        btnSetuju.style.display = 'flex'; btnRevisi.style.display = 'flex'; btnTolak.style.display = 'flex'; btnPb.style.display = 'flex';
+        document.getElementById('gridTombolAksi').className = "grid grid-cols-4 gap-2 mb-2";
     }
+    // Edit teks pengajuan milik PPTK: hanya SUPER_ADMIN (koreksi); VERIFIKATOR tidak boleh
+    const btnEditVerif = document.getElementById('btnEditTeksVerif'); if (btnEditVerif) btnEditVerif.style.display = (sesiAktif.role === 'SUPER_ADMIN') ? 'flex' : 'none';
 
     let cleanPhone = String(item.wa || '').replace(/[^0-9]/g, ''); if (cleanPhone.startsWith('0')) { cleanPhone = '62' + cleanPhone.slice(1); } else if (cleanPhone.startsWith('8')) { cleanPhone = '62' + cleanPhone; }        
     let waText = `Yth. PPTK,\nUpdate SPJ (NPD: ${item.npd}):\n*Status: ${item.status}*\n`; if(item.status === 'REVISI' || item.status === 'DITOLAK') waText += `Catatan:\n${String(item.catatanRevisi).replace(/<br>/g, '\n')}\n`;
     const btnSendWa = document.getElementById('btnSendWa'); if (btnSendWa) btnSendWa.href = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(waText)}`;
 } else {
         document.getElementById('panelAksiVerifikator').classList.add('hidden'); 
-        if(item.status === 'REVISI' || item.status === 'BELUM_DIPROSES') {
+        // Panel tindakan PPTK: hanya PPTK pemilik. PIMPINAN (hanya lihat) tidak mendapat tombol apa pun.
+        if (sesiAktif.role === 'PPTK' && String(item.pptk).trim() === String(sesiAktif.namaLengkap).trim() && (item.status === 'REVISI' || item.status === 'BELUM_DIPROSES')) {
             document.getElementById('panelPptkRevisi').classList.remove('hidden');
             if(item.status === 'BELUM_DIPROSES') document.getElementById('teksRevisiPptk').innerText = "Anda masih dapat mengubah data teks atau mengunggah ulang berkas.";
             if(item.status === 'REVISI') document.getElementById('teksRevisiPptk').innerHTML = "Catatan Verifikator: <br>" + teksCatatan(item.catatanRevisi || "-");
@@ -1070,6 +1061,7 @@ function bukaModalVerifikasi(id) {
 
 function bukaFormEdit() {
     const item = spjData.find(i => String(i.id) === String(activeSelectedId)); if(!item) return;
+    if (!bisaEditItem(item)) { alert('Anda tidak memiliki hak mengubah pengajuan ini.'); return; }
     isEditMode = true; editIdTarget = item.id;
     const existingSukses = document.getElementById('pesanSuksesDiv'); if(existingSukses) existingSukses.remove();
     document.getElementById('formNewSpj').classList.remove('hidden');
@@ -1314,4 +1306,48 @@ async function unggahDariPanel(idSpj) {
     await ovSelesai(ok, gagal);
     btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up me-2"></i> Unggah Berkas';
     if (ok) showToast(ok + ' berkas tersimpan di Drive' + (gagal ? ' (' + gagal + ' gagal)' : '.'));
+}
+
+// ================== CEK PASSWORD (SUPER_ADMIN) ==================
+// Password tidak pernah dikirim/ditampilkan: server hanya menjawab COCOK / TIDAK COCOK.
+let indexUjiPassword = -1;
+function bukaUjiPassword(index) {
+    const ak = (window.DATABASE_AKUN || [])[index]; if (!ak || !ak.username) return;
+    indexUjiPassword = index;
+    document.getElementById('ujiAkunLabel').textContent = ak.namaLengkap + ' (' + ak.username + ')';
+    document.getElementById('ujiPasswordInput').value = ''; document.getElementById('ujiHasil').innerHTML = '';
+    openModal('modalUjiPassword');
+    setTimeout(() => document.getElementById('ujiPasswordInput').focus(), 100);
+}
+
+function jalankanUjiPassword() {
+    const ak = (window.DATABASE_AKUN || [])[indexUjiPassword]; if (!ak) return;
+    const inp = document.getElementById('ujiPasswordInput'), hasil = document.getElementById('ujiHasil'), btn = document.getElementById('btnUjiPassword');
+    if (!inp.value) { hasil.innerHTML = '<span class="text-amber-600">Isi password yang akan diuji.</span>'; return; }
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; hasil.innerHTML = '';
+    apiPost({ action: 'akun_uji_password', username: ak.username, password: inp.value })
+        .then(res => {
+            if (res.status !== 'success') hasil.innerHTML = '<span class="text-red-600">' + escapeHtml(res.message || 'Gagal menguji.') + '</span>';
+            else hasil.innerHTML = res.cocok ? '<span class="text-emerald-600"><i class="fa-solid fa-circle-check me-1"></i>COCOK</span>' : '<span class="text-red-600"><i class="fa-solid fa-circle-xmark me-1"></i>TIDAK COCOK</span>';
+            inp.value = '';
+        })
+        .catch(e => { if (String(e.message) !== 'Sesi berakhir') hasil.innerHTML = '<span class="text-red-600">Koneksi gagal.</span>'; })
+        .finally(() => { btn.disabled = false; btn.textContent = 'Uji'; });
+}
+
+function auditPasswordAkun() {
+    const btn = document.getElementById('btnAuditPassword'), wadah = document.getElementById('hasilAuditPassword');
+    const asli = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Memeriksa...';
+    apiPost({ action: 'akun_audit_password' })
+        .then(res => {
+            wadah.classList.remove('hidden');
+            if (res.status !== 'success') { wadah.innerHTML = '<div class="p-2 bg-red-50 border border-red-200 text-red-700 text-[11px] rounded">' + escapeHtml(res.message || 'Audit gagal.') + '</div>'; return; }
+            const bermasalah = res.hasil.filter(h => h.temuan);
+            wadah.innerHTML = bermasalah.length
+                ? '<div class="p-3 bg-red-50 border border-red-200 rounded text-[11px] text-red-800"><b>' + bermasalah.length + ' akun perlu direset:</b><ul class="list-disc ml-5 mt-1">' +
+                  bermasalah.map(h => '<li><b>' + escapeHtml(h.username) + '</b> (' + escapeHtml(h.namaLengkap) + ') — ' + escapeHtml(h.temuan) + '</li>').join('') + '</ul></div>'
+                : '<div class="p-3 bg-emerald-50 border border-emerald-200 rounded text-[11px] text-emerald-800"><i class="fa-solid fa-circle-check me-1"></i> ' + res.hasil.length + ' akun diperiksa: tidak ada yang memakai password awal/default.</div>';
+        })
+        .catch(e => { if (String(e.message) !== 'Sesi berakhir') alert('Koneksi gagal: ' + e.message); })
+        .finally(() => { btn.disabled = false; btn.innerHTML = asli; });
 }
