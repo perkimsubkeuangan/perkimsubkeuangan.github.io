@@ -1,27 +1,61 @@
 // ==========================================
-// PENGATURAN KONEKSI KE DATABASE (APPS SCRIPT)
+// PENGATURAN APLIKASI (aman untuk repositori publik)
+// Tidak ada lagi akun / password di file ini. Login diperiksa di server (Apps Script).
 // ==========================================
 
 const CONFIG = {
-    // ⚠️ GANTI URL DI BAWAH INI DENGAN URL DEPLOY APPS SCRIPT ANDA (Berakhiran /exec)
+    // ⚠️ URL deploy Apps Script (berakhiran /exec). Ganti bila Anda membuat deployment baru.
     APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxxiFIvTMaW2MulpE1RFLAVFuyyfaQ_ot5aBJr9cd29WvEx-9RqgvTSem-NSGDByvV3/exec",
-    
-    // Pagu Anggaran (Bisa diubah sesuai kebutuhan)
-    PAGU_TAHUNAN: 1500000000, 
-    PAGU_TRIWULAN: 350000000
+
+    // Tahun anggaran yang dihitung pada kartu pagu
+    TAHUN_ANGGARAN: 2026,
+
+    // Nilai pagu diisi dari server (menu "Atur Pagu"), bukan dari file ini
+    PAGU_TAHUNAN: 0,
+    PAGU_TW: [0, 0, 0, 0]
 };
 
 // ==========================================
-// DATA AKUN LOGIN (VERIFIKATOR & PPTK)
+// DATA TETAP UNTUK CETAK BAP (sesuai template REKAP_LS_2026.xlsx)
+// Ubah di sini bila PPK / nomor DPA berganti. Tidak perlu menyentuh bap.js.
 // ==========================================
-const DATABASE_AKUN = [
-    { username: "admin", password: "123", role: "VERIFIKATOR", namaLengkap: "Alsageri Ilham Ramadhan" },
-    { username: "putra", password: "123", role: "PPTK", namaLengkap: "PUTRA NURHIDAYAT, SE" },
-    { username: "fikri", password: "123", role: "PPTK", namaLengkap: "KHOLISHUL FIKRI, SH" },
-    { username: "rudi", password: "123", role: "PPTK", namaLengkap: "RUDI WIDIANTO, ST" },
-    { username: "endang", password: "123", role: "PPTK", namaLengkap: "ENDANG PUJI HAPSARI, SE, M.Si" },
-    { username: "gunadi", password: "123", role: "PPTK", namaLengkap: "GUNADI, SKM, M.Si" },
-    { username: "nurhidayat", password: "123", role: "PPTK", namaLengkap: "MOHAMAD NURHIDAYAT, ST, MM" },
-    { username: "may", password: "123", role: "PPTK", namaLengkap: "MAY HUDHA NUGROHO, SE, MM" },
-    { username: "superadmin", password: "123", role: "SUPER_ADMIN", namaLengkap: "GERI MANAJEMEN" }
-];
+const BAP_CONFIG = {
+    instansi: "PEMERINTAH KABUPATEN BLITAR",
+    dinas: "DINAS PERUMAHAN RAKYAT, KAWASAN PERMUKIMAN, DAN PERTANAHAN",
+    alamatDinas: "Jl. S. Supriyadi No. 86  Pos Box. 24  Telp. (0342) 801317  Kode Pos 66132",
+    kotaDinas: "B  L  I  T  A  R",
+    webDinas: "Website: www.dpkp.blitarkab.go.id, Email: dpkp@blitarkab.go.id",
+    kotaTtd: "Blitar",
+    tahunAnggaran: 2026,
+    ppn: 0.11,   // PPN efektif (12% x 11/12), sama dengan rumus pada template Excel
+    ppk: {
+        nama: "ANTONIUS NANANG ADI PUTRANTO, ST., MT.",
+        jabatan: "Pejabat Pembuat Komitmen (PPK)",
+        alamat: "Jl. S. Supriyadi 86 Blitar",
+        pangkat: "Pembina Tk. I",
+        nip: "19780714 200212 1 006"
+    },
+    dpa: {
+        nomor: "DPA/A.1/1.04.2.10.0.00.01.0000/001/2026",
+        tanggal: "2026-01-02"
+    }
+};
+
+// ==========================================
+// PEMANGGIL API BERTOKEN (dipakai index.html & bap.html)
+// ==========================================
+function paksaLogout(pesan) {
+    sessionStorage.clear();
+    alert(pesan || "Sesi berakhir. Silakan login ulang.");
+    window.location.href = "index.html";
+}
+
+function apiPost(payload) {
+    payload.token = sessionStorage.getItem('sesi_token') || '';
+    return fetch(CONFIG.APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) })
+        .then(res => res.json())
+        .then(res => {
+            if (res && res.status === 'auth') { paksaLogout(res.message); throw new Error('Sesi berakhir'); }
+            return res;
+        });
+}
