@@ -109,7 +109,7 @@
 
                 <div class="px-2 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Penatausahaan</div>
                 <ul class="space-y-1 mb-8">
-                    <li><button onclick="bukaFormSpjBaru()" class="w-full flex items-center justify-between px-3 py-2.5 text-slate-600 hover:bg-sipd-navy hover:text-white rounded text-sm font-medium transition-colors border border-transparent group"><div class="flex items-center gap-3"><i class="fa-solid fa-file-circle-plus w-5 text-center text-sipd-emerald group-hover:text-emerald-400"></i> Buat SPJ Baru</div></button></li>
+                    <li><button onclick="bukaFormSpjBaru()" class="btn-buat-spj w-full flex items-center justify-between px-3 py-2.5 text-slate-600 hover:bg-sipd-navy hover:text-white rounded text-sm font-medium transition-colors border border-transparent group"><div class="flex items-center gap-3"><i class="fa-solid fa-file-circle-plus w-5 text-center text-sipd-emerald group-hover:text-emerald-400"></i> Buat SPJ Baru</div></button></li>
                     
                     <!-- TOMBOL BAP DIPINDAHKAN KE SINI AGAR PPTK BISA KLIK -->
                     <li>
@@ -160,7 +160,7 @@
             <main class="flex-1 overflow-y-auto px-4 sm:px-6 pb-8 pt-4">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 border-b border-slate-200 pb-4">
                     <div><h1 class="text-xl font-bold text-sipd-slate mb-1 tracking-tight" id="page-title">Dashboard Utama</h1></div>
-                    <div class="flex gap-2 w-full sm:w-auto"><button onclick="bukaFormSpjBaru()" class="px-4 py-2 bg-sipd-navy hover:bg-slate-800 border border-transparent rounded text-xs font-bold text-white shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap"><i class="fa-solid fa-plus"></i> Buat SPJ Baru</button></div>
+                    <div class="flex gap-2 w-full sm:w-auto"><button onclick="bukaFormSpjBaru()" class="btn-buat-spj px-4 py-2 bg-sipd-navy hover:bg-slate-800 border border-transparent rounded text-xs font-bold text-white shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap"><i class="fa-solid fa-plus"></i> Buat SPJ Baru</button></div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5" id="dashboard-cards">
@@ -179,7 +179,7 @@
                     </div>
                 </div>
 
-                <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center justify-between mb-2" id="headerTriwulan">
                     <h3 class="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Pagu Per Triwulan &mdash; TA <span id="labelTahunAnggaran"></span></h3>
                     <button onclick="bukaModalEditPagu()" class="hidden btn-edit-pagu text-[10px] bg-slate-50 hover:bg-slate-100 text-slate-600 px-2.5 py-1 rounded font-bold border border-slate-200"><i class="fa-solid fa-pen"></i> Atur Pagu</button>
                 </div>
@@ -272,6 +272,22 @@
         </div>
     </div>
 
+
+    <!-- MODAL UJI KECOCOKAN PASSWORD (SUPER_ADMIN) -->
+    <div id="modalUjiPassword" class="fixed inset-0 bg-sipd-navy/60 backdrop-blur-sm z-[300] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-sm w-full relative overflow-hidden">
+            <div class="p-5 border-b border-slate-100 bg-slate-50"><h2 class="text-base font-bold text-sipd-slate"><i class="fa-solid fa-key text-sky-600 me-2"></i>Uji Kecocokan Password</h2><p class="text-[11px] text-slate-500 mt-0.5">Akun: <b id="ujiAkunLabel"></b></p></div>
+            <div class="p-5 space-y-3">
+                <div><label class="block text-xs font-bold text-slate-700 mb-1">Password yang diuji</label><input type="password" id="ujiPasswordInput" autocomplete="off" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sky-500 outline-none text-sm font-mono"></div>
+                <div id="ujiHasil" class="text-sm font-bold min-h-[20px]"></div>
+                <p class="text-[10px] text-slate-400 leading-relaxed">Password yang terpasang tidak dapat dilihat. Pengujian hanya menjawab COCOK atau TIDAK COCOK dan dicatat di LOG_SISTEM (tanpa isi password).</p>
+                <div class="flex justify-end gap-2 pt-1">
+                    <button onclick="closeModal('modalUjiPassword')" class="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded text-xs">Tutup</button>
+                    <button onclick="jalankanUjiPassword()" id="btnUjiPassword" class="px-4 py-1.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded shadow-sm text-xs">Uji</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- MODAL EDIT PAGU (Tahunan + 4 Triwulan) -->
     <div id="modalEditPagu" class="fixed inset-0 bg-sipd-navy/60 backdrop-blur-sm z-[200] hidden flex items-center justify-center p-4">
@@ -402,7 +418,7 @@
     <button id="btnTolak" onclick="toggleActionForm('DITOLAK')" class="py-1.5 bg-red-600 hover:bg-red-700 text-white rounded font-bold text-[10px] transition-colors flex items-center justify-center gap-1"><i class="fa-solid fa-xmark"></i> TOLAK</button>
     <button id="btnPb" onclick="toggleActionForm('SUDAH DIPINDAHBUKUKAN')" class="py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold text-[10px] transition-colors flex items-center justify-center gap-1"><i class="fa-solid fa-money-bill-transfer"></i> PB</button>
 </div>
-                        <button onclick="bukaFormEdit()" class="w-full py-1.5 mb-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded font-bold text-[10px] transition-colors flex items-center justify-center gap-1.5"><i class="fa-solid fa-pen-to-square"></i> EDIT TEKS</button>
+                        <button id="btnEditTeksVerif" onclick="bukaFormEdit()" class="w-full py-1.5 mb-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded font-bold text-[10px] transition-colors flex items-center justify-center gap-1.5"><i class="fa-solid fa-pen-to-square"></i> EDIT TEKS</button>
                         <div class="grid grid-cols-1 gap-2 mt-3 pt-3 border-t border-slate-100">
                             <a id="btnSendWa" target="_blank" class="w-full py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded font-bold text-[10px] transition-colors flex items-center justify-center gap-1.5 cursor-pointer text-center shadow-sm"><i class="fa-brands fa-whatsapp text-sm"></i> HUBUNGI VIA WHATSAPP</a>
                             <button id="btnSendEmailManual" onclick="kirimEmailManual()" class="w-full py-2 bg-blue-500 hover:bg-blue-600 text-white rounded font-bold text-[10px] transition-colors flex items-center justify-center gap-1.5 shadow-sm"><i class="fa-solid fa-envelope"></i> KIRIM NOTIFIKASI EMAIL KE PPTK</button>
@@ -483,7 +499,6 @@
                                 <div><label class="block text-[9px] font-bold text-slate-600 mb-1">Role</label><select id="akunRole" class="w-full px-2 py-1 border border-slate-300 rounded text-[11px] outline-none focus:border-sipd-navy">
     <option value="PPTK">PPTK</option>
     <option value="VERIFIKATOR">VERIFIKATOR</option>
-    <option value="BENDAHARA">BENDAHARA</option>
     <option value="PIMPINAN">PIMPINAN</option>
     <option value="SUPER_ADMIN">SUPER_ADMIN</option>
 </select></div>
@@ -492,8 +507,13 @@
                             </div>
                         </div>
 
+                        <div class="flex items-center justify-between gap-3 mb-2">
+                            <p class="text-[10px] text-slate-500 leading-relaxed">Password disimpan sebagai <b>hash satu arah</b> sehingga tidak dapat ditampilkan. Anda dapat <b>menguji kecocokan</b> (ikon kunci), <b>mengaudit</b> akun berpassword lemah/default, atau <b>mereset</b> lewat tombol edit.</p>
+                            <button id="btnAuditPassword" onclick="auditPasswordAkun()" class="shrink-0 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded text-[10px] font-bold whitespace-nowrap"><i class="fa-solid fa-shield-halved me-1"></i> Audit Password</button>
+                        </div>
+                        <div id="hasilAuditPassword" class="mb-3 hidden"></div>
                         <table class="w-full border-collapse border border-slate-200 text-xs">
-                            <thead class="bg-slate-50 text-slate-500 uppercase text-[9px]"><tr><th class="p-2 border border-slate-200 text-left">Nama</th><th class="p-2 border border-slate-200 text-left">Login Info</th><th class="p-2 border border-slate-200 text-left">Role</th><th class="p-2 border border-slate-200 text-center w-16">Aksi</th></tr></thead>
+                            <thead class="bg-slate-50 text-slate-500 uppercase text-[9px]"><tr><th class="p-2 border border-slate-200 text-left">Nama</th><th class="p-2 border border-slate-200 text-left">Login Info</th><th class="p-2 border border-slate-200 text-left">Role</th><th class="p-2 border border-slate-200 text-left">Keamanan Password</th><th class="p-2 border border-slate-200 text-center w-20">Aksi</th></tr></thead>
                             <tbody id="tabelAkunBody" class="text-slate-600 divide-y divide-slate-100"></tbody>
                         </table>
                     </div>
@@ -505,7 +525,7 @@
     <div id="toast" class="fixed top-5 right-5 bg-sipd-navy text-white px-5 py-2.5 rounded shadow-lg transform -translate-y-20 opacity-0 transition-all duration-300 z-[9999] flex items-center gap-2"><i class="fa-solid fa-circle-check text-sipd-emerald"></i><span id="toastMessage" class="text-xs font-bold tracking-wide">Sukses!</span></div>
 
     <script src="config.js?v=61"></script>
-    <script src="app.js?v=62"></script>
+    <script src="app.js?v=63"></script>
     
     <script>
         const catatanRevisiArea = document.getElementById('catatanRevisiInput');
