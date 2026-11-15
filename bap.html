@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cetak BAP LS (Beta) - ERP SPJ</title>
+    <meta name="referrer" content="no-referrer">
+    <title>Cetak BAP LS - ERP SPJ</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -12,30 +13,21 @@
     </script>
 </head>
 <body class="bg-slate-50 font-sans text-slate-800">
-    
+
     <!-- HEADER -->
     <header class="bg-sipd-navy text-white px-6 py-4 shadow-md flex items-center justify-between sticky top-0 z-50">
         <div class="flex items-center gap-3">
             <button onclick="window.location.href='index.html'" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"><i class="fa-solid fa-arrow-left"></i></button>
             <div>
-                <h1 class="font-bold text-lg leading-tight">Modul Cetak BAP (Beta)</h1>
+                <h1 class="font-bold text-lg leading-tight">Modul Cetak BAP LS</h1>
                 <p class="text-[10px] text-slate-300 font-medium tracking-wide">Sistem ERP SPJ GU & LS</p>
             </div>
         </div>
-        <div class="flex items-center gap-4">
-            <select id="jenisBapSelector" class="bg-white/10 border border-white/20 rounded px-3 py-1.5 text-sm text-white outline-none focus:border-sipd-emerald cursor-pointer font-bold">
-                <option value="UM" class="text-slate-800">BAP Uang Muka (Fisik)</option>
-                <option value="UM_JASA" class="text-slate-800">BAP Uang Muka (Jasa Konsultansi)</option>
-                <option value="TERMIN_100" class="text-slate-800">BAP Termin 100% (Fisik)</option>
-                <option value="TERMIN_100_JASA" class="text-slate-800">BAP Termin 100% (Jasa Konsultansi)</option>
-            </select>
-        </div>
+        <div class="text-[11px] text-slate-300 hidden sm:block">Jenis BAP dipilih otomatis dari kolom <b class="text-white">Tahap</b></div>
     </header>
 
     <!-- KONTEN UTAMA -->
     <main class="p-6 max-w-7xl mx-auto">
-        
-        <!-- PANEL PENCARIAN & DAFTAR KONTRAK -->
         <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden mb-6">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border-b border-slate-100">
                 <h2 class="font-bold text-sipd-slate"><i class="fa-solid fa-file-contract text-blue-500 me-2"></i>Daftar Kontrak LS Siap Cetak</h2>
@@ -48,7 +40,7 @@
                 </div>
             </div>
 
-            <div class="overflow-x-auto max-h-[400px]">
+            <div class="overflow-x-auto max-h-[480px]">
                 <table class="w-full text-left text-sm whitespace-nowrap">
                     <thead class="bg-slate-100 text-slate-600 font-bold uppercase text-[10px] sticky top-0 shadow-sm">
                         <tr>
@@ -65,61 +57,115 @@
                 </table>
             </div>
         </div>
-
     </main>
+
     <!-- MODAL INPUT BAP BARU -->
-<div id="modalInputBap" class="fixed inset-0 bg-sipd-navy/70 backdrop-blur-sm z-[200] hidden flex items-start justify-center p-4 overflow-y-auto">
-    <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full my-8 relative border border-slate-200">
-        <div class="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50 rounded-t-lg sticky top-0 z-20">
-            <div><h2 class="text-base font-bold text-sipd-slate"><i class="fa-solid fa-file-signature text-emerald-600 me-2"></i>Input Data Kontrak & BAP Baru</h2><p class="text-[10px] text-slate-500 mt-0.5">Isi detail kontrak untuk keperluan cetak BAP.</p></div>
-            <button onclick="document.getElementById('modalInputBap').classList.add('hidden')" class="w-8 h-8 rounded bg-white border border-slate-200 text-slate-500 hover:text-red-500 shadow-sm flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark"></i></button>
+    <div id="modalInputBap" class="fixed inset-0 bg-sipd-navy/70 backdrop-blur-sm z-[200] hidden flex items-start justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full my-8 relative border border-slate-200">
+            <div class="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50 rounded-t-lg sticky top-0 z-20">
+                <div><h2 class="text-base font-bold text-sipd-slate"><i class="fa-solid fa-file-signature text-emerald-600 me-2"></i>Input Data Kontrak & BAP Baru</h2><p class="text-[10px] text-slate-500 mt-0.5">Isian disesuaikan dengan template BAP. Bagian yang tampil mengikuti tahap pembayaran yang dipilih.</p></div>
+                <button type="button" onclick="document.getElementById('modalInputBap').classList.add('hidden')" class="w-8 h-8 rounded bg-white border border-slate-200 text-slate-500 hover:text-red-500 shadow-sm flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <form id="formBap" class="p-6" onsubmit="simpanBapKeServer(event)">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                    <!-- Tahap dulu: menentukan bagian formulir yang tampil -->
+                    <div class="md:col-span-2"><h4 class="text-xs font-bold text-blue-700 mb-1"><i class="fa-solid fa-layer-group me-2"></i>Jenis BAP / Tahap Pembayaran</h4></div>
+                    <div class="md:col-span-2">
+                        <select id="bapTahap" required onchange="aturBagianForm()" class="w-full px-3 py-1.5 border border-blue-300 rounded focus:ring-1 focus:ring-blue-500 outline-none text-xs bg-blue-50 text-slate-800 font-bold">
+                            <option value="" disabled selected>-- Pilih Tahap Pembayaran --</option>
+                            <option value="UM">UM — Uang Muka (Fisik)</option>
+                            <option value="UM JASA">UM JASA — Uang Muka (Jasa Konsultansi)</option>
+                            <option value="I (100)">I (100) — Termin I (setelah Uang Muka, Fisik)</option>
+                            <option value="100">100 — Termin 100% (Fisik)</option>
+                            <option value="100 JASA">100 JASA — Termin 100% (Jasa Konsultansi)</option>
+                        </select>
+                    </div>
+
+                    <!-- Mata anggaran -->
+                    <div class="md:col-span-2 mt-2 pt-4 border-t border-slate-100"><h4 class="text-xs font-bold text-emerald-700 mb-1"><i class="fa-solid fa-list-check me-2"></i>Mata Anggaran (Kegiatan)</h4></div>
+                    <div class="md:col-span-2"><label class="block text-[10px] font-bold text-slate-600 mb-1">Program <span class="text-red-500">*</span></label><select id="bapProgram" required onchange="updateKegiatanBap()" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-500 outline-none text-xs bg-white text-slate-700"></select></div>
+                    <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Kegiatan <span class="text-red-500">*</span></label><select id="bapKegiatan" required onchange="updateSubkegiatanBap()" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-500 outline-none text-xs bg-white text-slate-700"></select></div>
+                    <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Sub Kegiatan <span class="text-red-500">*</span></label><select id="bapSubKegiatan" required class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-500 outline-none text-xs bg-white text-slate-700"></select></div>
+                    <div class="md:col-span-2"><label class="block text-[10px] font-bold text-slate-600 mb-1">Nama Pekerjaan (Uraian) <span class="text-red-500">*</span></label><textarea id="bapUraian" required rows="2" maxlength="1000" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-500 outline-none text-xs text-slate-700"></textarea></div>
+
+                    <!-- Kontrak -->
+                    <div class="md:col-span-2 mt-2 pt-4 border-t border-slate-100"><h4 class="text-xs font-bold text-slate-700 mb-1"><i class="fa-solid fa-file-lines me-2"></i>Informasi Kontrak & Pembayaran</h4></div>
+                    <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Nomor Kontrak/SPK <span class="text-red-500">*</span></label><input type="text" id="bapNoKontrak" required maxlength="120" placeholder="Cth: 027/01/SPK/2026" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-xs text-slate-700"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Tanggal Kontrak <span class="text-red-500">*</span></label><input type="date" id="bapTglKontrak" required class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-xs text-slate-700"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Nilai Kontrak Awal (Rp) <span class="text-red-500">*</span></label><input type="number" id="bapNilaiKontrak" required min="1" step="any" oninput="hitungPersen()" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-xs font-mono text-slate-700"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Nilai Bayar Tahap Ini, bruto (Rp) <span class="text-red-500">*</span> <span id="infoPersen" class="text-blue-600"></span></label><input type="number" id="bapNilaiBayar" required min="1" step="any" oninput="hitungPersen()" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-xs font-mono text-slate-700"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Tanggal BAP <span class="text-red-500">*</span></label><input type="date" id="bapTglBap" required onchange="generateNomorBap()" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-xs text-slate-700"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Nomor BAP (otomatis oleh server)</label><input type="text" id="bapNoBap" readonly class="w-full px-3 py-1.5 border border-slate-300 rounded outline-none text-xs text-slate-500 bg-slate-100 cursor-not-allowed"></div>
+
+                    <!-- SPD -->
+                    <div class="md:col-span-2 mt-2 pt-4 border-t border-slate-100"><h4 class="text-xs font-bold text-slate-700 mb-1"><i class="fa-solid fa-scroll me-2"></i>Nomor & Tanggal SPD <span class="font-normal text-slate-400">(SPD 1 wajib; sisanya bila ada)</span></h4></div>
+                    <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2" id="gridSpd"></div>
+
+                    <!-- Addendum -->
+                    <div class="md:col-span-2 mt-2 pt-4 border-t border-slate-100">
+                        <details>
+                            <summary class="text-xs font-bold text-slate-700 cursor-pointer"><i class="fa-solid fa-file-circle-plus me-2"></i>Addendum Kontrak <span class="font-normal text-slate-400">(opsional, klik untuk membuka)</span></summary>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                                <div><label class="block text-[10px] font-bold text-slate-600 mb-1">No. Addendum</label><input type="text" id="bapAddNo" maxlength="120" class="w-full px-3 py-1.5 border border-slate-300 rounded outline-none text-xs text-slate-700"></div>
+                                <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Tgl. Addendum</label><input type="date" id="bapAddTgl" class="w-full px-3 py-1.5 border border-slate-300 rounded outline-none text-xs text-slate-700"></div>
+                                <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Nilai Kontrak setelah Addendum (Rp)</label><input type="number" id="bapAddNilai" min="0" step="any" class="w-full px-3 py-1.5 border border-slate-300 rounded outline-none text-xs font-mono text-slate-700"></div>
+                            </div>
+                        </details>
+                    </div>
+
+                    <!-- Jaminan (UM / 100 / I(100)) -->
+                    <div id="secJaminan" class="md:col-span-2 mt-2 pt-4 border-t border-slate-100 hidden">
+                        <h4 class="text-xs font-bold text-amber-700 mb-3"><i class="fa-solid fa-shield-halved me-2"></i><span id="lblJaminan">Jaminan</span></h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="md:col-span-2"><label class="block text-[10px] font-bold text-slate-600 mb-1">Dijamin oleh (bank / asuransi)</label><input type="text" id="bapJamPenjamin" maxlength="150" placeholder="Cth: PT. Asuransi ..." class="w-full px-3 py-1.5 border border-slate-300 rounded outline-none text-xs text-slate-700"></div>
+                            <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Nomor Jaminan</label><input type="text" id="bapJamNo" maxlength="120" class="w-full px-3 py-1.5 border border-slate-300 rounded outline-none text-xs text-slate-700"></div>
+                            <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Tanggal Jaminan</label><input type="date" id="bapJamTgl" class="w-full px-3 py-1.5 border border-slate-300 rounded outline-none text-xs text-slate-700"></div>
+                            <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Sebesar (Rp)</label><input type="number" id="bapJamNilai" min="0" step="any" class="w-full px-3 py-1.5 border border-slate-300 rounded outline-none text-xs font-mono text-slate-700"></div>
+                            <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Berlaku dari tanggal</label><input type="date" id="bapJamBerlaku" class="w-full px-3 py-1.5 border border-slate-300 rounded outline-none text-xs text-slate-700"></div>
+                        </div>
+                    </div>
+
+                    <!-- BAST / BA Pemeriksaan -->
+                    <div id="secBast" class="md:col-span-2 mt-2 pt-4 border-t border-slate-100 hidden">
+                        <h4 class="text-xs font-bold text-sky-700 mb-3"><i class="fa-solid fa-clipboard-check me-2"></i><span id="lblBast">BAST</span></h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Tanggal <span class="text-red-500">*</span></label><input type="date" id="bapBastTgl" class="w-full px-3 py-1.5 border border-slate-300 rounded outline-none text-xs text-slate-700"></div>
+                            <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Nomor <span class="text-red-500">*</span></label><input type="text" id="bapBastNo" maxlength="120" class="w-full px-3 py-1.5 border border-slate-300 rounded outline-none text-xs text-slate-700"></div>
+                            <div id="boxCapaian"><label class="block text-[10px] font-bold text-slate-600 mb-1">Capaian Fisik (%) <span class="text-red-500">*</span></label><input type="number" id="bapCapaian" min="0" max="100" step="any" placeholder="100" class="w-full px-3 py-1.5 border border-slate-300 rounded outline-none text-xs font-mono text-slate-700"></div>
+                            <div id="boxPernyataan" class="md:col-span-2"><label class="block text-[10px] font-bold text-slate-600 mb-1">Pernyataan <span class="font-normal text-slate-400">(kalimat "Yang menyatakan bahwa Pihak Kedua ...")</span></label><textarea id="bapPernyataan" rows="2" maxlength="600" class="w-full px-3 py-1.5 border border-slate-300 rounded outline-none text-xs text-slate-700"></textarea></div>
+                        </div>
+                    </div>
+
+                    <!-- Potongan -->
+                    <div id="secPotongan" class="md:col-span-2 mt-2 pt-4 border-t border-slate-100 hidden">
+                        <h4 class="text-xs font-bold text-slate-700 mb-1"><i class="fa-solid fa-scissors me-2"></i>Potongan-potongan <span class="font-normal text-slate-400">(opsional, isi bila ada; kosong = 0)</span></h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                            <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Uang Retensi / Jaminan (Rp)</label><input type="number" id="bapPotRetensi" min="0" step="any" class="w-full px-3 py-1.5 border border-slate-300 rounded outline-none text-xs font-mono text-slate-700"></div>
+                            <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Pengembalian Uang Muka (Rp)</label><input type="number" id="bapPotPengUm" min="0" step="any" class="w-full px-3 py-1.5 border border-slate-300 rounded outline-none text-xs font-mono text-slate-700"></div>
+                        </div>
+                    </div>
+
+                    <!-- CV -->
+                    <div class="md:col-span-2 mt-2 pt-4 border-t border-slate-100"><h4 class="text-xs font-bold text-purple-700 mb-1"><i class="fa-solid fa-building me-2"></i>Profil Penyedia / CV (Rekening)</h4></div>
+                    <div class="md:col-span-2"><label class="block text-[10px] font-bold text-slate-600 mb-1">Nama CV / Penyedia <span class="text-red-500">*</span></label><input type="text" id="bapPelaksanaCv" required maxlength="150" oninput="cekCvOtomatis()" placeholder="Cth: CV. MAJU JAYA" class="w-full px-3 py-1.5 border border-purple-300 rounded focus:ring-1 focus:ring-purple-500 outline-none text-xs text-slate-700 font-bold bg-purple-50"><p id="infoCv" class="text-[10px] mt-1 hidden"></p></div>
+                    <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Nama Direktur <span class="text-red-500">*</span></label><input type="text" id="bapDirektur" required maxlength="120" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-purple-500 outline-none text-xs text-slate-700"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-600 mb-1">NPWP CV <span class="text-red-500">*</span></label><input type="text" id="bapNpwp" required maxlength="30" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-purple-500 outline-none text-xs font-mono text-slate-700"></div>
+                    <div class="md:col-span-2"><label class="block text-[10px] font-bold text-slate-600 mb-1">Alamat CV / Penyedia <span class="text-red-500">*</span></label><textarea id="bapAlamatCv" required rows="2" maxlength="300" placeholder="Cth: Dsn. Kuningan RT. 002 RW. 004, Kab. Blitar 66171" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-purple-500 outline-none text-xs text-slate-700"></textarea></div>
+                    <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Bank Pencairan <span class="text-red-500">*</span></label><input type="text" id="bapBank" required maxlength="80" placeholder="Cth: BANK JATIM CABANG BLITAR" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-purple-500 outline-none text-xs text-slate-700"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-600 mb-1">No. Rekening <span class="text-red-500">*</span></label><input type="text" inputmode="numeric" pattern="[0-9]{5,30}" id="bapNoRek" required class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-purple-500 outline-none text-xs font-mono text-slate-700"></div>
+                </div>
+
+                <div class="mt-8 pt-4 border-t border-slate-100 flex justify-end gap-3">
+                    <button type="button" onclick="document.getElementById('modalInputBap').classList.add('hidden')" class="px-5 py-2 bg-slate-100 text-slate-600 font-bold rounded hover:bg-slate-200 text-xs border border-slate-200">Batal</button>
+                    <button type="submit" id="btnSubmitBap" class="px-5 py-2 bg-emerald-600 text-white font-bold rounded hover:bg-emerald-700 text-xs flex items-center gap-2"><i class="fa-solid fa-save"></i> Simpan Data BAP</button>
+                </div>
+            </form>
         </div>
-        
-        <form id="formBap" class="p-6" onsubmit="simpanBapKeServer(event)">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <!-- Pilihan Kegiatan BAP -->
-        <div class="md:col-span-2 mt-2"><h4 class="text-xs font-bold text-emerald-700 mb-3"><i class="fa-solid fa-list-check me-2"></i>Mata Anggaran (Kegiatan)</h4></div>
-        <div class="md:col-span-2"><label class="block text-[10px] font-bold text-slate-600 mb-1">Program <span class="text-red-500">*</span></label><select id="bapProgram" required onchange="updateKegiatanBap()" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-500 outline-none text-xs bg-white text-slate-700"></select></div>
-        <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Kegiatan <span class="text-red-500">*</span></label><select id="bapKegiatan" required onchange="updateSubkegiatanBap()" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-500 outline-none text-xs bg-white text-slate-700"></select></div>
-        <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Sub Kegiatan <span class="text-red-500">*</span></label><select id="bapSubKegiatan" required class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-500 outline-none text-xs bg-white text-slate-700"></select></div>
-        <div class="md:col-span-2"><label class="block text-[10px] font-bold text-slate-600 mb-1">Nama Pekerjaan (Uraian) <span class="text-red-500">*</span></label><textarea id="bapUraian" required rows="2" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-emerald-500 outline-none text-xs text-slate-700"></textarea></div>
-
-        <!-- Data Kontrak Dasar -->
-        <div class="md:col-span-2 mt-2 pt-4 border-t border-slate-100"><h4 class="text-xs font-bold text-slate-700 mb-3"><i class="fa-solid fa-file-lines me-2"></i>Informasi Kontrak Dasar</h4></div>
-        <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Nomor Kontrak/SPK <span class="text-red-500">*</span></label><input type="text" id="bapNoKontrak" required placeholder="Cth: 027/01/SPK/2026" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-xs text-slate-700"></div>
-        <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Tanggal Kontrak <span class="text-red-500">*</span></label><input type="date" id="bapTglKontrak" required class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-xs text-slate-700"></div>
-        <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Nilai Total Kontrak (Rp) <span class="text-red-500">*</span></label><input type="number" id="bapNilaiKontrak" required class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-xs font-mono text-slate-700"></div>
-        <div>
-            <label class="block text-[10px] font-bold text-slate-600 mb-1">Tahap Pembayaran <span class="text-red-500">*</span></label>
-            <select id="bapTahap" required class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-xs bg-white text-slate-700">
-    <option value="" disabled selected>-- Pilih Tahap Pembayaran --</option>
-    <option value="UM">UM (Uang Muka Fisik)</option>
-    <option value="UM JASA">UM JASA (Uang Muka Konsultansi)</option>
-    <option value="100">100 (Termin 100% Fisik)</option>
-    <option value="100 JASA">100 JASA (Termin 100% Konsultansi)</option>
-    <option value="I (100)">I (100) (Termin 1)</option>
-</select>
-        </div>
-        <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Nilai Bayar Tahap Ini (Rp) <span class="text-red-500">*</span></label><input type="number" id="bapNilaiBayar" required class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-xs font-mono text-slate-700"></div>
-        <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Nomor BAP (otomatis)</label><input type="text" id="bapNoBap" placeholder="Terisi otomatis" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-xs text-slate-700"></div>
-
-        <!-- Data CV (DB Penyedia) -->
-        <div class="md:col-span-2 mt-2 pt-4 border-t border-slate-100"><h4 class="text-xs font-bold text-purple-700 mb-3"><i class="fa-solid fa-building me-2"></i>Profil Penyedia / CV (Rekening)</h4></div>
-        <div class="md:col-span-2"><label class="block text-[10px] font-bold text-slate-600 mb-1">Nama CV / Penyedia <span class="text-red-500">*</span></label><input type="text" id="bapPelaksanaCv" required onkeyup="cekCvOtomatis()" placeholder="Cth: CV. MAJU JAYA" class="w-full px-3 py-1.5 border border-purple-300 rounded focus:ring-1 focus:ring-purple-500 outline-none text-xs text-slate-700 font-bold bg-purple-50"></div>
-        <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Nama Direktur <span class="text-red-500">*</span></label><input type="text" id="bapDirektur" required class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-purple-500 outline-none text-xs text-slate-700"></div>
-        <div><label class="block text-[10px] font-bold text-slate-600 mb-1">NPWP CV <span class="text-red-500">*</span></label><input type="text" id="bapNpwp" required class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-purple-500 outline-none text-xs font-mono text-slate-700"></div>
-        <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Bank Pencairan <span class="text-red-500">*</span></label><input type="text" id="bapBank" required placeholder="Cth: BANK JATIM" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-purple-500 outline-none text-xs text-slate-700"></div>
-        <div><label class="block text-[10px] font-bold text-slate-600 mb-1">No. Rekening <span class="text-red-500">*</span></label><input type="text" inputmode="numeric" pattern="[0-9]*" id="bapNoRek" required class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-purple-500 outline-none text-xs font-mono text-slate-700"></div>
     </div>
-    <div class="mt-8 pt-4 border-t border-slate-100 flex justify-end gap-3">
-        <button type="button" onclick="document.getElementById('modalInputBap').classList.add('hidden')" class="px-5 py-2 bg-slate-100 text-slate-600 font-bold rounded hover:bg-slate-200 text-xs border border-slate-200">Batal</button>
-        <button type="submit" id="btnSubmitBap" class="px-5 py-2 bg-emerald-600 text-white font-bold rounded hover:bg-emerald-700 text-xs flex items-center gap-2"><i class="fa-solid fa-save"></i> Simpan Data BAP</button>
-    </div>
-</form>
-    </div>
-</div>
 
-    <script src="config.js?v=54"></script>
-    <script src="bap.js?v=2"></script>
+    <script src="config.js?v=60"></script>
+    <script src="bap.js?v=10"></script>
 </body>
 </html>
