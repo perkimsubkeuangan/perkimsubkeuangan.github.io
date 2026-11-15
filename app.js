@@ -13,7 +13,13 @@ let searchQuery = '';
 let sortType = 'TGL_DESC';
 
 let editIndexAkun = -1; let editIndexPptk = -1;
-let paguEditType = null; 
+let paguItems = [];
+
+// ---------- Helper keamanan tampilan ----------
+// Link hanya boleh mengarah ke Google Drive / Docs (cegah link berbahaya dari isian sel)
+function amanUrl(u) { u = String(u || '').trim(); return /^https:\/\/(drive|docs)\.google\.com\//.test(u) ? u : '#'; }
+// Teks bebas (catatan/log): di-escape, hanya <br> hasil enter yang dipulihkan
+function teksCatatan(s) { return escapeHtml(String(s === null || s === undefined ? '' : s)).replace(/&lt;br\s*\/?&gt;/gi, '<br>'); }
 
 function updateSapaanWaktu() {
     const jam = new Date().getHours();
@@ -48,54 +54,38 @@ function formatTanggalIndo(dateStr) {
     return dateStr;
 }
 
-function inisialisasiServer() {
-    updateSapaanWaktu();
-    const btnLogin = document.querySelector('button[onclick="checkLogin()"]');
-    if(btnLogin) { btnLogin.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Menghubungkan ke Database...'; btnLogin.disabled = true; }
-    
-    fetch(CONFIG.APPS_SCRIPT_URL)
-        .then(res => res.json())
-        .then(data => {
-            if (data.status !== 'error') {
-                window.DATABASE_AKUN = data.akun || [];
-                window.DATABASE_KONTRAK = data.kontrakLS || [];
-                if(data.pagu) {
-                    
-                    CONFIG.PAGU_TAHUNAN = data.pagu.tahunan || 0;
-                    CONFIG.PAGU_TRIWULAN = data.pagu.triwulan || 0;
-                }
-                if(data.spj) spjData = data.spj.reverse(); 
-                if(data.referensi) referensiData = data.referensi;
-                
-                if(btnLogin) { btnLogin.innerHTML = 'Masuk Ke Sistem <i class="fa-solid fa-arrow-right-long"></i>'; btnLogin.disabled = false; }
-            } else { alert("Error dari Server: " + data.message); }
-        })
-        .catch(e => {
-            if(btnLogin) { btnLogin.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Gagal Koneksi ke Database. Refresh (F5)'; }
-        });
-}
+function inisialisasiServer() { updateSapaanWaktu(); }
 inisialisasiServer();
 
+// Login diperiksa di SERVER. Browser tidak lagi memegang daftar akun/password.
 function checkLogin() {
-    try {
-        if (!window.DATABASE_AKUN || window.DATABASE_AKUN.length === 0) { alert("Data akun masih kosong atau sedang dimuat dari server."); return; }
-        
-        const uname = document.getElementById('username-input').value.trim().toLowerCase();
-        const pass = document.getElementById('password-input').value;
-        if (!uname || !pass) {
-            const pe = document.getElementById('pin-error');
-            pe.innerText = "Username dan Password wajib diisi!"; pe.classList.remove('hidden'); return;
-        }
-        const userFound = window.DATABASE_AKUN.find(u => u.username && String(u.username).trim().toLowerCase() === uname && String(u.password) === pass);
-        
-        if (userFound) { 
-            sesiAktif = { role: userFound.role, username: userFound.username, namaLengkap: userFound.namaLengkap };
-            masukSistem(); 
-        } else { 
-            document.getElementById('pin-error').innerText = "Username atau Password salah!";
-            document.getElementById('pin-error').classList.remove('hidden'); 
-        }
-    } catch (error) { alert("Error Login: " + error.message); }
+    const uname = document.getElementById('username-input').value.trim().toLowerCase();
+    const pass = document.getElementById('password-input').value;
+    const pe = document.getElementById('pin-error');
+    if (!uname || !pass) { pe.innerText = "Username dan Password wajib diisi!"; pe.classList.remove('hidden'); return; }
+
+    const btn = document.querySelector('button[onclick="checkLogin()"]');
+    const teksAsli = btn ? btn.innerHTML : '';
+    if (btn) { btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Memeriksa...'; btn.disabled = true; }
+    pe.classList.add('hidden');
+
+    apiPost({ action: 'login', username: uname, password: pass })
+        .then(res => {
+            if (res.status === 'success') {
+                sessionStorage.setItem('sesi_token', res.token);
+                sesiAktif = { role: res.user.role, username: res.user.username, namaLengkap: res.user.namaLengkap };
+                document.getElementById('password-input').value = "";
+                return tarikDataDariServer().then(() => masukSistem());
+            }
+            pe.innerText = res.message || "Username atau Password salah!";
+            pe.classList.remove('hidden');
+        })
+        .catch(e => {
+            if (String(e.message) === 'Sesi berakhir') return;
+            pe.innerText = "Gagal terhubung ke server. Periksa koneksi lalu coba lagi.";
+            pe.classList.remove('hidden');
+        })
+        .finally(() => { if (btn) { btn.innerHTML = teksAsli; btn.disabled = false; } });
 }
 
 function togglePassword() {
@@ -144,14 +134,21 @@ function masukSistem() {
         document.querySelectorAll('.btn-edit-pagu').forEach(btn => btn.style.display = 'none');
     }
     
-    isiDropdownPptkUtama(); renderTabelSpj(); hitungAnggaran(); isiDropdownProgram();
+    isiDropdownPptkUtama(); kunciPptkLogin(); renderTabelSpj(); hitungAnggaran(); isiDropdownProgram();
+}
+
+// PPTK hanya boleh mengajukan atas namanya sendiri (server juga memaksa hal yang sama)
+function kunciPptkLogin() {
+    const sel = document.getElementById('inputPptk'); if (!sel) return;
+    if (sesiAktif.role === 'PPTK') { setSelectValue(sel, sesiAktif.namaLengkap); sel.style.pointerEvents = 'none'; sel.tabIndex = -1; sel.classList.add('bg-slate-100'); }
+    else { sel.style.pointerEvents = 'auto'; sel.tabIndex = 0; sel.classList.remove('bg-slate-100'); }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     const savedRole = sessionStorage.getItem('sesiAktif_role');
     const savedName = sessionStorage.getItem('sesiAktif_namaLengkap');
     
-    if (savedRole && savedName) {
+    if (savedRole && savedName && sessionStorage.getItem('sesi_token')) {
         const loader = document.getElementById('global-loader');
         if (loader) { loader.classList.remove('hidden'); loader.classList.add('flex'); }
         document.getElementById('login-screen').style.display = 'none';
@@ -173,51 +170,126 @@ function isiDropdownPptkUtama() {
     const selectPptk = document.getElementById('inputPptk');
     if(selectPptk && window.DATABASE_AKUN) {
         selectPptk.innerHTML = '<option value="" disabled selected>-- Pilih Nama PPTK --</option>';
-        window.DATABASE_AKUN.forEach(user => { if(user.role === 'PPTK') { selectPptk.innerHTML += `<option value="${user.namaLengkap}">${user.namaLengkap}</option>`; } });
+        window.DATABASE_AKUN.forEach(user => { if(user.role === 'PPTK') { selectPptk.innerHTML += `<option value="${escapeHtml(user.namaLengkap)}">${escapeHtml(user.namaLengkap)}</option>`; } });
     }
 }
 
 function tarikDataDariServer() {
-    document.getElementById('refresh-icon').classList.add('animate-spin');
-    return fetch(CONFIG.APPS_SCRIPT_URL)
-        .then(res => res.json())
+    const ic = document.getElementById('refresh-icon'); if (ic) ic.classList.add('animate-spin');
+    return apiPost({ action: 'load' })
         .then(data => {
-            if (data.status === 'error') { alert("Gagal mengambil data dari Google Sheets."); return; }
-            if(data.akun) window.DATABASE_AKUN = data.akun;
-            if(data.pagu) { CONFIG.PAGU_TAHUNAN = data.pagu.tahunan; CONFIG.PAGU_TRIWULAN = data.pagu.triwulan; }
-            if(data.spj) spjData = data.spj.reverse(); 
-            if(data.referensi) referensiData = data.referensi;
-            // TAMBAHKAN INI:
+            if (data.status !== 'success') { alert("Gagal mengambil data dari server: " + (data.message || '')); return; }
+            window.DATABASE_AKUN = data.akun || [];
             window.DATABASE_KONTRAK = data.kontrakLS || [];
-            renderTabelSpj(); hitungAnggaran(); isiDropdownProgram();
-            const tbAkun = document.getElementById('tabelAkunBody'); if(tbAkun && tbAkun.innerHTML !== '') renderTabelAkunAdmin();
+            window.DATABASE_PENYEDIA = data.penyediaCV || [];
+            if (data.pagu) { CONFIG.PAGU_TAHUNAN = data.pagu.tahunan || 0; CONFIG.PAGU_TW = data.pagu.tw || [0, 0, 0, 0]; }
+            spjData = (data.spj || []).reverse();
+            paguItems = data.paguItems || [];
+            referensiData = data.referensi || {};
+            renderTabelSpj(); hitungAnggaran(); isiDropdownProgram(); isiDropdownPptkUtama();
+            const tbAkun = document.getElementById('tabelAkunBody'); if (tbAkun && tbAkun.innerHTML !== '') renderTabelAkunAdmin();
         })
         .catch(e => console.error(e))
-        .finally(() => { document.getElementById('refresh-icon').classList.remove('animate-spin'); });
+        .finally(() => { if (ic) ic.classList.remove('animate-spin'); });
 }
 
 function formatRupiah(amount) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(amount); }
 
-function hitungAnggaran() {
-    let totalPencairan = 0;
-    spjData.forEach(item => { if(item.status === 'SUDAH DIPINDAHBUKUKAN') totalPencairan += Number(item.nominal) || 0; });
-    document.getElementById('sisaTahunanVal').innerText = formatRupiah((CONFIG.PAGU_TAHUNAN || 0) - totalPencairan);
-    document.getElementById('sisaTriwulanVal').innerText = formatRupiah((CONFIG.PAGU_TRIWULAN || 0) - totalPencairan);
-    document.getElementById('totalCairVal').innerText = formatRupiah(totalPencairan);
+// ================== PAGU: TAHUNAN + 4 TRIWULAN ==================
+const TW_NAMA = ['Triwulan I', 'Triwulan II', 'Triwulan III', 'Triwulan IV'];
+const TW_BULAN = ['Jan – Mar', 'Apr – Jun', 'Jul – Sep', 'Okt – Des'];
+
+// Nomor NPD berakhiran .../P2/4/2026  ->  bulan 4, tahun 2026
+function bulanDariNpd(npd) {
+    const p = String(npd || '').split('/').map(x => x.trim()).filter(Boolean);
+    if (p.length < 2) return null;
+    const th = p[p.length - 1], bl = p[p.length - 2];
+    if (/^\d{4}$/.test(th) && /^\d{1,2}$/.test(bl) && +bl >= 1 && +bl <= 12) return { bulan: +bl, tahun: +th };
+    return null;
+}
+function bulanDariTanggal(s) {
+    const m = String(s || '').split('T')[0].match(/^(\d{4})-(\d{2})-/);
+    return m && +m[2] >= 1 && +m[2] <= 12 ? { tahun: +m[1], bulan: +m[2] } : null;
+}
+// GU: bulan dari nomor NPD. LS (nomor kontrak tidak memuat bulan): tanggal pindahbuku, jika belum ada tanggal pengajuan.
+function tentukanPeriode(item) {
+    if (String(item.jenisSurat || 'GU') === 'GU') { const n = bulanDariNpd(item.npd); if (n) return n; }
+    return (item.status === 'SUDAH DIPINDAHBUKUKAN' ? bulanDariTanggal(item.tglPb) : null) || bulanDariTanggal(item.createdAt);
 }
 
-function bukaModalEditPagu(jenis) {
-    paguEditType = jenis; document.getElementById('titleEditPagu').innerText = `Edit Pagu ${jenis === 'TAHUNAN' ? 'Tahunan' : 'Triwulan'}`;
-    document.getElementById('inputEditPagu').value = jenis === 'TAHUNAN' ? CONFIG.PAGU_TAHUNAN : CONFIG.PAGU_TRIWULAN;
+function hitungAnggaran() {
+    const tahun = CONFIG.TAHUN_ANGGARAN;
+    const cair = [0, 0, 0, 0], proses = [0, 0, 0, 0];
+    let tanpaPeriode = 0, luarTahun = 0;
+
+    (paguItems || []).forEach(it => {
+        if (it.status === 'DITOLAK') return;
+        const nom = Number(it.nominal) || 0;
+        const per = tentukanPeriode(it);
+        if (!per) { tanpaPeriode++; return; }
+        if (per.tahun !== tahun) { luarTahun++; return; }
+        const tw = Math.floor((per.bulan - 1) / 3);
+        if (it.status === 'SUDAH DIPINDAHBUKUKAN') cair[tw] += nom; else proses[tw] += nom;
+    });
+
+    const totalCair = cair.reduce((a, b) => a + b, 0);
+    const paguTw = CONFIG.PAGU_TW || [0, 0, 0, 0];
+    const set = (id, txt) => { const el = document.getElementById(id); if (el) el.innerText = txt; };
+    set('sisaTahunanVal', formatRupiah((CONFIG.PAGU_TAHUNAN || 0) - totalCair));
+    set('paguTahunanInfo', 'dari pagu ' + formatRupiah(CONFIG.PAGU_TAHUNAN || 0));
+    set('totalCairVal', formatRupiah(totalCair));
+    set('labelTahunAnggaran', String(tahun));
+
+    const wadah = document.getElementById('kartuTriwulan');
+    if (wadah) {
+        wadah.innerHTML = TW_NAMA.map((nama, i) => {
+            const pagu = Number(paguTw[i]) || 0, sisa = pagu - cair[i];
+            const persen = pagu > 0 ? Math.min(100, cair[i] / pagu * 100) : 0;
+            const warnaBar = sisa < 0 ? 'bg-red-500' : (persen >= 85 ? 'bg-amber-500' : 'bg-sipd-emerald');
+            return `<div class="bg-white rounded-lg border ${sisa < 0 ? 'border-red-300' : 'border-slate-200'} p-4 shadow-sm">
+                <div class="flex justify-between items-baseline"><h4 class="text-[11px] font-bold uppercase tracking-wider text-slate-500">${nama}</h4><span class="text-[10px] text-slate-400">${TW_BULAN[i]}</span></div>
+                <div class="text-lg font-bold mt-1 ${sisa < 0 ? 'text-red-600' : 'text-sipd-slate'}">${formatRupiah(sisa)}</div>
+                <div class="text-[10px] text-slate-400">sisa dari ${formatRupiah(pagu)}</div>
+                <div class="h-1.5 bg-slate-100 rounded mt-2 overflow-hidden"><div class="h-full ${warnaBar}" style="width:${persen.toFixed(1)}%"></div></div>
+                <div class="flex justify-between text-[10px] mt-1.5 gap-2"><span class="text-slate-500">Cair ${formatRupiah(cair[i])}</span><span class="text-amber-600">Proses ${formatRupiah(proses[i])}</span></div>
+            </div>`;
+        }).join('');
+    }
+
+    let cat = 'Triwulan ditentukan dari bulan pada nomor NPD (contoh <b>.../P2/<u>4</u>/2026</b> = bulan 4) untuk GU, dan dari tanggal pindahbuku untuk LS. “Cair” = sudah dipindahbukukan; “Proses” = diajukan namun belum cair (ditolak tidak dihitung).';
+    if (tanpaPeriode) cat += ` <span class="text-amber-600">${tanpaPeriode} pengajuan tidak terhitung karena bulan tidak dapat dibaca.</span>`;
+    if (luarTahun) cat += ` <span class="text-slate-500">${luarTahun} pengajuan di luar TA ${tahun} tidak dihitung.</span>`;
+    const elCat = document.getElementById('infoPaguCatatan'); if (elCat) elCat.innerHTML = cat;
+}
+
+function hitungSelisihPagu() {
+    const th = Number(document.getElementById('inputPaguTahunan').value) || 0;
+    let jml = 0; for (let i = 1; i <= 4; i++) jml += Number(document.getElementById('inputPaguTw' + i).value) || 0;
+    const el = document.getElementById('infoSelisihPagu'); if (!el) return;
+    const selisih = th - jml;
+    el.innerHTML = `Jumlah 4 triwulan: <b>${formatRupiah(jml)}</b>` + (th > 0 ? (selisih === 0 ? ' <span class="text-emerald-600">(sama dengan pagu tahunan)</span>' : ` <span class="text-amber-600">(selisih ${formatRupiah(selisih)} dari pagu tahunan)</span>`) : '');
+}
+
+function bukaModalEditPagu() {
+    document.getElementById('inputPaguTahunan').value = CONFIG.PAGU_TAHUNAN || '';
+    for (let i = 0; i < 4; i++) document.getElementById('inputPaguTw' + (i + 1)).value = (CONFIG.PAGU_TW && CONFIG.PAGU_TW[i]) || '';
+    hitungSelisihPagu();
     openModal('modalEditPagu');
 }
 
 function simpanPaguBaru() {
-    const val = Number(document.getElementById('inputEditPagu').value);
-    if(val < 0) { alert('Nominal tidak boleh minus!'); return; }
-    if (paguEditType === 'TAHUNAN') CONFIG.PAGU_TAHUNAN = val; else CONFIG.PAGU_TRIWULAN = val;
-    fetch(CONFIG.APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'sync_pagu', paguTahunan: CONFIG.PAGU_TAHUNAN, paguTriwulan: CONFIG.PAGU_TRIWULAN }) }).catch(e => console.error(e));
-    hitungAnggaran(); closeModal('modalEditPagu'); showToast('Pagu tersinkronisasi ke server.');
+    const tahunan = Number(document.getElementById('inputPaguTahunan').value) || 0;
+    const tw = [1, 2, 3, 4].map(i => Number(document.getElementById('inputPaguTw' + i).value) || 0);
+    if (tahunan < 0 || tw.some(x => x < 0)) { alert('Nominal tidak boleh minus!'); return; }
+    const btn = document.getElementById('btnSimpanPagu'); if (btn) { btn.disabled = true; btn.innerText = 'Menyimpan...'; }
+    apiPost({ action: 'sync_pagu', tahunan, tw })
+        .then(res => {
+            if (res.status !== 'success') { alert('Gagal menyimpan pagu: ' + res.message); return; }
+            CONFIG.PAGU_TAHUNAN = tahunan; CONFIG.PAGU_TW = tw;
+            hitungAnggaran(); closeModal('modalEditPagu'); showToast('Pagu tersimpan ke server.');
+        })
+        .catch(e => { if (String(e.message) !== 'Sesi berakhir') alert('Koneksi gagal: ' + e.message); })
+        .finally(() => { if (btn) { btn.disabled = false; btn.innerText = 'Simpan Pagu'; } });
 }
 
 function bukaFormSpjBaru() { isEditMode = false; editIdTarget = null; openModal('modalNewSpj'); }
@@ -225,17 +297,17 @@ function bukaFormSpjBaru() { isEditMode = false; editIdTarget = null; openModal(
 function isiDropdownProgram() {
     const progSelect = document.getElementById('inputProgram'); if(!progSelect) return;
     progSelect.innerHTML = '<option value="" disabled selected>-- Pilih Program --</option>';
-    for (let prog in referensiData) progSelect.innerHTML += `<option value="${prog}">${prog}</option>`;
+    for (let prog in referensiData) progSelect.innerHTML += `<option value="${escapeHtml(prog)}">${escapeHtml(prog)}</option>`;
 }
 function updateKegiatanDropdown() {
     const prog = document.getElementById('inputProgram').value; const kegSelect = document.getElementById('inputKegiatan'); const subSelect = document.getElementById('inputSubkegiatan');
     kegSelect.innerHTML = '<option value="" disabled selected>-- Pilih Kegiatan --</option>'; subSelect.innerHTML = '<option value="" disabled selected>-- Pilih Subkegiatan --</option>';
-    if(prog && referensiData[prog]) for (let keg in referensiData[prog]) kegSelect.innerHTML += `<option value="${keg}">${keg}</option>`;
+    if(prog && referensiData[prog]) for (let keg in referensiData[prog]) kegSelect.innerHTML += `<option value="${escapeHtml(keg)}">${escapeHtml(keg)}</option>`;
 }
 function updateSubkegiatanDropdown() {
     const prog = document.getElementById('inputProgram').value; const keg = document.getElementById('inputKegiatan').value; const subSelect = document.getElementById('inputSubkegiatan');
     subSelect.innerHTML = '<option value="" disabled selected>-- Pilih Subkegiatan --</option>';
-    if(prog && keg && referensiData[prog][keg]) referensiData[prog][keg].forEach(sub => subSelect.innerHTML += `<option value="${sub}">${sub}</option>`);
+    if(prog && keg && referensiData[prog][keg]) referensiData[prog][keg].forEach(sub => subSelect.innerHTML += `<option value="${escapeHtml(sub)}">${escapeHtml(sub)}</option>`);
 }
 
 function setJenisTampilan(jenis) {
@@ -409,19 +481,19 @@ function kirimPengajuanSpjBaru(e) {
     const inputTahap = document.getElementById('inputTahap');
 
     const payload = {
-        action: actionType, id: idSistem, createdAt: rawDate, username: sesiAktif.namaLengkap,
+        action: actionType, id: idSistem, createdAt: rawDate,
+        kodeBap: (document.getElementById('inputPilihBap') ? document.getElementById('inputPilihBap').value : ''),
         jenisSurat: document.getElementById('inputJenisSurat').value, pptk: document.getElementById('inputPptk').value, emailPptk: document.getElementById('inputEmail').value, 
         unitKerja: document.getElementById('inputUnitKerja').value, npd: document.getElementById('inputNpd').value, 
         program: document.getElementById('inputProgram').value, kegiatan: document.getElementById('inputKegiatan').value, 
         subKegiatan: document.getElementById('inputSubkegiatan').value, nominal: document.getElementById('inputNominal').value, 
         uraian: document.getElementById('inputUraian').value, wa: document.getElementById('inputWa').value,
-        namaCv: inputCv ? inputCv.value : "",
-        tahap: inputTahap ? inputTahap.value : "",
+        namaCv: (document.getElementById('inputJenisSurat').value === 'LS' && inputCv) ? inputCv.value : "",
+        tahap: (document.getElementById('inputJenisSurat').value === 'LS' && inputTahap) ? inputTahap.value : "",
         status: 'BELUM_DIPROSES'
     };
 
-    fetch(CONFIG.APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) })
-        .then(res => res.json())
+    apiPost(payload)
         .then(res => {
             if(res.status === 'success') {
                 document.getElementById('formNewSpj').classList.add('hidden'); 
@@ -434,8 +506,8 @@ function kirimPengajuanSpjBaru(e) {
                     divSukses.innerHTML = `<div class="text-5xl text-emerald-500 mb-2"><i class="fa-solid fa-circle-check"></i></div><h3 class="text-lg font-bold text-slate-800">Perbaikan Data Berhasil!</h3><button onclick="closeModal('modalNewSpj');" class="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md">Tutup</button>`;
                     document.getElementById('formNewSpj').parentElement.appendChild(divSukses);
                 } else {
-                    const formUrlGU = `https://docs.google.com/forms/d/e/1FAIpQLSfsYK2c5ucvUX7SOXkXLR3_WPIwJZ5h2sNMnHNWQlZF67G1ag/viewform?usp=pp_url&entry.1525941067=${idSistem}`;
-                    const formUrlLS = `https://docs.google.com/forms/d/e/1FAIpQLSfeB478TimX9oyEsyf3ibuVyrCBnw_hNs0A_XJ2LHbAwuuNSw/viewform?usp=pp_url&entry.1525941067=${idSistem}`;
+                    const formUrlGU = `https://docs.google.com/forms/d/e/1FAIpQLSfsYK2c5ucvUX7SOXkXLR3_WPIwJZ5h2sNMnHNWQlZF67G1ag/viewform?usp=pp_url&entry.1525941067=${res.id || idSistem}`;
+                    const formUrlLS = `https://docs.google.com/forms/d/e/1FAIpQLSfeB478TimX9oyEsyf3ibuVyrCBnw_hNs0A_XJ2LHbAwuuNSw/viewform?usp=pp_url&entry.1525941067=${res.id || idSistem}`;
 
                     const divSukses = document.createElement('div'); divSukses.id = "pesanSuksesDiv"; divSukses.className = "text-center py-4 space-y-4";
                     
@@ -477,8 +549,8 @@ function cetakNomorUrut(noUrut, npd, tglUpload) {
             <div class="number-box">${noUrut}</div>
             <div class="content-wrapper">
                 <div class="info-side">
-                    <div class="info-group"><div class="section-title">NOMOR KONTRAK</div><div class="info-val">${npd}</div></div>
-                    <div class="info-group"><div class="section-title">TANGGAL UPLOAD</div><div class="info-val">${tglUpload}</div></div>
+                    <div class="info-group"><div class="section-title">NOMOR KONTRAK</div><div class="info-val">${escapeHtml(npd)}</div></div>
+                    <div class="info-group"><div class="section-title">TANGGAL UPLOAD</div><div class="info-val">${escapeHtml(tglUpload)}</div></div>
                 </div>
                 <div class="sign-side">
                     <table class="para-table">
@@ -594,10 +666,10 @@ function renderTabelSpj() {
         let jenisBadge = jenisSurat === 'LS' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200';
         let tdJenisHtml = filterJenis === 'ALL' ? `<td class="py-4 px-4 text-xs align-top text-center whitespace-nowrap"><span class="px-2 py-1 rounded-md border font-bold text-[10px] ${jenisBadge}">${jenisSurat}</span></td>` : ``;
 
-        let cvText = jenisSurat === 'LS' && item.namaCv ? item.namaCv : '-';
-        let tahapText = jenisSurat === 'LS' && item.tahap ? item.tahap : '-';
+        let cvText = jenisSurat === 'LS' && item.namaCv ? escapeHtml(item.namaCv) : '-';
+        let tahapText = jenisSurat === 'LS' && item.tahap ? escapeHtml(item.tahap) : '-';
         let tglPbText = item.tglPb ? formatTanggalIndo(String(item.tglPb)) : '-';
-        let uraianPekerjaan = String(item.uraian || '-');
+        let uraianPekerjaan = escapeHtml(item.uraian || '-');
 
         let tdCvHtml = (filterJenis === 'ALL' || filterJenis === 'LS') ? `<td class="py-4 px-4 text-xs align-top font-bold text-purple-700">${cvText}</td>` : ``;
         let tdTahapHtml = (filterJenis === 'ALL' || filterJenis === 'LS') ? `<td class="py-4 px-4 text-xs align-top text-center">${tahapText}</td>` : ``;
@@ -606,13 +678,13 @@ function renderTabelSpj() {
         tbody.innerHTML += `
             <tr class="hover:bg-slate-50/50 border-b border-slate-100 transition-colors">
                 <td class="py-4 px-4 text-xs align-top whitespace-nowrap text-slate-500 font-medium">${formatTanggalIndo(item.createdAt)}</td>
-                <td class="py-4 px-4 text-xs align-top font-bold text-slate-800 max-w-[150px] whitespace-normal break-words">${String(item.npd || '-')}</td>
+                <td class="py-4 px-4 text-xs align-top font-bold text-slate-800 max-w-[150px] whitespace-normal break-words">${escapeHtml(item.npd || '-')}</td>
                 ${tdJenisHtml}
-                <td class="py-4 px-4 text-xs align-top whitespace-nowrap">${String(item.pptk || '-')}<br><span class="text-[10px] text-slate-500">${String(item.unitKerja || '-')}</span></td>
+                <td class="py-4 px-4 text-xs align-top whitespace-nowrap">${escapeHtml(item.pptk || '-')}<br><span class="text-[10px] text-slate-500">${escapeHtml(item.unitKerja || '-')}</span></td>
                 <td class="py-4 px-4 text-xs align-top leading-relaxed min-w-[200px] whitespace-normal break-words">
-                    <span class="font-bold text-slate-800">${String(item.program || '-')}</span><br>
-                    <span class="text-slate-500">${String(item.kegiatan || '-')}</span><br>
-                    <span class="text-[10px] text-slate-400">${String(item.subKegiatan || '-')}</span>
+                    <span class="font-bold text-slate-800">${escapeHtml(item.program || '-')}</span><br>
+                    <span class="text-slate-500">${escapeHtml(item.kegiatan || '-')}</span><br>
+                    <span class="text-[10px] text-slate-400">${escapeHtml(item.subKegiatan || '-')}</span>
                 </td>
                 ${tdCvHtml}
                 ${tdTahapHtml}
@@ -621,7 +693,7 @@ function renderTabelSpj() {
                 <td class="py-4 px-4 text-xs text-right font-bold align-top whitespace-nowrap text-slate-800">${formatRupiah(item.nominal)}</td>
                 <td class="py-4 px-4 text-center align-top whitespace-nowrap">${badge}</td>
                 <td class="py-4 px-4 text-center align-top whitespace-nowrap sticky right-0 bg-white/90 backdrop-blur-sm shadow-[-8px_0_15px_rgba(0,0,0,0.02)] z-10 border-l border-slate-100">
-                    <button onclick="bukaModalVerifikasi('${String(item.id)}')" class="px-4 py-1.5 ${actionBtnColor} text-white rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer">${actionBtnText}</button>
+                    <button onclick="bukaModalVerifikasi('${escapeHtml(item.id)}')" class="px-4 py-1.5 ${actionBtnColor} text-white rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer">${actionBtnText}</button>
                 </td>
             </tr>
         `;
@@ -630,7 +702,7 @@ function renderTabelSpj() {
 
 function openModal(id) { 
     if(id === 'modalNewSpj' && !isEditMode) { 
-        document.getElementById('formNewSpj').reset(); ubahLabelNpdKontrak();
+        document.getElementById('formNewSpj').reset(); ubahLabelNpdKontrak(); kunciPptkLogin();
         const existingSukses = document.getElementById('pesanSuksesDiv'); if(existingSukses) existingSukses.remove();
         document.getElementById('formNewSpj').classList.remove('hidden'); document.getElementById('btnSubmitNew').innerText = "Lanjut ke Form Upload"; 
     }
@@ -654,26 +726,27 @@ function switchTabAdmin(tabName) {
 function renderTabelAkunAdmin() {
     const tbody = document.getElementById('tabelAkunBody'); const tbPptk = document.getElementById('tabelPptkBody');
     if (!tbody || !tbPptk) return; tbody.innerHTML = ''; tbPptk.innerHTML = '';
-    window.DATABASE_AKUN.forEach((akun, index) => {
-        if(akun.role === 'PPTK') {
+    (window.DATABASE_AKUN || []).forEach((akun, index) => {
+        const nama = escapeHtml(akun.namaLengkap);
+        if (akun.role === 'PPTK') {
             tbPptk.innerHTML += `
             <tr class="hover:bg-slate-50 transition-colors">
-                <td class="p-3 px-4 border-b border-slate-200 font-bold text-slate-800 text-xs">${akun.namaLengkap}</td>
-                <td class="p-3 px-4 border-b border-slate-200 text-slate-500 font-mono text-[11px]">${akun.nip || '-'}</td>
+                <td class="p-3 px-4 border-b border-slate-200 font-bold text-slate-800 text-xs">${nama}</td>
+                <td class="p-3 px-4 border-b border-slate-200 text-slate-500 font-mono text-[11px]">${escapeHtml(akun.nip || '-')}</td>
                 <td class="p-3 px-4 border-b border-slate-200 text-center whitespace-nowrap">
                     <button onclick="editDataPptk(${index})" class="px-2 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded text-[10px] font-bold hover:bg-amber-100"><i class="fa-solid fa-pen"></i></button>
                     <button onclick="hapusDataAkun(${index})" class="px-2 py-1 bg-red-50 text-red-600 border border-red-200 rounded text-[10px] font-bold hover:bg-red-100 ml-1"><i class="fa-solid fa-trash"></i></button>
                 </td>
             </tr>`;
         }
-        let roleBadge = `<span class="px-2.5 py-1 bg-slate-100 text-slate-700 text-[10px] font-bold rounded-md border border-slate-200">${akun.role}</span>`;
-        if (akun.role === 'SUPER_ADMIN') roleBadge = `<span class="px-2.5 py-1 bg-amber-50 text-amber-700 text-[10px] font-bold rounded-md border border-amber-200">SUPER_ADMIN</span>`;
-        if (akun.role === 'PPTK') roleBadge = `<span class="px-2.5 py-1 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-md border border-blue-200">PPTK</span>`;
-        if (akun.role === 'VERIFIKATOR') roleBadge = `<span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-md border border-emerald-200">VERIFIKATOR</span>`;
-        let identitasLogin = akun.username ? `<span class="text-blue-600 font-bold">${akun.username}</span> <br><span class="text-[9px] text-slate-400">Pass: ${akun.password}</span>` : `<span class="text-red-500 italic text-[10px]">Belum Punya Akun</span>`;
+        const warna = { SUPER_ADMIN: 'bg-amber-50 text-amber-700 border-amber-200', PPTK: 'bg-blue-50 text-blue-700 border-blue-200', VERIFIKATOR: 'bg-emerald-50 text-emerald-700 border-emerald-200' }[akun.role] || 'bg-slate-100 text-slate-700 border-slate-200';
+        const roleBadge = `<span class="px-2.5 py-1 ${warna} text-[10px] font-bold rounded-md border">${escapeHtml(akun.role)}</span>`;
+        const identitasLogin = akun.username
+            ? `<span class="text-blue-600 font-bold">${escapeHtml(akun.username)}</span><br><span class="text-[9px] text-slate-400">Password tersimpan terenkripsi</span>`
+            : `<span class="text-red-500 italic text-[10px]">Belum Punya Akun</span>`;
         tbody.innerHTML += `
             <tr class="hover:bg-slate-50 transition-colors">
-                <td class="p-3 px-4 border-b border-slate-200 font-bold text-slate-800 text-xs">${akun.namaLengkap}</td>
+                <td class="p-3 px-4 border-b border-slate-200 font-bold text-slate-800 text-xs">${nama}</td>
                 <td class="p-3 px-4 border-b border-slate-200 text-slate-500 font-mono text-[11px]">${identitasLogin}</td>
                 <td class="p-3 px-4 border-b border-slate-200 text-xs">${roleBadge}</td>
                 <td class="p-3 px-4 border-b border-slate-200 text-center whitespace-nowrap">
@@ -682,26 +755,31 @@ function renderTabelAkunAdmin() {
                 </td>
             </tr>`;
     });
-    isiDropdownPptkUtama(); 
+    isiDropdownPptkUtama();
 }
 
-function saveDatabaseToServer() {
-    fetch(CONFIG.APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'sync_akun', listAkun: window.DATABASE_AKUN }) })
-    .then(res => res.json()).then(res => { if(res.status !== 'success') alert('Gagal sinkronisasi data akun!'); }).catch(e => console.log(e));
+// Kirim perubahan akun ke server (server yang meng-hash password & memeriksa hak akses)
+function kirimAkunKeServer(payload, pesanSukses) {
+    return apiPost(payload)
+        .then(res => {
+            if (res.status !== 'success') { alert('Gagal: ' + res.message); return false; }
+            return tarikDataDariServer().then(() => { renderTabelAkunAdmin(); showToast(pesanSukses); return true; });
+        })
+        .catch(e => { if (String(e.message) !== 'Sesi berakhir') alert('Koneksi gagal: ' + e.message); return false; });
 }
 
 function simpanDataPptk() {
-    const nama = document.getElementById('pptkNama').value; const nip = document.getElementById('pptkNip').value; 
-    if(!nama) { alert('Nama Lengkap wajib diisi!'); return; }
-    if (editIndexPptk > -1) { window.DATABASE_AKUN[editIndexPptk].namaLengkap = nama; window.DATABASE_AKUN[editIndexPptk].nip = nip; } 
-    else { window.DATABASE_AKUN.push({ username: "", password: "", role: "PPTK", namaLengkap: nama, nip: nip }); }
-    saveDatabaseToServer(); resetFormPptk(); renderTabelAkunAdmin(); showToast('Data PPTK Tersimpan ke Database Server.');
+    const nama = document.getElementById('pptkNama').value.trim(); const nip = document.getElementById('pptkNip').value.trim();
+    if (!nama) { alert('Nama Lengkap wajib diisi!'); return; }
+    const lama = editIndexPptk > -1 ? window.DATABASE_AKUN[editIndexPptk] : null;
+    kirimAkunKeServer({ action: 'akun_simpan', namaLama: lama ? lama.namaLengkap : '', namaLengkap: nama,
+        username: lama ? lama.username : '', role: lama ? lama.role : 'PPTK', nip: nip, password: '' }, 'Data PPTK tersimpan.')
+        .then(ok => { if (ok) resetFormPptk(); });
 }
-
 function editDataPptk(index) {
     editIndexPptk = index; const ak = window.DATABASE_AKUN[index];
     document.getElementById('titleFormPptk').innerHTML = `<i class="fa-solid fa-pen text-emerald-600"></i> Edit Data PPTK`;
-    document.getElementById('pptkNama').value = ak.namaLengkap || ""; document.getElementById('pptkNip').value = ak.nip || ""; 
+    document.getElementById('pptkNama').value = ak.namaLengkap || ""; document.getElementById('pptkNip').value = ak.nip || "";
 }
 function resetFormPptk() {
     editIndexPptk = -1; document.getElementById('titleFormPptk').innerHTML = `<i class="fa-solid fa-plus-circle text-emerald-600"></i> Tambah / Edit PPTK`;
@@ -709,27 +787,32 @@ function resetFormPptk() {
 }
 
 function simpanDataAkun() {
-    const nama = document.getElementById('akunNama').value; const user = document.getElementById('akunUsername').value;
+    const nama = document.getElementById('akunNama').value.trim(); const user = document.getElementById('akunUsername').value.trim().toLowerCase();
     const pass = document.getElementById('akunPassword').value; const role = document.getElementById('akunRole').value;
-    if(!nama || !user || !pass) { alert('Harap isi semua kolom!'); return; }
-    if (editIndexAkun > -1) { window.DATABASE_AKUN[editIndexAkun].namaLengkap = nama; window.DATABASE_AKUN[editIndexAkun].username = user; window.DATABASE_AKUN[editIndexAkun].password = pass; window.DATABASE_AKUN[editIndexAkun].role = role; } 
-    else { window.DATABASE_AKUN.push({ username: user, password: pass, role: role, namaLengkap: nama }); }
-    saveDatabaseToServer(); resetFormAkun(); renderTabelAkunAdmin(); showToast('Akun Tersimpan ke Database Server.');
+    const lama = editIndexAkun > -1 ? window.DATABASE_AKUN[editIndexAkun] : null;
+    if (!nama || !user) { alert('Nama dan username wajib diisi!'); return; }
+    if (!lama && pass.length < 8) { alert('Password akun baru minimal 8 karakter.'); return; }
+    if (pass && pass.length < 8) { alert('Password minimal 8 karakter.'); return; }
+    kirimAkunKeServer({ action: 'akun_simpan', namaLama: lama ? lama.namaLengkap : '', namaLengkap: nama,
+        username: user, password: pass, role: role, nip: lama ? lama.nip : '' }, 'Akun tersimpan.')
+        .then(ok => { if (ok) resetFormAkun(); });
 }
-
 function editDataAkun(index) {
     editIndexAkun = index; const ak = window.DATABASE_AKUN[index];
     document.getElementById('titleFormAkun').innerHTML = `<i class="fa-solid fa-pen text-blue-600"></i> Buat / Edit Detail Akun`;
     document.getElementById('akunNama').value = ak.namaLengkap || ""; document.getElementById('akunUsername').value = ak.username || "";
-    document.getElementById('akunPassword').value = ak.password || ""; document.getElementById('akunRole').value = ak.role || "PPTK";
+    const pw = document.getElementById('akunPassword'); pw.value = ""; pw.placeholder = "Kosongkan jika tidak diubah";
+    document.getElementById('akunRole').value = ak.role || "PPTK";
 }
 function resetFormAkun() {
     editIndexAkun = -1; document.getElementById('titleFormAkun').innerHTML = `<i class="fa-solid fa-user-plus text-blue-600"></i> Buat / Edit Detail Akun`;
     document.getElementById('akunNama').value = ""; document.getElementById('akunUsername').value = "";
-    document.getElementById('akunPassword').value = ""; document.getElementById('akunRole').value = "VERIFIKATOR";
+    const pw = document.getElementById('akunPassword'); pw.value = ""; pw.placeholder = "Min. 8 karakter";
+    document.getElementById('akunRole').value = "VERIFIKATOR";
 }
 function hapusDataAkun(index) {
-    if(confirm('Anda yakin ingin menghapus data ini?')) { window.DATABASE_AKUN.splice(index, 1); saveDatabaseToServer(); renderTabelAkunAdmin(); showToast('Berhasil dihapus dari server.'); }
+    const ak = window.DATABASE_AKUN[index]; if (!ak) return;
+    if (confirm('Anda yakin ingin menghapus "' + ak.namaLengkap + '"?')) kirimAkunKeServer({ action: 'akun_hapus', namaLengkap: ak.namaLengkap }, 'Berhasil dihapus dari server.');
 }
 function bukaModalSuperAdmin() { const profileDd = document.getElementById('profileDropdown'); if(profileDd) profileDd.classList.add('hidden'); renderTabelAkunAdmin(); switchTabAdmin('pptk'); openModal('modalSuperAdmin'); }
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
@@ -738,53 +821,43 @@ function showToast(msg) { const toast = document.getElementById('toast'); docume
 function jadikanLink(textUrl, idItem, formType) {
     if (!textUrl || textUrl === "-" || textUrl === "") {
         let formUrl = "";
-        if (formType === 'GU') formUrl = `https://docs.google.com/forms/d/e/1FAIpQLSfsYK2c5ucvUX7SOXkXLR3_WPIwJZ5h2sNMnHNWQlZF67G1ag/viewform?usp=pp_url&entry.1525941067=${idItem}`;
-        else if (formType === 'LS') formUrl = `https://docs.google.com/forms/d/e/1FAIpQLSfeB478TimX9oyEsyf3ibuVyrCBnw_hNs0A_XJ2LHbAwuuNSw/viewform?usp=pp_url&entry.1525941067=${idItem}`;
-
+        const idq = encodeURIComponent(String(idItem));
+        if (formType === 'GU') formUrl = `https://docs.google.com/forms/d/e/1FAIpQLSfsYK2c5ucvUX7SOXkXLR3_WPIwJZ5h2sNMnHNWQlZF67G1ag/viewform?usp=pp_url&entry.1525941067=${idq}`;
+        else if (formType === 'LS') formUrl = `https://docs.google.com/forms/d/e/1FAIpQLSfeB478TimX9oyEsyf3ibuVyrCBnw_hNs0A_XJ2LHbAwuuNSw/viewform?usp=pp_url&entry.1525941067=${idq}`;
         return `<span class="text-slate-400 italic block mb-2">Belum dilampirkan</span>
-                <a href="${formUrl}" target="_blank" class="px-2 py-1 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded text-[10px] font-bold inline-block border border-blue-200"><i class="fa-solid fa-cloud-arrow-up me-1"></i> Upload Berkas</a>`;
+                <a href="${formUrl}" target="_blank" rel="noopener noreferrer" class="px-2 py-1 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded text-[10px] font-bold inline-block border border-blue-200"><i class="fa-solid fa-cloud-arrow-up me-1"></i> Upload Berkas</a>`;
     }
-    let urlFinal = textUrl; let namaFile = "Dokumen_Lampiran";
-    if (textUrl.includes("|")) {
-        const parts = textUrl.split("|");
-        urlFinal = parts[0]; namaFile = parts[1];
-    } else {
-        const matchId = String(textUrl).match(/[-\w]{25,}/);
-        if(matchId) namaFile = "File_" + matchId[0].substring(0,8) + "...";
-    }
-    return `<a href="${urlFinal}" target="_blank" class="text-blue-600 hover:text-blue-800 underline font-bold bg-blue-50 hover:bg-blue-100 border border-blue-100 px-2 py-1.5 rounded inline-block mt-1 transition-colors flex items-center gap-1.5 w-fit"><i class="fa-solid fa-file-pdf text-red-500"></i> <span class="truncate max-w-[200px]">${namaFile}</span></a>`;
+    // Satu sel dapat berisi beberapa berkas (satu per baris): "url|nama"
+    return String(textUrl).split('\n').map(s => s.trim()).filter(Boolean).map(line => {
+        let url = line, namaFile = "Dokumen_Lampiran";
+        if (line.includes("|")) { const parts = line.split("|"); url = parts[0]; namaFile = parts.slice(1).join("|"); }
+        else { const matchId = line.match(/[-\w]{25,}/); if (matchId) namaFile = "File_" + matchId[0].substring(0, 8) + "..."; }
+        return `<a href="${escapeHtml(amanUrl(url))}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-bold bg-blue-50 hover:bg-blue-100 border border-blue-100 px-2 py-1.5 rounded inline-block mt-1 transition-colors flex items-center gap-1.5 w-fit"><i class="fa-solid fa-file-pdf text-red-500"></i> <span class="truncate max-w-[200px]">${escapeHtml(namaFile)}</span></a>`;
+    }).join('');
 }
 
 function renderListRevisi(textRaw) {
     if (!textRaw || textRaw === "-" || textRaw === "") return `<span class="text-slate-400 italic text-[11px]">Belum ada lampiran revisi.</span>`;
     let htmlResult = '<div class="space-y-2 mt-2">';
-    const baris = String(textRaw).split('\n');
-    baris.forEach(line => {
-        let trimmed = line.trim(); if(!trimmed) return;
+    String(textRaw).split('\n').forEach(line => {
+        let trimmed = line.trim(); if (!trimmed) return;
         const match = trimmed.match(/^(\d+\.)\s*(\[[^\]]+\])\s*(.*)/);
-        if(match) {
+        if (match) {
             const noUtama = match[1]; const tgl = match[2]; const sisaTeks = match[3];
             let url = sisaTeks; let namaFile = "Dokumen_Revisi.pdf";
-            
-            if (sisaTeks.includes("|")) {
-                const parts = sisaTeks.split("|");
-                url = parts[0]; namaFile = parts[1];
-            } else {
-                const matchId = url.match(/[-\w]{25,}/);
-                if(matchId) namaFile = "Revisi_" + matchId[0].substring(0,8) + "...pdf";
-            }
+            if (sisaTeks.includes("|")) { const parts = sisaTeks.split("|"); url = parts[0]; namaFile = parts.slice(1).join("|"); }
+            else { const matchId = url.match(/[-\w]{25,}/); if (matchId) namaFile = "Revisi_" + matchId[0].substring(0, 8) + "...pdf"; }
             htmlResult += `
             <div class="flex items-start gap-2 text-[11px]">
-                <span class="font-bold text-slate-700 min-w-[12px] pt-1.5">${noUtama}</span>
-                <span class="font-bold text-slate-500 pt-1.5">${tgl}</span>
-                <a href="${url}" target="_blank" class="text-blue-600 hover:text-blue-800 underline font-bold bg-blue-50 px-2 py-1.5 rounded flex items-center gap-1 border border-blue-100"><i class="fa-solid fa-file-pdf text-red-500"></i> <span class="truncate max-w-[150px]">${namaFile}</span></a>
+                <span class="font-bold text-slate-700 min-w-[12px] pt-1.5">${escapeHtml(noUtama)}</span>
+                <span class="font-bold text-slate-500 pt-1.5">${escapeHtml(tgl)}</span>
+                <a href="${escapeHtml(amanUrl(url))}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-bold bg-blue-50 px-2 py-1.5 rounded flex items-center gap-1 border border-blue-100"><i class="fa-solid fa-file-pdf text-red-500"></i> <span class="truncate max-w-[150px]">${escapeHtml(namaFile)}</span></a>
             </div>`;
         } else {
-             htmlResult += `<div class="text-[11px] text-slate-600">${trimmed}</div>`;
+            htmlResult += `<div class="text-[11px] text-slate-600">${escapeHtml(trimmed)}</div>`;
         }
     });
-    htmlResult += '</div>';
-    return htmlResult;
+    return htmlResult + '</div>';
 }
 
 function bukaModalVerifikasi(id) {
@@ -794,20 +867,20 @@ function bukaModalVerifikasi(id) {
     if (String(item.jenisSurat) === 'LS') {
         textUraian = `<div class="pb-2 mb-2 border-b border-slate-200">
                         <span class="block text-[10px] font-bold text-purple-700 uppercase mb-0.5">Penyedia / CV</span>
-                        <span class="text-sm font-bold text-slate-800">${item.namaCv || '-'}</span>
+                        <span class="text-sm font-bold text-slate-800">${escapeHtml(item.namaCv || '-')}</span>
                       </div>
                       <div class="pb-2 mb-2 border-b border-slate-200">
                         <span class="block text-[10px] font-bold text-purple-700 uppercase mb-0.5">Tahap</span>
-                        <span class="text-sm text-slate-700">${item.tahap || '-'}</span>
+                        <span class="text-sm text-slate-700">${escapeHtml(item.tahap || '-')}</span>
                       </div>
                       <div class="pt-1">
                         <span class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Nama Pekerjaan</span>
-                        <div class="text-sm font-medium text-slate-700 leading-relaxed">${String(item.uraian || '-')}</div>
+                        <div class="text-sm font-medium text-slate-700 leading-relaxed">${escapeHtml(item.uraian || '-')}</div>
                       </div>`;
     } else {
         textUraian = `<div>
                         <span class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Uraian SPJ</span>
-                        <div class="text-sm font-medium text-slate-700 leading-relaxed">${String(item.uraian || '-')}</div>
+                        <div class="text-sm font-medium text-slate-700 leading-relaxed">${escapeHtml(item.uraian || '-')}</div>
                       </div>`;
     }
     document.getElementById('detailUraian').innerHTML = textUraian;
@@ -844,13 +917,13 @@ function bukaModalVerifikasi(id) {
     if (item.status === 'SUDAH DIPINDAHBUKUKAN' && item.buktiPb) {
         document.getElementById('detailBuktiPbTeks').innerText = `No PB: ${item.noPb} (${formatTanggalIndo(String(item.tglPb))})`;
         let buktiLink = String(item.buktiPb || '');
-        if(buktiLink.startsWith('http')) { document.getElementById('detailBuktiPbLink').innerHTML = `<a href="${buktiLink}" target="_blank" class="text-blue-600 underline font-bold text-xs"><i class="fa-solid fa-file-invoice"></i> Buka Bukti PB</a>`; } 
-        else { document.getElementById('detailBuktiPbLink').innerHTML = `<span class="text-slate-700 font-bold">Kata Kunci Arsip: ${buktiLink}</span>`; }
+        if(buktiLink.startsWith('http')) { document.getElementById('detailBuktiPbLink').innerHTML = `<a href="${escapeHtml(amanUrl(buktiLink))}" target="_blank" rel="noopener noreferrer" class="text-blue-600 underline font-bold text-xs"><i class="fa-solid fa-file-invoice"></i> Buka Bukti PB</a>`; } 
+        else { document.getElementById('detailBuktiPbLink').innerHTML = `<span class="text-slate-700 font-bold">Kata Kunci Arsip: ${escapeHtml(buktiLink)}</span>`; }
         buktiPbBox.classList.remove('hidden');
     } else { buktiPbBox.classList.add('hidden'); }
 
     let logHtml = '<div class="relative border-l-2 border-slate-200 ml-3 mt-4 pb-2">'; 
-    const safeRiwayat = String(item.riwayatLog || '');
+    const safeRiwayat = teksCatatan(item.riwayatLog || '');
     if (safeRiwayat.trim() !== "") { 
         let logEntries = [];
         let currentEntry = "";
@@ -876,7 +949,7 @@ function bukaModalVerifikasi(id) {
                     let linkData = blockLines[j].replace("LinkRevisiLog:", "").trim();
                     let urlFile = linkData; let nmFile = "Berkas Revisi";
                     if(linkData.includes("|")){ let p = linkData.split("|"); urlFile = p[0]; nmFile = p[1]; }
-                    extraLinkHtml = `<div class="mt-1.5"><a href="${urlFile}" target="_blank" class="inline-flex items-center gap-1.5 px-2 py-1 bg-blue-50 border border-blue-100 text-blue-700 hover:bg-blue-100 rounded text-[10px] font-bold transition-colors underline"><i class="fa-solid fa-file-pdf text-red-500"></i> ${nmFile}</a></div>`;
+                    extraLinkHtml += `<div class="mt-1.5"><a href="${amanUrl(urlFile)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-2 py-1 bg-blue-50 border border-blue-100 text-blue-700 hover:bg-blue-100 rounded text-[10px] font-bold transition-colors underline"><i class="fa-solid fa-file-pdf text-red-500"></i> ${nmFile}</a></div>`;
                 }
             }
 
@@ -978,8 +1051,8 @@ function bukaModalVerifikasi(id) {
         if(item.status === 'REVISI' || item.status === 'BELUM_DIPROSES') {
             document.getElementById('panelPptkRevisi').classList.remove('hidden');
             if(item.status === 'BELUM_DIPROSES') document.getElementById('teksRevisiPptk').innerText = "Anda masih dapat mengubah data teks atau mengunggah ulang berkas.";
-            if(item.status === 'REVISI') document.getElementById('teksRevisiPptk').innerHTML = "Catatan Verifikator: <br>" + String(item.catatanRevisi || "-");
-            document.getElementById('btnUploadRevisi').href = `https://docs.google.com/forms/d/e/1FAIpQLSfFAommHUUMIQXhq16CtjtIspZqiYc0_eCAoqvNFN3f3vpShg/viewform?usp=pp_url&entry.1525941067=${item.id}`;
+            if(item.status === 'REVISI') document.getElementById('teksRevisiPptk').innerHTML = "Catatan Verifikator: <br>" + teksCatatan(item.catatanRevisi || "-");
+            document.getElementById('btnUploadRevisi').href = `https://docs.google.com/forms/d/e/1FAIpQLSfFAommHUUMIQXhq16CtjtIspZqiYc0_eCAoqvNFN3f3vpShg/viewform?usp=pp_url&entry.1525941067=${encodeURIComponent(item.id)}`;
             let existingEditBtnPptk = document.getElementById('btnEditDataPptk'); if(existingEditBtnPptk) existingEditBtnPptk.remove();
             const editBtnPptkHtml = `<button id="btnEditDataPptk" onclick="bukaFormEdit()" class="w-full mt-2 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded font-bold text-xs shadow-sm transition-colors flex items-center justify-center gap-1.5"><i class="fa-solid fa-pen-to-square"></i> EDIT DATA TEKS</button>`;
             document.getElementById('panelPptkRevisi').insertAdjacentHTML('beforeend', editBtnPptkHtml);
@@ -1033,14 +1106,13 @@ function toggleActionForm(type) {
 }
 
 function prosesUpdateStatusAksi() {
-    let payload = { action: 'update_status', id: activeSelectedId, status: pendingStatusChange, username: sesiAktif.namaLengkap, noPb: '', tglPb: '', catatanRevisi: '', buktiPb: '' };
+    let payload = { action: 'update_status', id: activeSelectedId, status: pendingStatusChange, noPb: '', tglPb: '', catatanRevisi: '', buktiPb: '' };
     if (pendingStatusChange === 'REVISI' || pendingStatusChange === 'DITOLAK') { payload.catatanRevisi = document.getElementById('catatanRevisiInput').value; if(!payload.catatanRevisi) { alert('Catatan wajib diisi!'); return; } } 
     else if (pendingStatusChange === 'SUDAH DIPINDAHBUKUKAN') { payload.noPb = document.getElementById('noPbInput').value; payload.tglPb = document.getElementById('tglPbInput').value; payload.buktiPb = document.getElementById('buktiPbInput').value; if(!payload.noPb || !payload.tglPb) { alert('No PB & Tgl wajib diisi!'); return; } }
     
     const btn = document.getElementById('btnConfirmAction'); if (btn) { btn.innerText = 'MEMPROSES...'; btn.disabled = true; }
     
-    fetch(CONFIG.APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) })
-    .then(res => res.json())
+    apiPost(payload)
     .then(res => {
         if(res.status === 'success') { showToast(`Sukses memperbarui status.`); document.getElementById('confirmActionContainer').classList.add('hidden'); tarikDataDariServer().then(() => { bukaModalVerifikasi(activeSelectedId); }); } 
         else { alert("GAGAL UPDATE:\n" + res.message); }
@@ -1054,8 +1126,7 @@ function kirimEmailManual() {
     const btn = document.getElementById('btnSendEmailManual');
     if(btn) { btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengirim...'; btn.disabled = true; }
 
-    fetch(CONFIG.APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'resend_email', id: activeSelectedId }) })
-    .then(res => res.json())
+    apiPost({ action: 'resend_email', id: activeSelectedId })
     .then(res => {
         if(res.status === 'success') { showToast("Email Notifikasi Berhasil Terkirim!"); }
         else { alert("Gagal kirim email: " + (res.message || "Email PPTK tidak valid")); }
@@ -1065,8 +1136,8 @@ function kirimEmailManual() {
 }
 
 function keluarSistem() {
-    sessionStorage.clear(); sesiAktif = { role: "", username: "", namaLengkap: "" }; 
-    document.getElementById('main-app').style.display = 'none'; document.getElementById('login-screen').style.display = 'flex';
-    const dropdown = document.getElementById('profileDropdown'); if (dropdown) dropdown.classList.add('hidden');
-    document.getElementById('password-input').value = "";
+    const t = sessionStorage.getItem('sesi_token');
+    if (t) { try { fetch(CONFIG.APPS_SCRIPT_URL, { method: 'POST', keepalive: true, body: JSON.stringify({ action: 'logout', token: t }) }).catch(() => {}); } catch (e) {} }
+    sessionStorage.clear(); sesiAktif = { role: "", username: "", namaLengkap: "" };
+    window.location.reload();
 }
