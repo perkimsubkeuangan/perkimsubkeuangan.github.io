@@ -38,6 +38,21 @@ const BAP_CONFIG = {
     dpa: {
         nomor: "DPA/A.1/1.04.2.10.0.00.01.0000/001/2026",
         tanggal: "2026-01-02"
+    },
+    // Surat Penyediaan Dana (SPD) TA 2026. Urutan indeks 0..3 = Triwulan I..IV.
+    // Cetakan BAP memilih SPD otomatis dari triwulan TGL_BAP (Jan-Mar=TW I, Apr-Jun=TW II, Jul-Sep=TW III, Okt-Des=TW IV).
+    // Bila sheet MASTER_BAP tersedia di Spreadsheet, isinya (sel B4:B8, B11:C11, B15:C18) otomatis menimpa nilai di bawah ini.
+    spd: [
+        { nomor: "35.05/01.0/000001/1.04.2.10.0.00.01.0000/M/1/2026",  tanggal: "2026-01-02" },
+        { nomor: "35.05/01.0/000002/1.04.2.10.0.00.01.0000/P1/6/2026", tanggal: "2026-04-01" },
+        { nomor: "35.05/01.0/000003/1.04.2.10.0.00.01.0000/P1/7/2026", tanggal: "2026-07-01" },
+        { nomor: "35.05/01.0/000004/1.04.2.10.0.00.01.0000/P1/9/2026", tanggal: "2026-10-01" }
+    ],
+    retensiPersen: 0.05,   // potongan retensi 5% (tahap I (100) & 100) bila tidak memakai Jaminan Pemeliharaan
+    // Tarif PPh per kelompok tahap. HARUS sama dengan konstanta TAHAP_BAP di Code.gs (server yang menjadi acuan simpan).
+    pph: {
+        fisik: { label: "PPh Pasal 4(2)", tarif: 0.0175 },   // UM, I (100), 100
+        jasa:  { label: "PPh Pasal 23",   tarif: 0.02 }      // UM JASA, 100 JASA
     }
 };
 
