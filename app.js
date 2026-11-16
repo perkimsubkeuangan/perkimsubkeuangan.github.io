@@ -371,6 +371,14 @@ function setSelectValue(el, val) {
     el.value = val;
 }
 
+// Satu BAP hanya boleh diajukan SPJ-nya satu kali (server menegakkan aturan yang sama di aksiSimpanSpjBaru_).
+// Baris baru menyimpan kodeBap; baris lama tanpa kodeBap dicocokkan lewat No. Kontrak + Tahap.
+function bapSudahDiajukan(k) {
+    return (spjData || []).some(x => String(x.jenisSurat) === 'LS' && (x.kodeBap
+        ? String(x.kodeBap) === String(k.kodeSpj)
+        : String(x.npd) === String(k.noKontrak) && String(x.tahap) === String(k.tahapBayar)));
+}
+
 function ubahLabelNpdKontrak() {
     const jenis = document.getElementById('inputJenisSurat').value;
     const boxBap = document.getElementById('box-pilih-bap');
@@ -380,6 +388,7 @@ function ubahLabelNpdKontrak() {
 
     if (jenis === 'LS') {
         document.getElementById('label-npd-kontrak').innerText = 'Nomor Kontrak / SPK';
+        const lblNom = document.getElementById('label-nominal'); if (lblNom) lblNom.innerText = 'Pembayaran BAP Ini (Rp, termasuk PPN)';
         document.getElementById('box-cv').classList.remove('hidden');
         document.getElementById('box-tahap').classList.remove('hidden');
 
@@ -390,19 +399,21 @@ function ubahLabelNpdKontrak() {
 
         if (inputPilihBap) {
             inputPilihBap.required = !isEditMode;
-            // PPTK hanya melihat BAP miliknya; peran lain melihat semua
+            // PPTK hanya melihat BAP miliknya; peran lain melihat semua. BAP yang SPJ-nya sudah diajukan tidak ditawarkan lagi.
             const daftar = (window.DATABASE_KONTRAK || []).filter(k =>
-                sesiAktif.role !== 'PPTK' || String(k.pptk).trim() === String(sesiAktif.namaLengkap).trim());
+                (sesiAktif.role !== 'PPTK' || String(k.pptk).trim() === String(sesiAktif.namaLengkap).trim()) &&
+                (isEditMode || !bapSudahDiajukan(k)));
             let html = daftar.length
                 ? '<option value="" disabled selected>-- Pilih Kontrak BAP Anda --</option>'
-                : '<option value="" disabled selected>-- Belum ada data BAP (isi dulu di Modul BAP LS) --</option>';
+                : '<option value="" disabled selected>-- Belum ada BAP yang siap diajukan (isi dulu di Modul BAP LS) --</option>';
             daftar.forEach(k => {
-                html += `<option value="${escapeHtml(k.kodeSpj)}">${escapeHtml(k.noKontrak)} - ${escapeHtml(k.pelaksana)} (${escapeHtml(k.tahapBayar)})</option>`;
+                html += `<option value="${escapeHtml(k.kodeSpj)}">${escapeHtml(k.noKontrak)} - ${escapeHtml(k.pelaksana)} (${escapeHtml(k.tahapBayar)}) - Rp ${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(Math.round(Number(k.pembayaranBapIni) || 0))}</option>`;
             });
             inputPilihBap.innerHTML = html;
         }
     } else {
         document.getElementById('label-npd-kontrak').innerText = 'Nomor NPD';
+        const lblNom2 = document.getElementById('label-nominal'); if (lblNom2) lblNom2.innerText = 'Nominal Bruto (Rp)';
         document.getElementById('inputNpd').placeholder = 'Cth: 001/NPD/2026';
         document.getElementById('box-cv').classList.add('hidden');
         document.getElementById('box-tahap').classList.add('hidden');
@@ -426,7 +437,8 @@ function autoFillDariBap() {
 
     document.getElementById('inputNpd').value = dataBap.noKontrak || '';
     document.getElementById('inputUraian').value = dataBap.uraian || '';
-    document.getElementById('inputNominal').value = dataBap.nilaiBayar || '';
+    // Nominal SPJ = PEMBAYARAN BAP INI (bruto dikurangi retensi & pengembalian UM), sama dengan yang disimpan server
+    document.getElementById('inputNominal').value = dataBap.pembayaranBapIni || '';
     document.getElementById('inputCv').value = dataBap.pelaksana || '';
     setSelectValue(document.getElementById('inputTahap'), dataBap.tahapBayar);
 
