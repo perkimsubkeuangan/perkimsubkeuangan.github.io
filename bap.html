@@ -46,7 +46,7 @@
                         <tr>
                             <th class="py-3 px-4">No Kontrak</th>
                             <th class="py-3 px-4">Penyedia / CV</th>
-                            <th class="py-3 px-4">Nilai Tagihan</th>
+                            <th class="py-3 px-4">Pembayaran BAP Ini</th>
                             <th class="py-3 px-4">Tahap</th>
                             <th class="py-3 px-4 text-center">Aksi</th>
                         </tr>
@@ -100,18 +100,14 @@
                     <div class="md:col-span-2 mt-2 pt-4 border-t border-slate-100"><h4 class="text-xs font-bold text-slate-700 mb-1"><i class="fa-solid fa-file-lines me-2"></i>Informasi Kontrak & Pembayaran</h4></div>
                     <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Nomor Kontrak/SPK <span class="text-red-500">*</span></label><input type="text" id="bapNoKontrak" required maxlength="120" placeholder="Cth: 027/01/SPK/2026" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-xs text-slate-700"></div>
                     <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Tanggal Kontrak <span class="text-red-500">*</span></label><input type="date" id="bapTglKontrak" required class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-xs text-slate-700"></div>
-                    <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Nilai Kontrak Awal (Rp) <span class="text-red-500">*</span></label><input type="number" id="bapNilaiKontrak" required min="1" step="any" oninput="hitungPersen()" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-xs font-mono text-slate-700"></div>
-                    <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Nilai Bayar Tahap Ini, bruto (Rp) <span class="text-red-500">*</span> <span id="infoPersen" class="text-blue-600"></span></label><input type="number" id="bapNilaiBayar" required min="1" step="any" oninput="hitungPersen()" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-xs font-mono text-slate-700"></div>
-                    <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Tanggal BAP <span class="text-red-500">*</span></label><input type="date" id="bapTglBap" required onchange="generateNomorBap()" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-xs text-slate-700"></div>
-                    <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Nomor BAP (otomatis oleh server)</label><input type="text" id="bapNoBap" readonly class="w-full px-3 py-1.5 border border-slate-300 rounded outline-none text-xs text-slate-500 bg-slate-100 cursor-not-allowed"></div>
-
-                    <!-- SPD -->
-                    <div class="md:col-span-2 mt-2 pt-4 border-t border-slate-100"><h4 class="text-xs font-bold text-slate-700 mb-1"><i class="fa-solid fa-scroll me-2"></i>Nomor & Tanggal SPD <span class="font-normal text-slate-400">(SPD 1 wajib; sisanya bila ada)</span></h4></div>
-                    <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2" id="gridSpd"></div>
+                    <div id="infoKontrak" class="md:col-span-2 hidden text-[11px] bg-blue-50 border border-blue-200 text-blue-800 rounded p-2"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Nilai Kontrak Awal (Rp) <span class="text-red-500">*</span></label><input type="number" id="bapNilaiKontrak" required min="1" step="any" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-xs font-mono text-slate-700"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Tanggal BAP <span class="text-red-500">*</span> <span class="font-normal text-slate-400">(menentukan SPD triwulan)</span></label><input type="date" id="bapTglBap" required onchange="generateNomorBap()" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-xs text-slate-700"></div>
+                    <div class="md:col-span-2"><label class="block text-[10px] font-bold text-slate-600 mb-1">Nomor BAP (otomatis oleh server)</label><input type="text" id="bapNoBap" readonly class="w-full px-3 py-1.5 border border-slate-300 rounded outline-none text-xs text-slate-500 bg-slate-100 cursor-not-allowed"></div>
 
                     <!-- Addendum -->
                     <div class="md:col-span-2 mt-2 pt-4 border-t border-slate-100">
-                        <details>
+                        <details id="detAddendum">
                             <summary class="text-xs font-bold text-slate-700 cursor-pointer"><i class="fa-solid fa-file-circle-plus me-2"></i>Addendum Kontrak <span class="font-normal text-slate-400">(opsional, klik untuk membuka)</span></summary>
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
                                 <div><label class="block text-[10px] font-bold text-slate-600 mb-1">No. Addendum</label><input type="text" id="bapAddNo" maxlength="120" class="w-full px-3 py-1.5 border border-slate-300 rounded outline-none text-xs text-slate-700"></div>
@@ -121,7 +117,16 @@
                         </details>
                     </div>
 
-                    <!-- Jaminan (UM / 100 / I(100)) -->
+                    <!-- Persentase, skema retensi, sumber dana -->
+                    <div id="boxPersen" class="hidden"><label class="block text-[10px] font-bold text-slate-600 mb-1">Persentase Uang Muka (%) <span class="text-red-500">*</span> <span class="font-normal text-slate-400">(standar 30%)</span></label><input type="number" id="bapPersen" min="0.01" max="99.99" step="any" value="30" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-xs font-mono text-slate-700"></div>
+                    <div id="boxSkema" class="md:col-span-2 hidden bg-amber-50 border border-amber-200 rounded p-3">
+                        <div class="text-[10px] font-bold text-amber-800 mb-2"><i class="fa-solid fa-scale-balanced me-1"></i>Jaminan masa pemeliharaan</div>
+                        <label class="flex items-center gap-2 text-xs text-slate-700 mb-1"><input type="radio" name="bapSkema" value="RETENSI" checked> Potong <b>Retensi 5%</b> dari nilai kontrak (tanpa Jaminan Pemeliharaan)</label>
+                        <label class="flex items-center gap-2 text-xs text-slate-700"><input type="radio" name="bapSkema" value="JAMINAN"> Pakai <b>Jaminan Pemeliharaan 5%</b> (tidak ada potongan retensi)</label>
+                    </div>
+                    <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Sumber dana DAK (Rp) <span class="font-normal text-slate-400">(kosong = 0; sisanya otomatis DAU)</span></label><input type="number" id="bapDak" min="0" step="any" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-xs font-mono text-slate-700"></div>
+
+                    <!-- Jaminan (UM / Pemeliharaan) -->
                     <div id="secJaminan" class="md:col-span-2 mt-2 pt-4 border-t border-slate-100 hidden">
                         <h4 class="text-xs font-bold text-amber-700 mb-3"><i class="fa-solid fa-shield-halved me-2"></i><span id="lblJaminan">Jaminan</span></h4>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -139,26 +144,22 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Tanggal <span class="text-red-500">*</span></label><input type="date" id="bapBastTgl" class="w-full px-3 py-1.5 border border-slate-300 rounded outline-none text-xs text-slate-700"></div>
                             <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Nomor <span class="text-red-500">*</span></label><input type="text" id="bapBastNo" maxlength="120" class="w-full px-3 py-1.5 border border-slate-300 rounded outline-none text-xs text-slate-700"></div>
-                            <div id="boxCapaian"><label class="block text-[10px] font-bold text-slate-600 mb-1">Capaian Fisik (%) <span class="text-red-500">*</span></label><input type="number" id="bapCapaian" min="0" max="100" step="any" placeholder="100" class="w-full px-3 py-1.5 border border-slate-300 rounded outline-none text-xs font-mono text-slate-700"></div>
                             <div id="boxPernyataan" class="md:col-span-2"><label class="block text-[10px] font-bold text-slate-600 mb-1">Pernyataan <span class="font-normal text-slate-400">(kalimat "Yang menyatakan bahwa Pihak Kedua ...")</span></label><textarea id="bapPernyataan" rows="2" maxlength="600" class="w-full px-3 py-1.5 border border-slate-300 rounded outline-none text-xs text-slate-700"></textarea></div>
                         </div>
                     </div>
 
-                    <!-- Potongan -->
-                    <div id="secPotongan" class="md:col-span-2 mt-2 pt-4 border-t border-slate-100 hidden">
-                        <h4 class="text-xs font-bold text-slate-700 mb-1"><i class="fa-solid fa-scissors me-2"></i>Potongan-potongan <span class="font-normal text-slate-400">(opsional, isi bila ada; kosong = 0)</span></h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                            <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Uang Retensi / Jaminan (Rp)</label><input type="number" id="bapPotRetensi" min="0" step="any" class="w-full px-3 py-1.5 border border-slate-300 rounded outline-none text-xs font-mono text-slate-700"></div>
-                            <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Pengembalian Uang Muka (Rp)</label><input type="number" id="bapPotPengUm" min="0" step="any" class="w-full px-3 py-1.5 border border-slate-300 rounded outline-none text-xs font-mono text-slate-700"></div>
-                        </div>
-                    </div>
+                    <!-- Pratinjau hitungan -->
+                    <div id="panelHitung" class="md:col-span-2 hidden bg-slate-50 border border-slate-200 rounded p-3"></div>
 
                     <!-- CV -->
                     <div class="md:col-span-2 mt-2 pt-4 border-t border-slate-100"><h4 class="text-xs font-bold text-purple-700 mb-1"><i class="fa-solid fa-building me-2"></i>Profil Penyedia / CV (Rekening)</h4></div>
                     <div class="md:col-span-2"><label class="block text-[10px] font-bold text-slate-600 mb-1">Nama CV / Penyedia <span class="text-red-500">*</span></label><input type="text" id="bapPelaksanaCv" required maxlength="150" oninput="cekCvOtomatis()" placeholder="Cth: CV. MAJU JAYA" class="w-full px-3 py-1.5 border border-purple-300 rounded focus:ring-1 focus:ring-purple-500 outline-none text-xs text-slate-700 font-bold bg-purple-50"><p id="infoCv" class="text-[10px] mt-1 hidden"></p></div>
                     <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Nama Direktur <span class="text-red-500">*</span></label><input type="text" id="bapDirektur" required maxlength="120" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-purple-500 outline-none text-xs text-slate-700"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Jabatan Penyedia <span class="text-red-500">*</span></label><input type="text" id="bapJabatan" required maxlength="80" value="Direktur" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-purple-500 outline-none text-xs text-slate-700"></div>
                     <div><label class="block text-[10px] font-bold text-slate-600 mb-1">NPWP CV <span class="text-red-500">*</span></label><input type="text" id="bapNpwp" required maxlength="30" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-purple-500 outline-none text-xs font-mono text-slate-700"></div>
                     <div class="md:col-span-2"><label class="block text-[10px] font-bold text-slate-600 mb-1">Alamat CV / Penyedia <span class="text-red-500">*</span></label><textarea id="bapAlamatCv" required rows="2" maxlength="300" placeholder="Cth: Dsn. Kuningan RT. 002 RW. 004, Kab. Blitar 66171" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-purple-500 outline-none text-xs text-slate-700"></textarea></div>
+                    <div><label class="block text-[10px] font-bold text-slate-600 mb-1">No. Akta Notaris</label><input type="text" id="bapAktaNo" maxlength="120" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-purple-500 outline-none text-xs text-slate-700"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Tanggal Akta Notaris</label><input type="date" id="bapAktaTgl" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-purple-500 outline-none text-xs text-slate-700"></div>
                     <div><label class="block text-[10px] font-bold text-slate-600 mb-1">Bank Pencairan <span class="text-red-500">*</span></label><input type="text" id="bapBank" required maxlength="80" placeholder="Cth: BANK JATIM CABANG BLITAR" class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-purple-500 outline-none text-xs text-slate-700"></div>
                     <div><label class="block text-[10px] font-bold text-slate-600 mb-1">No. Rekening <span class="text-red-500">*</span></label><input type="text" inputmode="numeric" pattern="[0-9]{5,30}" id="bapNoRek" required class="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-purple-500 outline-none text-xs font-mono text-slate-700"></div>
                 </div>
@@ -171,7 +172,7 @@
         </div>
     </div>
 
-    <script src="config.js?v=61"></script>
-    <script src="bap.js?v=11"></script>
+    <script src="config.js?v=62"></script>
+    <script src="bap.js?v=12"></script>
 </body>
 </html>
