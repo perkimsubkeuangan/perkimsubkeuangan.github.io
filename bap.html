@@ -1,965 +1,220 @@
-<style>
-  .bap-workspace {
-    display: grid;
-    grid-template-columns: 420px 1fr;
-    gap: 18px;
-    align-items: start;
-  }
-  @media (max-width: 1120px) {
-    .bap-workspace { grid-template-columns: 1fr; }
-  }
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <title>BAP LS - ERP SPJ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: { sipd: { navy: '#101D38', emerald: '#059669', slate: '#1E293B' } } } } }
+    </script>
+    <style>
+        .inp { width: 100%; padding: .45rem .75rem; border: 1px solid #cbd5e1; border-radius: .375rem; font-size: .8rem; color: #334155; background: #fff; outline: none; }
+        .inp:focus { border-color: #059669; box-shadow: 0 0 0 1px #059669; }
+        .inp[readonly] { background: #f1f5f9; color: #64748b; cursor: not-allowed; }
+        .inp.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+        .lbl { display: block; font-size: .68rem; font-weight: 700; color: #475569; margin-bottom: .25rem; }
+        .lbl small { font-weight: 400; color: #94a3b8; }
+        .kartu { background: #fff; border: 1px solid #e2e8f0; border-radius: .5rem; box-shadow: 0 1px 2px rgba(15, 23, 42, .05); }
+        .judul-seksi { font-size: .78rem; font-weight: 700; color: #1e293b; padding-bottom: .5rem; margin-bottom: .75rem; border-bottom: 1px solid #f1f5f9; }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800">
 
-  .bap-form-card {
-    background: #ffffff;
-    border: 1px solid #dbe2ea;
-    border-radius: 10px;
-    padding: 16px;
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
-    max-height: calc(100vh - 105px);
-    overflow-y: auto;
-  }
-  .bap-sec-title {
-    font-size: 11.5px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-    color: #1e3a8a;
-    background: #eff6ff;
-    padding: 6px 10px;
-    border-left: 3px solid #1d4ed8;
-    border-radius: 4px;
-    margin: 14px 0 8px;
-  }
-  .bap-sec-title:first-child { margin-top: 0; }
-  .bap-field { margin-bottom: 8px; }
-  .bap-field label {
-    display: block;
-    font-size: 11.5px;
-    font-weight: 600;
-    color: #334155;
-    margin-bottom: 3px;
-  }
-  .bap-field input,
-  .bap-field select,
-  .bap-field textarea {
-    width: 100%;
-    padding: 6px 9px;
-    font-size: 12.5px;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    background: #fff;
-    color: #0f172a;
-    box-sizing: border-box;
-  }
-  .bap-field input:focus,
-  .bap-field select:focus,
-  .bap-field textarea:focus {
-    outline: none;
-    border-color: #2563eb;
-    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
-  }
-  .bap-grid-2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-  .bap-hint {
-    font-size: 11px;
-    color: #64748b;
-    margin-top: 2px;
-  }
-
-  /* Area Preview Kertas */
-  .bap-preview-wrapper {
-    background: #cbd5e1;
-    padding: 16px;
-    border-radius: 10px;
-    overflow-x: auto;
-  }
-  .bap-toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-    background: #1e293b;
-    color: #fff;
-    padding: 10px 14px;
-    border-radius: 8px;
-    margin-bottom: 14px;
-  }
-  .bap-toolbar-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .bap-btn {
-    border: none;
-    border-radius: 6px;
-    padding: 7px 13px;
-    font-size: 12.5px;
-    font-weight: 600;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .bap-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-  .bap-btn-primary { background: #2563eb; color: #fff; }
-  .bap-btn-primary:hover:not(:disabled) { background: #1d4ed8; }
-  .bap-btn-success { background: #16a34a; color: #fff; }
-  .bap-btn-success:hover:not(:disabled) { background: #15803d; }
-  .bap-btn-warning { background: #d97706; color: #fff; }
-  .bap-btn-warning:hover:not(:disabled) { background: #b45309; }
-  .bap-btn-secondary { background: #475569; color: #fff; }
-  .bap-btn-secondary:hover:not(:disabled) { background: #334155; }
-
-  /* Lembar Dokumen BAP (Sama Persis Tampilan Spreadsheet) */
-  .bap-paper {
-    width: 215mm;
-    min-height: 330mm;
-    margin: 0 auto;
-    background: #ffffff;
-    color: #000000;
-    padding: 10mm 13mm 12mm 15mm;
-    box-sizing: border-box;
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22);
-    font-family: "Times New Roman", Times, serif;
-    font-size: 10.5pt;
-    line-height: 1.28;
-  }
-
-  /* Kop Surat */
-  .bap-kop-table {
-    width: 100%;
-    border-collapse: collapse;
-    border-bottom: 3px double #000000;
-    margin-bottom: 8px;
-  }
-  .bap-kop-logo {
-    width: 68px;
-    text-align: center;
-    vertical-align: middle;
-    padding-bottom: 6px;
-  }
-  .bap-kop-logo img {
-    width: 58px;
-    height: auto;
-    object-fit: contain;
-  }
-  .bap-kop-text {
-    text-align: center;
-    vertical-align: middle;
-    padding-bottom: 6px;
-  }
-  .bap-kop-l1 { font-size: 13pt; font-weight: bold; letter-spacing: 0.3px; }
-  .bap-kop-l2 { font-size: 12.5pt; font-weight: bold; }
-  .bap-kop-l3 { font-size: 9.5pt; }
-  .bap-kop-l4 { font-size: 12pt; font-weight: bold; letter-spacing: 2px; }
-  .bap-kop-l5 { font-size: 9pt; font-style: italic; }
-
-  /* Judul & Nomor */
-  .bap-doc-title {
-    text-align: center;
-    font-size: 12pt;
-    font-weight: bold;
-    text-decoration: underline;
-    margin-top: 6px;
-  }
-  .bap-doc-nomor {
-    text-align: center;
-    font-size: 10.5pt;
-    font-weight: bold;
-    margin-bottom: 8px;
-  }
-  .bap-intro {
-    text-align: justify;
-    margin-bottom: 6px;
-  }
-
-  /* Tabel Tata Letak Utama BAP */
-  .bap-layout-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 10pt;
-  }
-  .bap-layout-table td {
-    vertical-align: top;
-    padding: 1.5px 2px;
-  }
-  .col-roman { width: 22px; font-weight: bold; }
-  .col-num { width: 22px; }
-  .col-sub { width: 20px; }
-  .col-colon { width: 10px; text-align: center; }
-  .bap-bold { font-weight: bold; }
-  .bap-right { text-align: right; }
-  .bap-center { text-align: center; }
-  .bap-underline { text-decoration: underline; }
-
-  /* Tabel IV: Rekapitulasi Pembayaran Kontrak (Grid Border Penuh) */
-  .bap-rekap-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 4px 0 8px;
-    font-size: 9.5pt;
-  }
-  .bap-rekap-table th,
-  .bap-rekap-table td {
-    border: 1px solid #000000;
-    padding: 3px 6px;
-  }
-  .bap-rekap-table th {
-    text-align: center;
-    font-weight: bold;
-    background: #f8fafc;
-  }
-  .bap-rekap-subhead td {
-    text-align: center;
-    font-weight: bold;
-    font-size: 8.5pt;
-    padding: 1.5px 4px;
-  }
-
-  /* Blok Tanda Tangan */
-  .bap-ttd-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 10px;
-    font-size: 10pt;
-    page-break-inside: avoid;
-  }
-  .bap-ttd-table td {
-    width: 50%;
-    text-align: center;
-    vertical-align: top;
-  }
-  .bap-ttd-space { height: 54px; }
-
-  .bap-tax-helper {
-    margin-top: 12px;
-    background: #fffbeb;
-    border: 1px solid #fcd34d;
-    border-radius: 8px;
-    padding: 10px 14px;
-    font-size: 12px;
-    color: #78350f;
-  }
-
-  .bap-history-card {
-    margin-top: 20px;
-    background: #fff;
-    border: 1px solid #dbe2ea;
-    border-radius: 10px;
-    padding: 16px;
-  }
-  .bap-history-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12.5px;
-  }
-  .bap-history-table th,
-  .bap-history-table td {
-    border: 1px solid #e2e8f0;
-    padding: 7px 10px;
-    text-align: left;
-  }
-  .bap-history-table th {
-    background: #f1f5f9;
-    font-weight: 700;
-  }
-
-  @media print {
-    @page {
-      size: 215mm 330mm;
-      margin: 8mm 10mm 10mm 12mm;
-    }
-    body * { visibility: hidden !important; }
-    #bap-print-area, #bap-print-area * { visibility: visible !important; }
-    #bap-print-area {
-      position: absolute !important;
-      left: 0 !important;
-      top: 0 !important;
-      width: 100% !important;
-      min-height: auto !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      box-shadow: none !important;
-    }
-    .no-print { display: none !important; }
-  }
-</style>
-
-<div id="modul-bap-container">
-  <div class="bap-workspace">
-    <!-- PANEL KIRI: FORM INPUT BAP -->
-    <div class="bap-form-card no-print">
-      <div class="bap-sec-title">1. Tahap Pembayaran &amp; Tanggal BAP</div>
-      <div class="bap-grid-2">
-        <div class="bap-field">
-          <label for="bap-tahap">Tahap Pembayaran (Sheet)</label>
-          <select id="bap-tahap" onchange="onBapTahapChange()">
-            <option value="UM">UM (Uang Muka Fisik)</option>
-            <option value="I (100)" selected>I (100) (Termyn I 100%)</option>
-            <option value="100">100 (Termyn 100%)</option>
-            <option value="UM JASA">UM JASA (Uang Muka Jasa)</option>
-            <option value="100 JASA">100 JASA (Termyn 100% Jasa)</option>
-          </select>
+    <!-- HEADER -->
+    <header class="bg-sipd-navy text-white px-4 sm:px-6 py-4 shadow-md flex items-center justify-between sticky top-0 z-50">
+        <div class="flex items-center gap-3">
+            <button onclick="window.location.href='index.html'" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors" aria-label="Kembali"><i class="fa-solid fa-arrow-left"></i></button>
+            <div>
+                <h1 class="font-bold text-lg leading-tight">Modul BAP LS</h1>
+                <p class="text-[10px] text-slate-300 font-medium tracking-wide">Sistem ERP SPJ GU & LS</p>
+            </div>
         </div>
-        <div class="bap-field">
-          <label for="bap-tanggal">Tanggal BAP *</label>
-          <input type="date" id="bap-tanggal" oninput="renderBapPreview()" />
-        </div>
-      </div>
-      <div class="bap-field">
-        <label for="bap-nomor">Nomor BAP (Otomatis dari Server saat Simpan)</label>
-        <input type="text" id="bap-nomor" placeholder="Otomatis: B/BAP-LS/0000X/409.13.1/2026" oninput="renderBapPreview()" />
-      </div>
-      <div class="bap-field" id="grp-bap-pptk" style="display:none;">
-        <label for="bap-pptk">PPTK Penanggung Jawab *</label>
-        <select id="bap-pptk" onchange="renderBapPreview()">
-          <option value="">-- Pilih PPTK --</option>
-        </select>
-      </div>
+        <div class="text-[11px] text-slate-300 hidden sm:block">Dokumen BAP dibuat sebagai <b class="text-white">Google Spreadsheet</b> dari template</div>
+    </header>
 
-      <div class="bap-sec-title">2. Program, Kegiatan &amp; Sub Kegiatan</div>
-      <div class="bap-field">
-        <label for="bap-program">Program *</label>
-        <select id="bap-program" onchange="onBapProgramChange()">
-          <option value="">-- Pilih Program --</option>
-        </select>
-      </div>
-      <div class="bap-field">
-        <label for="bap-kegiatan">Kegiatan *</label>
-        <select id="bap-kegiatan" onchange="onBapKegiatanChange()">
-          <option value="">-- Pilih Kegiatan --</option>
-        </select>
-      </div>
-      <div class="bap-field">
-        <label for="bap-subkegiatan">Sub Kegiatan *</label>
-        <select id="bap-subkegiatan" onchange="renderBapPreview()">
-          <option value="">-- Pilih Sub Kegiatan --</option>
-        </select>
-      </div>
+    <main class="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
 
-      <div class="bap-sec-title">3. Pihak Kedua (Penyedia Jasa)</div>
-      <div class="bap-field">
-        <label for="bap-cv-select">Ambil dari Database CV / Penyedia</label>
-        <select id="bap-cv-select" onchange="onBapCvSelect()">
-          <option value="">-- Pilih Penyedia Tersimpan atau Isi Baru --</option>
-        </select>
-      </div>
-      <div class="bap-field">
-        <label for="bap-perusahaan">Nama Perusahaan (CV / PT) *</label>
-        <input type="text" id="bap-perusahaan" placeholder="Contoh: CV. MAJU JAYA" oninput="renderBapPreview()" />
-      </div>
-      <div class="bap-grid-2">
-        <div class="bap-field">
-          <label for="bap-direktur">Nama Direktur / Pimpinan *</label>
-          <input type="text" id="bap-direktur" placeholder="Nama Lengkap" oninput="renderBapPreview()" />
-        </div>
-        <div class="bap-field">
-          <label for="bap-jabatan-penyedia">Jabatan Penyedia *</label>
-          <input type="text" id="bap-jabatan-penyedia" value="Direktur" oninput="renderBapPreview()" />
-        </div>
-      </div>
-      <div class="bap-field">
-        <label for="bap-npwp">NPWP Penyedia *</label>
-        <input type="text" id="bap-npwp" placeholder="Contoh: 00.123.456.7-890.000" oninput="renderBapPreview()" />
-      </div>
-      <div class="bap-field">
-        <label for="bap-alamat-penyedia">Alamat Perusahaan *</label>
-        <input type="text" id="bap-alamat-penyedia" placeholder="Alamat lengkap perusahaan" oninput="renderBapPreview()" />
-      </div>
-      <div class="bap-grid-2">
-        <div class="bap-field">
-          <label for="bap-bank">Nama Bank *</label>
-          <input type="text" id="bap-bank" value="Bank Jatim" oninput="renderBapPreview()" />
-        </div>
-        <div class="bap-field">
-          <label for="bap-rekening">No. Rekening (Angka) *</label>
-          <input type="text" id="bap-rekening" placeholder="Contoh: 0141008092" oninput="renderBapPreview()" />
-        </div>
-      </div>
+        <!-- ================= FORM INPUT (1 kolom) ================= -->
+        <section id="boxFormBap" class="kartu hidden">
+            <div class="p-4 sm:p-5 border-b border-slate-100">
+                <h2 class="font-bold text-sipd-slate"><i class="fa-solid fa-file-circle-plus text-emerald-600 me-2"></i>Input BAP Baru</h2>
+                <p class="text-[11px] text-slate-500 mt-1">Isi data lalu klik <b>Simpan &amp; Generate BAP Spreadsheet</b>. Tampilan dokumen (kop, redaksi, margin) diatur di file template Google Sheets, bukan di halaman ini.</p>
+            </div>
 
-      <div class="bap-sec-title">4. Data Kontrak, Addendum &amp; Uraian</div>
-      <div class="bap-grid-2">
-        <div class="bap-field">
-          <label for="bap-no-kontrak">No. Kontrak / SPK Awal *</label>
-          <input type="text" id="bap-no-kontrak" placeholder="Nomor Kontrak / SPK" oninput="onBapNoKontrakInput()" />
-        </div>
-        <div class="bap-field">
-          <label for="bap-tgl-kontrak">Tgl. Kontrak / SPK Awal *</label>
-          <input type="date" id="bap-tgl-kontrak" oninput="renderBapPreview()" />
-        </div>
-      </div>
-      <div class="bap-field">
-        <label for="bap-nilai-awal">Nilai Kontrak / SPK Awal (Rp) *</label>
-        <input type="number" id="bap-nilai-awal" placeholder="0" oninput="renderBapPreview()" />
-      </div>
-      <div class="bap-grid-2">
-        <div class="bap-field">
-          <label for="bap-no-addendum">No. Addendum (Kosongkan jika tidak ada)</label>
-          <input type="text" id="bap-no-addendum" placeholder="Opsional" oninput="renderBapPreview()" />
-        </div>
-        <div class="bap-field">
-          <label for="bap-tgl-addendum">Tgl. Addendum</label>
-          <input type="date" id="bap-tgl-addendum" oninput="renderBapPreview()" />
-        </div>
-      </div>
-      <div class="bap-field">
-        <label for="bap-nilai-addendum">Nilai Kontrak Termasuk Addendum (Rp)</label>
-        <input type="number" id="bap-nilai-addendum" placeholder="0 (isi 0 jika tidak ada addendum)" oninput="renderBapPreview()" />
-      </div>
-      <div class="bap-field">
-        <label for="bap-uraian">Uraian Pekerjaan *</label>
-        <textarea id="bap-uraian" rows="2" placeholder="Uraian paket pekerjaan" oninput="renderBapPreview()"></textarea>
-      </div>
+            <form id="formBap" onsubmit="simpanBapKeServer(event)" class="p-4 sm:p-5 space-y-6" autocomplete="off">
 
-      <div class="bap-sec-title">5. Dasar Pembayaran &amp; Jaminan (Bagian II.8)</div>
+                <!-- 1. Tahap & PPTK -->
+                <div class="space-y-3">
+                    <div class="judul-seksi"><i class="fa-solid fa-layer-group me-2 text-blue-500"></i>1. Tahap Pembayaran</div>
+                    <div>
+                        <label class="lbl" for="bapTahap">Tahap <span class="text-red-500">*</span> <small>(menentukan jenis dokumen dan isian yang tampil)</small></label>
+                        <select id="bapTahap" required onchange="aturBagianForm()" class="inp">
+                            <option value="" disabled selected>-- Pilih Tahap --</option>
+                            <option value="UM">UM - Uang Muka (Fisik)</option>
+                            <option value="I (100)">I (100) - Termin I setelah Uang Muka (Fisik)</option>
+                            <option value="100">100 - Termin 100% tanpa Uang Muka (Fisik)</option>
+                            <option value="UM JASA">UM JASA - Uang Muka (Jasa Konsultansi / Pengawasan)</option>
+                            <option value="100 JASA">100 JASA - Termin 100% (Jasa Konsultansi / Pengawasan)</option>
+                        </select>
+                    </div>
+                    <div id="boxBapPptk" class="hidden">
+                        <label class="lbl" for="bapPptk">Atas Nama PPTK <span class="text-red-500">*</span></label>
+                        <select id="bapPptk" class="inp"></select>
+                    </div>
+                </div>
 
-      <!-- Skema Retensi vs Jaminan Pemeliharaan (Khusus I (100) & 100) -->
-      <div class="bap-field" id="grp-skema-retensi">
-        <label for="bap-skema-retensi">Skema Masa Pemeliharaan *</label>
-        <select id="bap-skema-retensi" onchange="onBapSkemaChange()">
-          <option value="RETENSI">Potongan Retensi 5% (Tanpa Jaminan Pemeliharaan)</option>
-          <option value="JAMINAN">Jaminan Pemeliharaan (Retensi 0%)</option>
-        </select>
-      </div>
+                <!-- 2. Anggaran & pekerjaan -->
+                <div class="space-y-3">
+                    <div class="judul-seksi"><i class="fa-solid fa-sitemap me-2 text-blue-500"></i>2. Anggaran &amp; Pekerjaan</div>
+                    <div><label class="lbl" for="bapProgram">Program <span class="text-red-500">*</span></label><select id="bapProgram" required onchange="updateKegiatanBap()" class="inp"></select></div>
+                    <div><label class="lbl" for="bapKegiatan">Kegiatan <span class="text-red-500">*</span></label><select id="bapKegiatan" required onchange="updateSubkegiatanBap()" class="inp"></select></div>
+                    <div><label class="lbl" for="bapSubKegiatan">Sub Kegiatan <span class="text-red-500">*</span></label><select id="bapSubKegiatan" required class="inp"></select></div>
+                    <div><label class="lbl" for="bapUraian">Uraian Pekerjaan <span class="text-red-500">*</span></label><textarea id="bapUraian" required rows="2" maxlength="1000" class="inp" placeholder="Cth: Pembangunan Jalan Lingkungan Desa ..."></textarea></div>
+                </div>
 
-      <!-- Jaminan (Uang Muka untuk UM / UM JASA, Pemeliharaan untuk I (100) / 100) -->
-      <div id="grp-jaminan">
-        <div class="bap-field">
-          <label id="lbl-jam-penjamin" for="bap-jam-penjamin">Penjamin Jaminan *</label>
-          <input type="text" id="bap-jam-penjamin" placeholder="Nama Bank / Asuransi Penjamin" oninput="renderBapPreview()" />
-        </div>
-        <div class="bap-grid-2">
-          <div class="bap-field">
-            <label for="bap-jam-no">Nomor Jaminan *</label>
-            <input type="text" id="bap-jam-no" placeholder="Nomor Jaminan" oninput="renderBapPreview()" />
-          </div>
-          <div class="bap-field">
-            <label for="bap-jam-tgl">Tanggal Jaminan *</label>
-            <input type="date" id="bap-jam-tgl" oninput="renderBapPreview()" />
-          </div>
-        </div>
-        <div class="bap-grid-2">
-          <div class="bap-field">
-            <label for="bap-jam-nilai">Nilai Jaminan (Rp) *</label>
-            <input type="number" id="bap-jam-nilai" placeholder="0" oninput="renderBapPreview()" />
-          </div>
-          <div class="bap-field">
-            <label for="bap-jam-berlaku">Berlaku Sampai Tanggal *</label>
-            <input type="date" id="bap-jam-berlaku" oninput="renderBapPreview()" />
-          </div>
-        </div>
-      </div>
+                <!-- 3. Kontrak -->
+                <div class="space-y-3">
+                    <div class="judul-seksi"><i class="fa-solid fa-file-lines me-2 text-blue-500"></i>3. Kontrak / SPK</div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div><label class="lbl" for="bapNoKontrak">Nomor Kontrak/SPK Awal <span class="text-red-500">*</span></label><input type="text" id="bapNoKontrak" required maxlength="120" class="inp" placeholder="Cth: 027/01/SPK/2026"></div>
+                        <div><label class="lbl" for="bapTglKontrak">Tanggal Kontrak/SPK Awal <span class="text-red-500">*</span></label><input type="date" id="bapTglKontrak" required class="inp"></div>
+                    </div>
+                    <div id="infoKontrak" class="hidden text-[11px] bg-blue-50 border border-blue-200 text-blue-800 rounded p-2"></div>
+                    <div><label class="lbl" for="bapNilaiKontrak">Nilai Kontrak Awal (Rp, termasuk PPN) <span class="text-red-500">*</span></label><input type="number" id="bapNilaiKontrak" required min="1" step="any" class="inp mono"></div>
+                    <details id="detAddendum" class="border border-slate-200 rounded">
+                        <summary class="cursor-pointer px-3 py-2 text-[11px] font-bold text-slate-600 select-none">Addendum (opsional) <span class="font-normal text-slate-400">- bila ada, isi nomor, tanggal, dan nilai</span></summary>
+                        <div class="p-3 grid grid-cols-1 md:grid-cols-3 gap-3 border-t border-slate-100">
+                            <div><label class="lbl" for="bapAddNo">Nomor Addendum</label><input type="text" id="bapAddNo" maxlength="120" class="inp"></div>
+                            <div><label class="lbl" for="bapAddTgl">Tanggal Addendum</label><input type="date" id="bapAddTgl" class="inp"></div>
+                            <div><label class="lbl" for="bapAddNilai">Nilai Kontrak Setelah Addendum (Rp)</label><input type="number" id="bapAddNilai" min="0" step="any" class="inp mono"></div>
+                        </div>
+                    </details>
+                </div>
 
-      <!-- BAST / BA Pemeriksaan -->
-      <div id="grp-bast">
-        <div class="bap-grid-2">
-          <div class="bap-field">
-            <label id="lbl-bast-no" for="bap-bast-no">Nomor BAST *</label>
-            <input type="text" id="bap-bast-no" placeholder="Nomor BAST / BA Pemeriksaan" oninput="renderBapPreview()" />
-          </div>
-          <div class="bap-field">
-            <label id="lbl-bast-tgl" for="bap-bast-tgl">Tanggal BAST *</label>
-            <input type="date" id="bap-bast-tgl" oninput="renderBapPreview()" />
-          </div>
-        </div>
-      </div>
+                <!-- 4. Pembayaran -->
+                <div class="space-y-3">
+                    <div class="judul-seksi"><i class="fa-solid fa-coins me-2 text-blue-500"></i>4. Pembayaran</div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div><label class="lbl" for="bapTglBap">Tanggal BAP <span class="text-red-500">*</span></label><input type="date" id="bapTglBap" required onchange="generateNomorBap()" class="inp"></div>
+                        <div><label class="lbl" for="bapNoBap">Nomor BAP <small>(final dibuat server)</small></label><input type="text" id="bapNoBap" readonly class="inp"></div>
+                    </div>
+                    <div id="boxPersen" class="hidden"><label class="lbl" for="bapPersen">Persentase Uang Muka (%) <span class="text-red-500">*</span> <small>(standar 30%)</small></label><input type="number" id="bapPersen" min="0.01" max="99.99" step="any" value="30" class="inp mono"></div>
+                    <div id="boxSkema" class="hidden bg-amber-50 border border-amber-200 rounded p-3">
+                        <div class="text-[11px] font-bold text-amber-800 mb-2"><i class="fa-solid fa-scale-balanced me-1"></i>Jaminan masa pemeliharaan</div>
+                        <label class="flex items-center gap-2 text-xs text-slate-700 mb-1"><input type="radio" name="bapSkema" value="RETENSI" checked> Potong <b>Retensi 5%</b> dari nilai kontrak (tanpa Jaminan Pemeliharaan)</label>
+                        <label class="flex items-center gap-2 text-xs text-slate-700"><input type="radio" name="bapSkema" value="JAMINAN"> Pakai <b>Jaminan Pemeliharaan 5%</b> (tidak ada potongan retensi)</label>
+                    </div>
+                    <div><label class="lbl" for="bapDak">Sumber Dana DAK (Rp) <small>(kosongkan bila 0; DAU = pembayaran dikurangi DAK, otomatis)</small></label><input type="number" id="bapDak" min="0" step="any" class="inp mono"></div>
+                    <div id="panelHitung" class="hidden bg-slate-50 border border-slate-200 rounded p-3"></div>
+                </div>
 
-      <!-- Pernyataan Khusus Jasa (Opsional) -->
-      <div class="bap-field" id="grp-pernyataan" style="display:none;">
-        <label for="bap-pernyataan">Keterangan / Pernyataan (Kosongkan = Standar Template)</label>
-        <textarea id="bap-pernyataan" rows="2" placeholder="Opsional: isi jika perlu menyesuaikan redaksi laporan" oninput="renderBapPreview()"></textarea>
-      </div>
+                <!-- 5. Jaminan / BAST / Pernyataan (tampil sesuai tahap) -->
+                <div id="secJaminan" class="hidden space-y-3">
+                    <div class="judul-seksi"><i class="fa-solid fa-shield-halved me-2 text-purple-500"></i><span id="lblJaminan">Jaminan</span></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div class="md:col-span-2"><label class="lbl" for="bapJamPenjamin">Nama Penjamin (Bank / Asuransi)</label><input type="text" id="bapJamPenjamin" maxlength="150" class="inp"></div>
+                        <div><label class="lbl" for="bapJamNo">Nomor Jaminan</label><input type="text" id="bapJamNo" maxlength="120" class="inp"></div>
+                        <div><label class="lbl" for="bapJamTgl">Tanggal Jaminan</label><input type="date" id="bapJamTgl" class="inp"></div>
+                        <div><label class="lbl" for="bapJamNilai">Sebesar (Rp) <small>(terisi otomatis, dapat diubah)</small></label><input type="number" id="bapJamNilai" min="0" step="any" class="inp mono"></div>
+                        <div><label class="lbl" for="bapJamBerlaku">Berlaku dari Tanggal</label><input type="date" id="bapJamBerlaku" class="inp"></div>
+                    </div>
+                </div>
+                <div id="secBast" class="hidden space-y-3">
+                    <div class="judul-seksi"><i class="fa-solid fa-clipboard-check me-2 text-purple-500"></i><span id="lblBast">BAST</span></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div><label class="lbl" for="bapBastTgl">Tanggal <span class="text-red-500">*</span></label><input type="date" id="bapBastTgl" class="inp"></div>
+                        <div><label class="lbl" for="bapBastNo">Nomor <span class="text-red-500">*</span></label><input type="text" id="bapBastNo" maxlength="120" class="inp"></div>
+                    </div>
+                </div>
+                <div id="boxPernyataan" class="hidden">
+                    <label class="lbl" for="bapPernyataan">Pernyataan <small>(kalimat setelah "Yang Menyatakan bahwa ..."; kosongkan untuk memakai kalimat standar di template)</small></label>
+                    <textarea id="bapPernyataan" rows="2" maxlength="600" class="inp"></textarea>
+                </div>
 
-      <div class="bap-sec-title">6. Persentase &amp; Sumber Dana</div>
-      <div class="bap-grid-2">
-        <div class="bap-field">
-          <label for="bap-persen">Persentase Tahap (%)</label>
-          <input type="number" id="bap-persen" value="100" min="1" max="100" step="0.01" oninput="renderBapPreview()" />
-        </div>
-        <div class="bap-field">
-          <label for="bap-dak">Nominal Sumber Dana DAK (Rp)</label>
-          <input type="number" id="bap-dak" value="0" min="0" oninput="renderBapPreview()" />
-          <div class="bap-hint">Sisanya otomatis masuk DAU.</div>
-        </div>
-      </div>
-    </div>
+                <!-- 6. Penyedia -->
+                <div class="space-y-3">
+                    <div class="judul-seksi"><i class="fa-solid fa-building me-2 text-purple-500"></i>6. Penyedia Jasa (Pihak Kedua)</div>
+                    <div>
+                        <label class="lbl" for="bapPilihCv">Penyedia / CV <span class="text-red-500">*</span> <small>(dari DB_PENYEDIA, atau pilih "Penyedia baru")</small></label>
+                        <select id="bapPilihCv" required onchange="pilihCvBerubah()" class="inp"></select>
+                        <div id="infoCv" class="text-[10px] mt-1 hidden"></div>
+                    </div>
+                    <div id="boxCvBaru" class="hidden"><label class="lbl" for="bapPelaksanaCv">Nama Penyedia / CV Baru <span class="text-red-500">*</span></label><input type="text" id="bapPelaksanaCv" maxlength="150" class="inp" placeholder="Cth: CV. MAJU JAYA"></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div><label class="lbl" for="bapDirektur">Nama Direktur / Pimpinan <span class="text-red-500">*</span></label><input type="text" id="bapDirektur" required maxlength="120" class="inp"></div>
+                        <div><label class="lbl" for="bapJabatan">Jabatan <span class="text-red-500">*</span></label><input type="text" id="bapJabatan" required maxlength="80" value="Direktur" class="inp"></div>
+                        <div><label class="lbl" for="bapNpwp">NPWP <span class="text-red-500">*</span></label><input type="text" id="bapNpwp" required maxlength="30" class="inp mono" placeholder="00.000.000.0-000.000"></div>
+                        <div><label class="lbl" for="bapAlamatCv">Alamat <span class="text-red-500">*</span></label><input type="text" id="bapAlamatCv" required maxlength="300" class="inp"></div>
+                        <div><label class="lbl" for="bapAktaNo">No. Akta Notaris</label><input type="text" id="bapAktaNo" maxlength="120" class="inp"></div>
+                        <div><label class="lbl" for="bapAktaTgl">Tanggal Akta Notaris</label><input type="date" id="bapAktaTgl" class="inp"></div>
+                        <div><label class="lbl" for="bapBank">Nama Bank <span class="text-red-500">*</span></label><input type="text" id="bapBank" required maxlength="80" class="inp"></div>
+                        <div><label class="lbl" for="bapNoRek">No. Rekening <span class="text-red-500">*</span></label><input type="text" id="bapNoRek" required inputmode="numeric" maxlength="30" class="inp mono"></div>
+                    </div>
+                </div>
 
-    <!-- PANEL KANAN: PREVIEW DOKUMEN BAP PERSIS SPREADSHEET -->
-    <div>
-      <div class="bap-toolbar no-print">
-        <div>
-          <strong>Preview Dokumen BAP</strong>
-          <span id="bap-active-sheet-badge" style="margin-left:8px; background:#2563eb; padding:2px 8px; border-radius:4px; font-size:11px;">Sheet: I (100)</span>
-        </div>
-        <div class="bap-toolbar-actions">
-          <button type="button" class="bap-btn bap-btn-secondary" onclick="resetFormBap()">BAP Baru / Reset</button>
-          <button type="button" class="bap-btn bap-btn-warning" onclick="cetakDokumenBap()">Cetak / Simpan PDF (F4)</button>
-          <button type="button" id="btn-simpan-bap" class="bap-btn bap-btn-success" onclick="simpanBapKeServer()">Simpan BAP ke Server</button>
-        </div>
-      </div>
+                <div class="pt-2 border-t border-slate-100">
+                    <button type="submit" id="btnSubmitBap" class="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded font-bold text-sm shadow-sm transition-colors flex items-center justify-center gap-2"><i class="fa-solid fa-file-circle-check"></i> Simpan &amp; Generate BAP Spreadsheet</button>
+                    <p id="statusSimpan" class="hidden text-[11px] text-slate-500 mt-2"><i class="fa-solid fa-spinner fa-spin me-1 text-blue-500"></i>Menyimpan data dan membuat Spreadsheet dari template. Proses ini bisa memakan 10-30 detik, jangan tutup halaman.</p>
+                </div>
+            </form>
+        </section>
 
-      <div class="bap-preview-wrapper">
-        <div id="bap-print-area" class="bap-paper">
-          <!-- KOP SURAT -->
-          <table class="bap-kop-table">
-            <tr>
-              <td class="bap-kop-logo">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Lambang_Kabupaten_Blitar.png/200px-Lambang_Kabupaten_Blitar.png" alt="Logo Kabupaten Blitar" onerror="this.style.display='none'" />
-              </td>
-              <td class="bap-kop-text">
-                <div class="bap-kop-l1">PEMERINTAH KABUPATEN BLITAR</div>
-                <div class="bap-kop-l2">DINAS PERUMAHAN RAKYAT, KAWASAN PERMUKIMAN, DAN PERTANAHAN</div>
-                <div class="bap-kop-l3">Jl. S. Supriyadi No. 86 &nbsp;Pos Box. 24 &nbsp;Telp. (0342) 801317 &nbsp;Kode Pos 66132</div>
-                <div class="bap-kop-l4">B &nbsp;L &nbsp;I &nbsp;T &nbsp;A &nbsp;R</div>
-                <div class="bap-kop-l5">Website: www.dpkp.blitarkab.go.id, Email: dpkp@blitarkab.go.id</div>
-              </td>
-            </tr>
-          </table>
+        <p id="catatanBacaSaja" class="hidden text-[11px] text-slate-500 bg-white border border-slate-200 rounded p-3"><i class="fa-solid fa-eye me-1"></i>Peran Anda hanya dapat melihat riwayat BAP.</p>
 
-          <!-- JUDUL & NOMOR -->
-          <div class="bap-doc-title">BERITA ACARA PEMBAYARAN</div>
-          <div class="bap-doc-nomor">Nomor : <span id="pv-nomor-bap">[Nomor_BAP]</span></div>
-
-          <!-- PEMBUKA -->
-          <div class="bap-intro">
-            Pada hari ini <strong id="pv-hari">[Hari]</strong> tanggal <strong id="pv-tgl-terbilang">[Tanggal_Terbilang]</strong> bulan <strong id="pv-bulan">[Bulan]</strong> tahun <strong id="pv-tahun-terbilang">Dua Ribu Dua Puluh Enam</strong> kami yang bertandatangan dibawah ini:
-          </div>
-
-          <!-- BAGIAN I: PARA PIHAK -->
-          <table class="bap-layout-table">
-            <tr>
-              <td class="col-roman">I.</td>
-              <td class="col-num">1.</td>
-              <td style="width:155px;">Nama</td>
-              <td class="col-colon">:</td>
-              <td class="bap-bold" id="pv-ppk-nama">ANTONIUS NANANG ADI PUTRANTO, ST., MT.</td>
-            </tr>
-            <tr>
-              <td></td>
-              <td></td>
-              <td>Jabatan</td>
-              <td class="col-colon">:</td>
-              <td id="pv-ppk-jabatan">Pejabat Pembuat Komitmen (PPK)</td>
-            </tr>
-            <tr>
-              <td></td>
-              <td></td>
-              <td>Kegiatan</td>
-              <td class="col-colon">:</td>
-              <td id="pv-kegiatan">[Nama_Kegiatan]</td>
-            </tr>
-            <tr>
-              <td></td>
-              <td></td>
-              <td>Sub Kegiatan</td>
-              <td class="col-colon">:</td>
-              <td id="pv-subkegiatan">[Nama_Sub_Kegiatan]</td>
-            </tr>
-            <tr>
-              <td></td>
-              <td></td>
-              <td>Alamat</td>
-              <td class="col-colon">:</td>
-              <td id="pv-ppk-alamat">Jl. S. Supriyadi 86 Blitar</td>
-            </tr>
-            <tr>
-              <td></td>
-              <td colspan="2">Untuk selanjutnya disebut</td>
-              <td class="col-colon">:</td>
-              <td class="bap-bold">PIHAK PERTAMA</td>
-            </tr>
-
-            <tr>
-              <td></td>
-              <td class="col-num">2.</td>
-              <td>Nama</td>
-              <td class="col-colon">:</td>
-              <td class="bap-bold" id="pv-direktur">[Nama_Direktur]</td>
-            </tr>
-            <tr>
-              <td></td>
-              <td></td>
-              <td>Jabatan</td>
-              <td class="col-colon">:</td>
-              <td id="pv-jabatan-penyedia">[Jabatan_Penyedia]</td>
-            </tr>
-            <tr>
-              <td></td>
-              <td></td>
-              <td>Perusahaan</td>
-              <td class="col-colon">:</td>
-              <td class="bap-bold" id="pv-perusahaan">[Nama_Perusahaan]</td>
-            </tr>
-            <tr>
-              <td></td>
-              <td></td>
-              <td>Alamat</td>
-              <td class="col-colon">:</td>
-              <td id="pv-alamat-penyedia">[Alamat_Perusahaan]</td>
-            </tr>
-            <tr>
-              <td></td>
-              <td colspan="2">Untuk selanjutnya disebut</td>
-              <td class="col-colon">:</td>
-              <td class="bap-bold">PIHAK KEDUA</td>
-            </tr>
-          </table>
-
-          <!-- BAGIAN II: BERDASARKAN -->
-          <table class="bap-layout-table" style="margin-top:4px;">
-            <tr>
-              <td class="col-roman">II.</td>
-              <td colspan="5" class="bap-bold">Berdasarkan :</td>
-            </tr>
-            <tr>
-              <td></td>
-              <td class="col-num">1.</td>
-              <td colspan="2" style="width:195px;">Nomor &amp; Tanggal DPA</td>
-              <td class="col-colon">:</td>
-              <td></td>
-            </tr>
-            <tr>
-              <td></td>
-              <td></td>
-              <td class="col-sub">a.</td>
-              <td style="width:55px;">Nomor</td>
-              <td class="col-colon">:</td>
-              <td>
-                <table style="width:100%; border-collapse:collapse;">
-                  <tr>
-                    <td style="width:65%;" id="pv-dpa-no">DPA/A.1/1.04.2.10.0.00.01.0000/001/2026</td>
-                    <td style="width:35%;">Tanggal : <span id="pv-dpa-tgl">02 Januari 2026</span></td>
-                  </tr>
+        <!-- ================= RIWAYAT BAP ================= -->
+        <section class="kartu overflow-hidden">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border-b border-slate-100">
+                <h2 class="font-bold text-sipd-slate"><i class="fa-solid fa-clock-rotate-left text-blue-500 me-2"></i>Riwayat BAP</h2>
+                <div class="relative w-full sm:w-64">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                    <input type="text" id="cariKontrak" placeholder="Cari kontrak, CV, uraian..." class="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-sipd-emerald outline-none bg-white">
+                </div>
+            </div>
+            <div class="overflow-x-auto max-h-[28rem]">
+                <table class="w-full text-left text-sm whitespace-nowrap">
+                    <thead class="bg-slate-100 text-slate-600 font-bold uppercase text-[10px] sticky top-0 shadow-sm">
+                        <tr>
+                            <th class="py-3 px-4">No. Kontrak / No. BAP</th>
+                            <th class="py-3 px-4">Penyedia</th>
+                            <th class="py-3 px-4">Pembayaran BAP Ini</th>
+                            <th class="py-3 px-4">Tahap</th>
+                            <th class="py-3 px-4 text-center">Dokumen</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelKontrakBody" class="divide-y divide-slate-100">
+                        <tr><td colspan="5" class="text-center py-8 text-slate-400 font-medium">Memuat data...</td></tr>
+                    </tbody>
                 </table>
-              </td>
-            </tr>
+            </div>
+            <p class="text-[10px] text-slate-400 px-4 py-2 border-t border-slate-100">Tombol <b>Edit di Sheets</b> membuka file Google Spreadsheet; <b>PDF</b> mengunduh F4 langsung dari Spreadsheet (mengikuti edit terakhir). Pastikan akun Google Anda sudah diberi akses ke folder arsip BAP.</p>
+        </section>
+    </main>
 
-            <tr>
-              <td></td>
-              <td class="col-num">2.</td>
-              <td colspan="2">Nomor &amp; Tanggal SPD</td>
-              <td class="col-colon">:</td>
-              <td></td>
-            </tr>
-            <tbody id="pv-spd-rows"></tbody>
-
-            <tr>
-              <td></td>
-              <td class="col-num">3.</td>
-              <td colspan="2">No &amp; Tgl Kontrak / SPK Awal</td>
-              <td class="col-colon">:</td>
-              <td>
-                <div>No. : <span id="pv-no-kontrak">[Nomor_Kontrak]</span></div>
-                <div>Tgl. : <span id="pv-tgl-kontrak">[Tanggal_Kontrak]</span></div>
-              </td>
-            </tr>
-
-            <tr>
-              <td></td>
-              <td class="col-num">4.</td>
-              <td colspan="2">Nilai Kontrak / SPK (Awal)</td>
-              <td class="col-colon">:</td>
-              <td>Rp. <span id="pv-nilai-awal">-</span></td>
-            </tr>
-
-            <tr>
-              <td></td>
-              <td class="col-num">5.</td>
-              <td colspan="2">No &amp; Tgl Addendum</td>
-              <td class="col-colon">:</td>
-              <td>
-                <div>No. : <span id="pv-no-addendum">-</span></div>
-                <div>Tgl. : <span id="pv-tgl-addendum">-</span></div>
-              </td>
-            </tr>
-
-            <tr>
-              <td></td>
-              <td class="col-num">6.</td>
-              <td colspan="2">Nilai Kontrak (termasuk Addendum)</td>
-              <td class="col-colon">:</td>
-              <td class="bap-bold">Rp. <span id="pv-nilai-kontrak">-</span></td>
-            </tr>
-
-            <tr>
-              <td></td>
-              <td class="col-num">7.</td>
-              <td colspan="2">Uraian Pekerjaan</td>
-              <td class="col-colon">:</td>
-              <td id="pv-uraian">[Uraian_Pekerjaan]</td>
-            </tr>
-
-            <tbody id="pv-bagian-ii8"></tbody>
-          </table>
-
-          <!-- BAGIAN III: PERHITUNGAN PEMBAYARAN -->
-          <div style="margin-top:5px;">
-            <table class="bap-layout-table">
-              <tr>
-                <td class="col-roman">III.</td>
-                <td style="text-align:justify;">
-                  Sesuai ketentuan pada syarat-syarat Kontrak/SPK/Surat Perjanjian tersebut diatas, maka PIHAK KEDUA berhak menerima pembayaran dari PIHAK PERTAMA, dengan uraian pembayaran sebagai berikut:
-                </td>
-              </tr>
-            </table>
-
-            <table class="bap-layout-table" style="margin-top:2px;">
-              <tr>
-                <td class="col-roman"></td>
-                <td class="col-num">1.</td>
-                <td colspan="6" class="bap-bold">Perhitungan Pembayaran :</td>
-              </tr>
-              <tr>
-                <td></td>
-                <td></td>
-                <td class="col-sub">a.</td>
-                <td style="width:170px;"><span id="pv-persen-1">100%</span> &nbsp;X&nbsp; Nilai Kontrak</td>
-                <td style="width:16px;">=</td>
-                <td style="width:155px;"><span id="pv-persen-2">100%</span> &nbsp;X&nbsp; <span id="pv-nilai-kali">-</span></td>
-                <td style="width:16px;">=</td>
-                <td class="bap-right bap-bold" style="width:125px;" id="pv-bruto-tahap">-</td>
-              </tr>
-              <tr>
-                <td></td>
-                <td></td>
-                <td class="col-sub">b.</td>
-                <td colspan="5">Potongan-potongan :</td>
-              </tr>
-              <tr>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td colspan="3" style="padding-left:14px;">i) &nbsp;&nbsp;Uang Retensi/Jaminan</td>
-                <td>=</td>
-                <td class="bap-right" id="pv-pot-retensi">-</td>
-              </tr>
-              <tr>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td colspan="3" style="padding-left:14px;">ii) &nbsp;Pengembalian Uang Muka</td>
-                <td>=</td>
-                <td class="bap-right" id="pv-pot-um">-</td>
-              </tr>
-              <tr>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td colspan="3" style="padding-left:14px;">iii) Jumlah Potongan</td>
-                <td>=</td>
-                <td class="bap-right" style="border-top:1px solid #000;" id="pv-pot-total">-</td>
-              </tr>
-              <tr>
-                <td></td>
-                <td></td>
-                <td class="col-sub">c.</td>
-                <td colspan="3" class="bap-bold">Pembayaran BAP ini (termasuk PPN/bruto)</td>
-                <td class="bap-bold">=</td>
-                <td class="bap-right bap-bold" style="border-top:1px solid #000; border-bottom:3px double #000;" id="pv-pembayaran-bap-ini">-</td>
-              </tr>
-
-              <tr>
-                <td></td>
-                <td class="col-num" style="padding-top:5px;">2.</td>
-                <td colspan="6" class="bap-bold" style="padding-top:5px;">Rincian sumber pembayaran :</td>
-              </tr>
-              <tr>
-                <td></td>
-                <td></td>
-                <td colspan="6">APBD Tahun Anggaran 2026</td>
-              </tr>
-              <tr>
-                <td></td>
-                <td></td>
-                <td class="col-sub">-</td>
-                <td colspan="3">DAK</td>
-                <td></td>
-                <td class="bap-right" id="pv-dak-right">-</td>
-              </tr>
-              <tr>
-                <td></td>
-                <td></td>
-                <td class="col-sub">-</td>
-                <td colspan="3">DAU</td>
-                <td></td>
-                <td class="bap-right" id="pv-dau-right">-</td>
-              </tr>
-              <tr>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td colspan="3" class="bap-bold">TOTAL</td>
-                <td></td>
-                <td class="bap-right bap-bold" style="border-top:1px solid #000;" id="pv-sumber-total">-</td>
-              </tr>
-            </table>
-          </div>
-
-          <!-- BAGIAN IV: REKAPITULASI PEMBAYARAN KONTRAK -->
-          <table class="bap-layout-table" style="margin-top:5px;">
-            <tr>
-              <td class="col-roman">IV.</td>
-              <td class="bap-bold">REKAPITULASI PEMBAYARAN KONTRAK:</td>
-            </tr>
-            <tr>
-              <td></td>
-              <td>
-                <table class="bap-rekap-table">
-                  <thead>
-                    <tr>
-                      <th style="width:36px;">NO.</th>
-                      <th>URAIAN</th>
-                      <th style="width:125px;">NILAI FISIK (Rp.)</th>
-                      <th style="width:110px;">PPN (Rp.)</th>
-                      <th style="width:125px;">JUMLAH (Rp.)</th>
-                    </tr>
-                    <tr class="bap-rekap-subhead">
-                      <td>1</td>
-                      <td>2</td>
-                      <td>3</td>
-                      <td>4</td>
-                      <td>5</td>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td class="bap-center">1.</td>
-                      <td>Nilai Kontrak</td>
-                      <td class="bap-right" id="rk-1-dpp">-</td>
-                      <td class="bap-right" id="rk-1-ppn">-</td>
-                      <td class="bap-right" id="rk-1-jml">-</td>
-                    </tr>
-                    <tr>
-                      <td class="bap-center">2.</td>
-                      <td>Pembayaran S.D BAP y.l</td>
-                      <td class="bap-right" id="rk-2-dpp">-</td>
-                      <td class="bap-right" id="rk-2-ppn">-</td>
-                      <td class="bap-right" id="rk-2-jml">-</td>
-                    </tr>
-                    <tr>
-                      <td class="bap-center">3.</td>
-                      <td>Pembayaran BAP ini</td>
-                      <td class="bap-right" id="rk-3-dpp">-</td>
-                      <td class="bap-right" id="rk-3-ppn">-</td>
-                      <td class="bap-right" id="rk-3-jml">-</td>
-                    </tr>
-                    <tr>
-                      <td class="bap-center">4.</td>
-                      <td class="bap-bold">Total Pembayaran s.d BAP ini</td>
-                      <td class="bap-right bap-bold" id="rk-4-dpp">-</td>
-                      <td class="bap-right bap-bold" id="rk-4-ppn">-</td>
-                      <td class="bap-right bap-bold" id="rk-4-jml">-</td>
-                    </tr>
-                    <tr>
-                      <td class="bap-center">5.</td>
-                      <td class="bap-bold">Sisa Kontrak</td>
-                      <td class="bap-right bap-bold" id="rk-5-dpp">-</td>
-                      <td class="bap-right bap-bold" id="rk-5-ppn">-</td>
-                      <td class="bap-right bap-bold" id="rk-5-jml">-</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </td>
-            </tr>
-          </table>
-
-          <!-- BAGIAN V: REKENING & PENUTUP -->
-          <table class="bap-layout-table">
-            <tr>
-              <td class="col-roman">V.</td>
-              <td>PIHAK KEDUA sepakat atas jumlah pembayaran tersebut diatas dan dibayarkan ke:</td>
-            </tr>
-            <tr>
-              <td></td>
-              <td>
-                <table style="width:100%; border-collapse:collapse; margin:2px 0;">
-                  <tr>
-                    <td style="width:55px;" class="bap-bold">BANK</td>
-                    <td style="width:10px;">:</td>
-                    <td style="width:45%;" class="bap-bold" id="pv-bank">[Nama_Bank]</td>
-                    <td style="width:95px;" class="bap-bold">No. Rekening</td>
-                    <td style="width:10px;">:</td>
-                    <td class="bap-bold" id="pv-rekening">[No_Rekening]</td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-            <tr>
-              <td colspan="2" style="padding-top:4px; text-align:justify;">
-                Demikian Berita Acara Pembayaran ini dibuat dalam rangkap 2 (Dua) dan dapatnya dipergunakan sebagaimana mestinya.
-              </td>
-            </tr>
-          </table>
-
-          <!-- TANDA TANGAN -->
-          <table class="bap-ttd-table">
-            <tr>
-              <td></td>
-              <td>Blitar, <span id="pv-tanggal-bap-ttd">[Tanggal_BAP]</span></td>
-            </tr>
-            <tr>
-              <td class="bap-bold">PIHAK KEDUA</td>
-              <td class="bap-bold">PIHAK PERTAMA</td>
-            </tr>
-            <tr>
-              <td class="bap-bold">PENYEDIA JASA</td>
-              <td class="bap-bold">PENGGUNA ANGGARAN / PEJABAT PEMBUAT KOMITMEN</td>
-            </tr>
-            <tr>
-              <td class="bap-ttd-space"></td>
-              <td class="bap-ttd-space"></td>
-            </tr>
-            <tr>
-              <td class="bap-bold bap-underline" id="pv-ttd-direktur">[Nama_Direktur]</td>
-              <td class="bap-bold bap-underline" id="pv-ttd-ppk">ANTONIUS NANANG ADI PUTRANTO, ST., MT.</td>
-            </tr>
-            <tr>
-              <td id="pv-ttd-jabatan">[Jabatan_Penyedia]</td>
-              <td id="pv-ttd-pangkat">Pembina Tk. I</td>
-            </tr>
-            <tr>
-              <td></td>
-              <td id="pv-ttd-nip">NIP. 19780714 200212 1 006</td>
-            </tr>
-          </table>
+    <!-- MODAL SUKSES -->
+    <div id="modalSukses" class="fixed inset-0 bg-sipd-navy/70 backdrop-blur-sm z-[200] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
+            <div class="bg-emerald-600 text-white px-5 py-4 flex items-center gap-3">
+                <i class="fa-solid fa-circle-check text-2xl"></i>
+                <div><div class="font-bold">BAP berhasil disimpan</div><div class="text-[11px] text-emerald-100">Spreadsheet BAP sudah dibuat dari template</div></div>
+            </div>
+            <div class="p-5 space-y-3 text-sm">
+                <div><div class="text-[10px] font-bold text-slate-500 uppercase">Nomor BAP</div><div id="suksesNomor" class="font-mono font-bold text-slate-800 break-all"></div></div>
+                <div id="suksesRingkas" class="text-xs text-slate-600"></div>
+                <div id="suksesPeringatan" class="hidden text-[11px] bg-amber-50 border border-amber-200 text-amber-800 rounded p-2"></div>
+                <div class="flex flex-col gap-2 pt-1">
+                    <a id="linkSukses" href="#" target="_blank" rel="noopener noreferrer" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold text-xs text-center"><i class="fa-solid fa-table me-1"></i> Buka &amp; Edit di Google Spreadsheet</a>
+                    <a id="linkPdfSukses" href="#" target="_blank" rel="noopener noreferrer" class="px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded font-bold text-xs text-center"><i class="fa-solid fa-file-pdf me-1"></i> Download PDF (F4)</a>
+                    <button type="button" onclick="document.getElementById('modalSukses').classList.add('hidden')" class="px-4 py-2 border border-slate-300 text-slate-600 rounded font-bold text-xs hover:bg-slate-50">Tutup</button>
+                </div>
+            </div>
         </div>
+    </div>
 
-        <div class="bap-tax-helper no-print" id="bap-tax-helper">
-          <strong>Ringkasan Potongan Pajak &amp; Transfer Bersih (Catatan Internal — Tidak Ikut Tercetak):</strong>
-          <div id="bap-tax-summary-text" style="margin-top:4px;"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- DAFTAR RIWAYAT BAP TERSIMPAN -->
-  <div class="bap-history-card no-print">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-      <h4 style="margin:0; font-size:14px; color:#0f172a;">Daftar BAP Tersimpan (DB_KONTRAK_LS)</h4>
-      <button type="button" class="bap-btn bap-btn-primary" onclick="muatDataMasterBap(true)">Refresh Data BAP</button>
-    </div>
-    <div style="overflow-x:auto;">
-      <table class="bap-history-table">
-        <thead>
-          <tr>
-            <th>No. BAP</th>
-            <th>Tanggal</th>
-            <th>Tahap</th>
-            <th>No. Kontrak</th>
-            <th>Penyedia</th>
-            <th>Sub Kegiatan</th>
-            <th>Pembayaran BAP Ini</th>
-            <th>Aksi</th>
-          </tr>
-        </thead>
-        <tbody id="bap-history-tbody">
-          <tr><td colspan="8" style="text-align:center; color:#64748b;">Memuat data BAP...</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
+    <script src="config.js?v=63"></script>
+    <script src="bap.js?v=13"></script>
+</body>
+</html>
