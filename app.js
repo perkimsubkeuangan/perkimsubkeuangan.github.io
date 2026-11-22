@@ -134,7 +134,7 @@ function masukSistem() {
     document.querySelectorAll('.btn-buat-spj').forEach(btn => { const li = btn.closest('li'); (li || btn).style.display = bisaBuatSpj() ? '' : 'none'; });
     
     isiDropdownPptkUtama(); kunciPptkLogin(); renderTabelSpj(); hitungAnggaran(); isiDropdownProgram();
-    BAP.init();   // form & riwayat BAP (tab sidebar "Modul BAP LS")
+    BAP.init();   // form (modal) & riwayat BAP (tab sidebar "Modul BAP LS")
 }
 
 // PPTK hanya boleh mengajukan atas namanya sendiri (server juga memaksa hal yang sama)
@@ -187,7 +187,6 @@ function tarikDataDariServer() {
             realisasiPagu = data.realisasi || null;
             if (data.tahunAnggaran) CONFIG.TAHUN_ANGGARAN = data.tahunAnggaran;
             referensiData = data.referensi || {};
-            window.DATABASE_MASTER_BAP = data.masterBap || null;   // PPK, DPA, SPD dari sheet MASTER_BAP (null -> cadangan config.js)
             renderTabelSpj(); hitungAnggaran(); isiDropdownProgram(); isiDropdownPptkUtama();
             if (typeof BAP !== 'undefined') BAP.setelahLoad();
             const tbAkun = document.getElementById('tabelAkunBody'); if (tbAkun && tbAkun.innerHTML !== '') renderTabelAkunAdmin();
@@ -1379,13 +1378,14 @@ function auditPasswordAkun() {
 
 
 // ============================================================================
-// MODUL BAP LS (tab "Modul BAP LS" pada sidebar) — form input/edit, riwayat, preview & cetak dokumen F4.
+// MODUL BAP LS (tab "Modul BAP LS" pada sidebar) — form input/edit (modal), riwayat, preview & cetak PDF F4.
 // Seluruh logika berada di namespace BAP agar tidak bentrok dengan fungsi SPJ. Handler HTML memakai BAP.xxx().
-// Data memakai state yang sama dengan bagian SPJ: window.DATABASE_KONTRAK (DB_KONTRAK_LS), DATABASE_PENYEDIA, DATABASE_AKUN,
-// referensiData, serta window.DATABASE_MASTER_BAP (sheet MASTER_BAP: PPK, DPA, SPD).
+// Data memakai state yang sama dengan bagian SPJ: window.DATABASE_KONTRAK (DB_KONTRAK_LS), DATABASE_PENYEDIA, DATABASE_AKUN, referensiData.
+// DOKUMEN BAP TIDAK DIBANGUN DI SINI: server (aksi pdf_bap) mengisi tab template pada Google Spreadsheet lalu mengekspornya ke PDF F4.
+// Kop, logo, redaksi, tata letak, serta data PPK / DPA / SPD (tab MASTER_BAP) hanya ada di Spreadsheet template.
 //
 // PENTING: hitungInti() HARUS identik dengan hitungBapInti_() di Code.gs. Server selalu menghitung ulang saat menyimpan;
-// angka di form hanyalah pratinjau. Dokumen cetak dihitung dari kolom DASAR yang tersimpan, sehingga selalu sama dengan data.
+// angka di form hanyalah pratinjau; angka pada dokumen dihitung oleh rumus di Spreadsheet template.
 // ============================================================================
 const BAP = (function () {
     'use strict';
@@ -1405,41 +1405,16 @@ const BAP = (function () {
         const key = String(nama || '').trim().toUpperCase();
         return key ? daftarCv().find(c => String(c.pelaksana).trim().toUpperCase() === key) : undefined;
     };
-    const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-    const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
     function pecahTgl(s) { // 'yyyy-MM-dd' (atau ISO) -> {y,m,d} atau null
         const m = String(s || '').split('T')[0].match(/^(\d{4})-(\d{2})-(\d{2})$/);
         return m ? { y: +m[1], m: +m[2], d: +m[3] } : null;
     }
     const formatTgl = (s) => { const t = pecahTgl(s); return t ? `${String(t.d).padStart(2, '0')}/${String(t.m).padStart(2, '0')}/${t.y}` : '-'; };
-    const tglPanjang = (s) => { const t = pecahTgl(s); return t ? `${String(t.d).padStart(2, '0')} ${BULAN[t.m - 1]} ${t.y}` : '-'; };
-    // Tanggal dari MASTER_BAP bisa ISO (yyyy-MM-dd) atau teks bebas ("02 Januari 2026"): ISO diformat, teks apa adanya
-    const tglTampil = (s) => { const t = String(s || '').trim(); if (!t) return '-'; return pecahTgl(t) ? tglPanjang(t) : t; };
 
     // ---------- Hak akses di tampilan (penegakan sebenarnya ada di server) ----------
     const bolehInput = () => ['PPTK', 'VERIFIKATOR', 'SUPER_ADMIN'].includes(sesiAktif.role);          // PIMPINAN: hanya melihat
     const bolehEdit = (k) => bolehInput() && (sesiAktif.role !== 'PPTK' || String(k.pptk).trim() === String(sesiAktif.namaLengkap).trim());
     const adalahAdmin = () => sesiAktif.role === 'SUPER_ADMIN';                                         // tombol Hapus: SUPER_ADMIN saja
-
-    // Terbilang lengkap sampai triliun
-    function terbilang(n) {
-        n = Math.floor(Math.abs(Number(n) || 0));
-        if (n === 0) return 'Nol';
-        const s = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas'];
-        const f = (x) => {
-            if (x < 12) return s[x];
-            if (x < 20) return s[x - 10] + ' Belas';
-            if (x < 100) return s[Math.floor(x / 10)] + ' Puluh' + (x % 10 ? ' ' + s[x % 10] : '');
-            if (x < 200) return 'Seratus' + (x % 100 ? ' ' + f(x % 100) : '');
-            if (x < 1000) return s[Math.floor(x / 100)] + ' Ratus' + (x % 100 ? ' ' + f(x % 100) : '');
-            if (x < 2000) return 'Seribu' + (x % 1000 ? ' ' + f(x % 1000) : '');
-            if (x < 1e6) return f(Math.floor(x / 1e3)) + ' Ribu' + (x % 1e3 ? ' ' + f(x % 1e3) : '');
-            if (x < 1e9) return f(Math.floor(x / 1e6)) + ' Juta' + (x % 1e6 ? ' ' + f(x % 1e6) : '');
-            if (x < 1e12) return f(Math.floor(x / 1e9)) + ' Miliar' + (x % 1e9 ? ' ' + f(x % 1e9) : '');
-            return f(Math.floor(x / 1e12)) + ' Triliun' + (x % 1e12 ? ' ' + f(x % 1e12) : '');
-        };
-        return f(n);
-    }
 
     // ---------- Aturan per tahap (cermin TAHAP_BAP di Code.gs) ----------
     // jaminan: WAJIB | OPSIONAL | SKEMA (wajib bila skema = Jaminan Pemeliharaan) | '' (tidak ada)
@@ -1454,7 +1429,7 @@ const BAP = (function () {
     const tarifPphTahap = (t) => BAP_CONFIG.pph[t.pph].tarif;
     const labelPphTahap = (t) => BAP_CONFIG.pph[t.pph].label;
 
-    // Kalimat standar pernyataan (dipakai cetakan bila kolom pernyataan kosong)
+    // Contoh kalimat standar pernyataan (kalimat sebenarnya ada di tab template Spreadsheet; dipakai bila kolom pernyataan dikosongkan)
     function pernyataanDefault(tahap, uraian) {
         if (tahap === 'UM JASA') return 'Pihak Kedua telah menyusun data pada laporan pendahuluan yang sesuai dengan kondisi di lapangan';
         if (tahap === '100 JASA') return `Pihak Kedua telah menyerahkan hasil pekerjaan sesuai dengan dokumen ${uraian || '................'} (Laporan Akhir)`;
@@ -1478,230 +1453,6 @@ const BAP = (function () {
         };
     }
 
-    // ---------- Data master (PPK, DPA, SPD): sheet MASTER_BAP menimpa cadangan di config.js bila ada ----------
-    const terisi = (o) => { const r = {}; Object.keys(o || {}).forEach(k => { if (String(o[k] === null || o[k] === undefined ? '' : o[k]).trim() !== '') r[k] = String(o[k]).trim(); }); return r; };
-    function dataMaster() {
-        const C = BAP_CONFIG, m = window.DATABASE_MASTER_BAP || {};
-        const ppk = Object.assign({}, C.ppk, terisi(m.ppk));
-        ppk.nip = String(ppk.nip || '').replace(/^\s*NIP\.?\s*/i, '').trim();   // sheet menulis "NIP. 1978..."; cetakan menambah "NIP." sendiri
-        const dpa = Object.assign({}, C.dpa, terisi(m.dpa));
-        const spd = [0, 1, 2, 3].map(i => Object.assign({}, (C.spd || [])[i] || {}, terisi((m.spd || [])[i])));
-        return { ppk, dpa, spd };
-    }
-    // SPD dipilih otomatis dari triwulan TGL_BAP
-    function spdUntukTanggal(tglBap) {
-        const t = pecahTgl(tglBap);
-        if (!t) return null;
-        const tw = Math.floor((t.m - 1) / 3);
-        const s = dataMaster().spd[tw];
-        return s && s.nomor ? { tw: tw + 1, nomor: s.nomor, tanggal: s.tanggal } : null;
-    }
-
-    // Angka cetak dihitung dari kolom DASAR yang tersimpan (nilai kontrak, addendum, bruto, retensi, pengembalian UM, DAK)
-    function hitungBap(k) {
-        const t = KONFIG_TAHAP[k.tahapBayar];
-        const awal = Number(k.nilaiKontrak) || 0;
-        const aktif = Number(k.addNilai) > 0 ? Number(k.addNilai) : awal;
-        const bruto = Number(k.nilaiBayar) || 0;
-        const retensi = Number(k.potRetensi) || 0, pengUm = Number(k.potPengUm) || 0;
-        // Pembayaran s.d BAP yang lalu: BAP lain pada kontrak yang sama yang tersimpan lebih dulu
-        const idx = daftar().findIndex(x => x.kodeSpj === k.kodeSpj);
-        const sebelumRows = daftar().filter((x, i) => i < idx && String(x.noKontrak).trim() === String(k.noKontrak).trim());
-        const sebelum = sebelumRows.reduce((a, x) => a + Math.round(Number(x.pembayaranBapIni) || 0), 0);
-        const hit = hitungInti({ aktif, bruto, retensi, pengUm, sebelum, tarif: tarifPphTahap(t) });
-        hit.awal = awal;
-        hit.persen = aktif > 0 ? bruto / aktif * 100 : 0;
-        hit.dak = Math.max(0, Math.round(Number(k.dak) || 0));
-        hit.dau = hit.bayarIni - hit.dak;
-        hit.rowUm = t.pengUmDari ? sebelumRows.find(x => String(x.tahapBayar).trim() === t.pengUmDari) : null;
-        return hit;
-    }
-
-    // ======================================================================
-    // DOKUMEN BAP (HTML) — susunan mengikuti template Excel: bagian I s.d. V
-    // ======================================================================
-    function htmlBap(k, cv) {
-        const e = escapeHtml, C = BAP_CONFIG, M = dataMaster(), t = KONFIG_TAHAP[k.tahapBayar], h = hitungBap(k);
-        const rp = (n) => 'Rp. ' + angkaId(n);
-        const kosong = '.....................';
-        const ada = (s) => (s && String(s).trim() !== '' && s !== '-') ? e(s) : '-';
-    
-        const tb = pecahTgl(k.tglBap);
-        const hariIni = tb ? HARI[new Date(tb.y, tb.m - 1, tb.d).getDay()] : kosong;
-        const noBap = (k.noBap && k.noBap !== '-') ? e(k.noBap) : kosong;
-        const jabatanPenyedia = (cv.jabatan && String(cv.jabatan).trim()) ? cv.jabatan : 'Direktur';
-    
-        // baris "label : nilai" (ind = lekuk dalam px)
-        const kv = (no, label, val, ind) => `<tr><td class="no">${no}</td><td style="padding-left:${ind || 0}px;width:235px">${label}</td><td class="c">:</td><td>${val}</td></tr>`;
-        const judulBaris = (no, teks) => `<tr><td class="no">${no}</td><td colspan="3">${teks}</td></tr>`;
-    
-        // ---- II.2 SPD: dipilih otomatis sesuai triwulan TGL_BAP ----
-        const spdPilih = spdUntukTanggal(k.tglBap);
-        const spd = spdPilih
-            ? kv('', 'a. Nomor', e(spdPilih.nomor), 14) + kv('', 'Tanggal', e(tglTampil(spdPilih.tanggal)), 28)
-            : kv('', 'a. Nomor', '-', 14) + kv('', 'Tanggal', '-', 28);
-    
-        const adaAdd = !!(k.addNo && k.addNo !== '-');
-        const nilaiAkhirTxt = adaAdd && Number(k.addNilai) > 0 ? rp(k.addNilai) : '-';
-    
-        // ---- II.8 pembayaran sesuai tahap ----
-        const jam = (r) => r ? { penjamin: r.jamPenjamin, no: r.jamNo, tgl: r.jamTgl, nilai: Number(r.jamNilai) || 0, berlaku: r.jamBerlaku, akhir: r.jamBerlakuAkhir } : {};
-        const jaminanRows = (label, j) =>
-            kv('', `Dengan ${label} oleh`, ada(j.penjamin), 14) +
-            kv('', 'Nomor', ada(j.no), 28) + kv('', 'Tanggal', j.tgl ? tglPanjang(j.tgl) : '-', 28) +
-            kv('', 'Sebesar', j.nilai > 0 ? rp(j.nilai) : '-', 28) +
-            kv('', 'Berlaku dari tanggal', (j.berlaku ? tglPanjang(j.berlaku) : '-') + (j.akhir ? ' s.d. ' + tglPanjang(j.akhir) : ''), 28);
-        const bastRows = (label) =>
-            `<tr><td class="no"></td><td colspan="3" style="padding-left:14px">Sesuai ${label} :</td></tr>` + kv('', 'Tanggal', k.bastTgl ? tglPanjang(k.bastTgl) : '-', 28) + kv('', 'Nomor', ada(k.bastNo), 28);
-        const capaianTxt = `Yang menyatakan bahwa prestasi kemajuan fisik pekerjaan telah mencapai <b>100 %</b>.`;
-        const pern = ((k.pernyataan && String(k.pernyataan).trim()) ? String(k.pernyataan).trim() : pernyataanDefault(k.tahapBayar, k.uraian)).replace(/\.\s*$/, '');
-        const pernyataanTxt = `Yang menyatakan bahwa ${e(pern)}.`;
-        const termynKosong =
-            judulBaris('', '<b>b.</b> Pembayaran Termyn Ke ……………') +
-            `<tr><td class="no"></td><td colspan="3" style="padding-left:14px">Sesuai Berita Acara ………………………………….. :</td></tr>` + kv('', 'Tanggal', '-', 28) + kv('', 'Nomor', '-', 28) +
-            judulBaris('', 'Yang menyatakan bahwa prestasi kemajuan fisik pekerjaan telah mencapai …….. %.');
-    
-        let pembayaran = '';
-        if (k.tahapBayar === 'UM') {
-            pembayaran = judulBaris('8.', '<b>a.</b> Pembayaran Uang Muka') + jaminanRows('Jaminan Uang Muka', jam(k)) + termynKosong;
-        } else if (k.tahapBayar === 'UM JASA') {
-            const adaJam = !!(k.jamPenjamin || k.jamNo);
-            pembayaran = judulBaris('8.', '<b>a.</b> Pembayaran Uang Muka') + (adaJam ? jaminanRows('Jaminan Uang Muka', jam(k)) : '') +
-                bastRows('Berita Acara Pemeriksaan') + judulBaris('', pernyataanTxt) + termynKosong;
-        } else if (k.tahapBayar === 'I (100)') {
-            // a. memuat jaminan uang muka dari BAP UM pada kontrak yang sama (template sheet "I (100)")
-            pembayaran = judulBaris('8.', '<b>a.</b> Pembayaran Uang Muka') + jaminanRows('Jaminan Uang Muka', jam(h.rowUm)) +
-                judulBaris('', '<b>b.</b> Pembayaran Termyn I (100%)') + jaminanRows('Jaminan Pemeliharaan', jam(k)) +
-                bastRows(BAST_LABEL) + judulBaris('', capaianTxt);
-        } else if (k.tahapBayar === '100') {
-            pembayaran = judulBaris('8.', '<b>a.</b> Pembayaran Termyn (100%)') + jaminanRows('Jaminan Pemeliharaan', jam(k)) +
-                judulBaris('', '<b>b.</b> Pembayaran Termyn 100%') + bastRows(BAST_LABEL) + judulBaris('', capaianTxt);
-        } else { // 100 JASA
-            pembayaran = judulBaris('8.', '<b>a.</b> Pembayaran Termyn 100%') + bastRows(BAST_LABEL) + judulBaris('', pernyataanTxt) + termynKosong;
-        }
-    
-        // ---- III perhitungan ----
-        const labelRetensi = 'Uang Retensi/Jaminan' + (h.retensi > 0 ? ` (${persenId(BAP_CONFIG.retensiPersen * 100)}%)` : '');
-        const perhitungan = `
-            <table class="plain">
-                <tr><td class="no">1.</td><td colspan="2"><b>Perhitungan Pembayaran</b></td></tr>
-                <tr><td class="no"></td><td style="width:22px">a.</td><td>${persenId(h.persen)} % X Nilai Kontrak = ${persenId(h.persen)} % X ${rp(h.aktif)} = <b>${rp(h.bruto)}</b></td></tr>
-                <tr><td class="no"></td><td>b.</td><td>Potongan-potongan :</td></tr>
-            </table>
-            <table class="plain" style="margin-left:46px;width:430px">
-                <tr><td style="width:24px">i)</td><td style="width:210px">${labelRetensi}</td><td class="c">=</td><td class="r">${rp(h.retensi)}</td></tr>
-                <tr><td>ii)</td><td>Pengembalian Uang Muka</td><td class="c">=</td><td class="r">${rp(h.pengUm)}</td></tr>
-                <tr><td>iii)</td><td>Jumlah Potongan</td><td class="c">=</td><td class="r">${rp(h.potongan)}</td></tr>
-            </table>
-            <table class="plain">
-                <tr><td class="no"></td><td style="width:22px">c.</td><td>Pembayaran BAP ini (termasuk PPN/bruto) = <b>${rp(h.bayarIni)}</b></td></tr>
-            </table>
-            <div class="blok">
-            <table class="plain" style="margin-top:6px">
-                <tr><td class="no">2.</td><td colspan="4"><b>Rincian sumber pembayaran :</b></td></tr>
-                <tr><td class="no"></td><td colspan="4">APBD Tahun Anggaran ${C.tahunAnggaran}</td></tr>
-                <tr><td class="no"></td><td style="width:22px">-</td><td style="width:90px">DAK</td><td class="r" style="width:150px">${rp(h.dak)}</td><td></td></tr>
-                <tr><td class="no"></td><td>-</td><td>DAU</td><td class="r">${rp(h.dau)}</td><td></td></tr>
-                <tr><td class="no"></td><td colspan="2"><b>TOTAL</b></td><td class="r"><b>${rp(h.dak + h.dau)}</b></td><td></td></tr>
-            </table>
-            <table class="plain" style="margin-top:6px">
-                <tr><td class="no">3.</td><td colspan="4"><b>Rincian pemotongan pajak :</b></td></tr>
-                <tr><td class="no"></td><td style="width:22px">-</td><td style="width:250px">DPP / Nilai Fisik (Pembayaran BAP ini ÷ ${(1 + C.ppn).toFixed(2).replace('.', ',')})</td><td class="r" style="width:120px">${rp(h.dpp)}</td><td></td></tr>
-                <tr><td class="no"></td><td>-</td><td>PPN ${persenId(C.ppn * 100)} %</td><td class="r">${rp(h.ppn)}</td><td></td></tr>
-                <tr><td class="no"></td><td>-</td><td>${e(labelPphTahap(t))} ${persenId(tarifPphTahap(t) * 100)} % X DPP</td><td class="r">${rp(h.pph)}</td><td></td></tr>
-                <tr><td class="no"></td><td colspan="2"><b>Total Pajak</b></td><td class="r"><b>${rp(h.totalPajak)}</b></td><td></td></tr>
-                <tr><td class="no"></td><td colspan="2"><b>Nilai Bersih Transfer</b></td><td class="r"><b>${rp(h.bersih)}</b></td><td></td></tr>
-            </table>
-            </div>`;
-    
-        // ---- IV rekap ----
-        const nama = ['Nilai Kontrak', 'Pembayaran s.d BAP y.l', 'Pembayaran BAP ini', 'Total Pembayaran s.d BAP ini', 'Sisa Kontrak'];
-        const rekap = h.rekap.map((r, i) => `
-            <tr><td class="c">${i + 1}.</td><td>${nama[i]}</td><td class="r">${angkaId(r.fisik)}</td><td class="r">${angkaId(r.ppn)}</td><td class="r">${angkaId(r.jumlah)}</td></tr>`).join('');
-    
-        return `
-        <div class="kop">
-            <img src="Logo_KabBlitar.png" alt="">
-            <div class="kop-teks">
-                <div>${e(C.instansi)}</div>
-                <div class="b">${e(C.dinas)}</div>
-                <div>${e(C.alamatDinas)}</div>
-                <div>${e(C.kotaDinas)}</div>
-                <div>${e(C.webDinas)}</div>
-            </div>
-        </div>
-        <div class="judul"><u>BERITA ACARA PEMBAYARAN</u></div>
-        <div class="nomor">Nomor : ${noBap}</div>
-    
-        <p class="j">Pada hari ini <b>${hariIni}</b> tanggal <b>${tb ? terbilang(tb.d) : kosong}</b> bulan <b>${tb ? BULAN[tb.m - 1] : kosong}</b> tahun <b>${tb ? terbilang(tb.y) : kosong}</b> kami yang bertanda tangan di bawah ini :</p>
-    
-        <table class="plain">
-            <tr><td class="rom">I.</td><td class="no">1.</td><td style="width:110px">Nama</td><td class="c">:</td><td>${e(M.ppk.nama)}</td></tr>
-            <tr><td></td><td></td><td>Jabatan</td><td class="c">:</td><td>${e(M.ppk.jabatan)}</td></tr>
-            <tr><td></td><td></td><td>Kegiatan</td><td class="c">:</td><td>${e(k.kegiatan)}</td></tr>
-            <tr><td></td><td></td><td>Sub Kegiatan</td><td class="c">:</td><td>${e(k.subKegiatan)}</td></tr>
-            <tr><td></td><td></td><td>Alamat</td><td class="c">:</td><td>${e(M.ppk.alamat)}</td></tr>
-            <tr><td></td><td></td><td colspan="3" style="padding-top:4px">Untuk selanjutnya disebut &nbsp;&nbsp;&nbsp;: <b>PIHAK PERTAMA</b></td></tr>
-            <tr><td></td><td class="no" style="padding-top:8px">2.</td><td style="padding-top:8px">Nama</td><td class="c" style="padding-top:8px">:</td><td style="padding-top:8px">${ada(cv.direktur)}</td></tr>
-            <tr><td></td><td></td><td>Jabatan</td><td class="c">:</td><td>${e(jabatanPenyedia)}</td></tr>
-            <tr><td></td><td></td><td>Perusahaan</td><td class="c">:</td><td>${e(k.pelaksana)}</td></tr>
-            <tr><td></td><td></td><td>Alamat</td><td class="c">:</td><td>${ada(cv.alamat)}</td></tr>
-            <tr><td></td><td></td><td>NPWP</td><td class="c">:</td><td>${ada(cv.npwp)}</td></tr>
-            <tr><td></td><td></td><td colspan="3" style="padding-top:4px">Untuk selanjutnya disebut &nbsp;&nbsp;&nbsp;: <b>PIHAK KEDUA</b></td></tr>
-        </table>
-    
-        <table class="plain" style="margin-top:6px">
-            <tr><td class="rom">II.</td><td colspan="4"><b>Berdasarkan :</b></td></tr>
-        </table>
-        <table class="plain tbl-ii">
-            ${judulBaris('1.', 'Nomor &amp; Tanggal DPA :')}
-            ${kv('', 'a. Nomor', e(M.dpa.nomor), 14)}
-            ${kv('', 'Tanggal', e(tglTampil(M.dpa.tanggal)), 28)}
-            ${judulBaris('2.', 'Nomor &amp; Tanggal SPD :')}
-            ${spd}
-            ${kv('3.', 'No &amp; Tgl Kontrak / SPK Awal', 'No. ' + e(k.noKontrak) + '<br>Tgl. ' + tglPanjang(k.tglKontrak))}
-            ${kv('4.', 'Nilai Kontrak / SPK (Awal)', rp(h.awal))}
-            ${kv('5.', 'No &amp; Tgl Addendum', adaAdd ? 'No. ' + e(k.addNo) + '<br>Tgl. ' + tglPanjang(k.addTgl) : 'No. -<br>Tgl. -')}
-            ${kv('6.', 'Nilai Kontrak (termasuk Addendum)', nilaiAkhirTxt)}
-            ${kv('7.', 'Uraian Pekerjaan', e(k.uraian))}
-            ${pembayaran}
-        </table>
-    
-        <table class="plain" style="margin-top:6px">
-            <tr><td class="rom">III.</td><td>Sesuai ketentuan pada syarat-syarat Kontrak/SPK/Surat Perjanjian tersebut diatas, maka PIHAK KEDUA berhak menerima pembayaran dari PIHAK PERTAMA, dengan uraian pembayaran sebagai berikut:</td></tr>
-        </table>
-        ${perhitungan}
-    
-        <div class="blok">
-        <table class="plain" style="margin-top:6px"><tr><td class="rom">IV.</td><td><b>REKAPITULASI PEMBAYARAN KONTRAK :</b></td></tr></table>
-        <table class="rek">
-            <thead>
-                <tr><th style="width:36px">NO.</th><th>URAIAN</th><th style="width:105px">NILAI FISIK (Rp.)</th><th style="width:95px">PPN (Rp.)</th><th style="width:110px">JUMLAH (Rp.)</th></tr>
-                <tr class="nm"><td class="c">1</td><td class="c">2</td><td class="c">3</td><td class="c">4</td><td class="c">5</td></tr>
-            </thead>
-            <tbody>${rekap}</tbody>
-        </table>
-        <p class="j" style="margin-top:5px"><b>Terbilang (Pembayaran BAP ini) :</b> <i># ${terbilang(h.bayarIni)} Rupiah #</i></p>
-        </div>
-    
-        <div class="blok">
-        <table class="plain" style="margin-top:6px">
-            <tr><td class="rom">V.</td><td colspan="4">PIHAK KEDUA sepakat atas jumlah pembayaran tersebut diatas dan dibayarkan ke:</td></tr>
-            <tr><td></td><td style="width:60px"><b>BANK</b></td><td class="c">:</td><td style="width:230px">${ada(cv.bank)}</td><td><b>No. Rekening</b> &nbsp;: ${ada(cv.noRek)}</td></tr>
-        </table>
-        <p class="j" style="margin-top:8px">Demikian Berita Acara Pembayaran ini dibuat dalam rangkap 2 (Dua) dan dapatnya dipergunakan sebagaimana mestinya.</p>
-    
-        <table class="ttd">
-            <tr><td></td><td class="kanan">${e(C.kotaTtd)}, ${tb ? tglPanjang(k.tglBap) : kosong}</td></tr>
-            <tr>
-                <td><b>PIHAK KEDUA</b><br>PENYEDIA JASA<br><b>${ada(k.pelaksana)}</b><br><br><br><br><u><b>${ada(cv.direktur)}</b></u><br>${e(jabatanPenyedia)}</td>
-                <td><b>PIHAK PERTAMA</b><br>PENGGUNA ANGGARAN /<br>PEJABAT PEMBUAT KOMITMEN<br><br><br><br><u><b>${e(M.ppk.nama)}</b></u><br>${e(M.ppk.pangkat)}<br>NIP. ${e(M.ppk.nip)}</td>
-            </tr>
-        </table>
-        </div>`;
-    }
-    
-    
 
     // ========================================================================
     // STATE & INISIALISASI
@@ -1716,7 +1467,7 @@ const BAP = (function () {
 
     function init() {
         if (!$('formBap')) return;
-        tampil('boxFormBap', bolehInput());
+        tampil('btnBukaFormBap', bolehInput());
         tampil('catatanBacaSaja', !bolehInput());
         if (!siap) {
             siap = true;
@@ -1796,6 +1547,8 @@ const BAP = (function () {
         $('bapTahap').disabled = false;
         tampil('bannerEditBap', false);
         $('btnSubmitBap').innerHTML = NAMA_TOMBOL_SIMPAN;
+        $('judulFormBap').textContent = 'Form Input BAP LS';
+        $('subJudulFormBap').textContent = 'Isi data kontrak & pembayaran. Dokumen BAP dibuat dari template Spreadsheet.';
         $('bapNoBap').readOnly = true;
         isiPicker(false);
         isiDropdownProgram();
@@ -1809,6 +1562,15 @@ const BAP = (function () {
         aturBagianForm();
         generateNomor();
     }
+
+    // Tambah BAP baru: modal form dibuka kosong (sama seperti modal pengajuan SPJ)
+    function bukaForm() {
+        if (!bolehInput()) { alert('Peran Anda tidak memiliki hak menambah data BAP.'); return; }
+        resetForm();
+        openModal('modalFormBap');
+        $('modalFormBap').scrollTop = 0;
+    }
+    function tutupForm() { closeModal('modalFormBap'); resetForm(); }
 
     // Picker PPTK hanya untuk VERIFIKATOR & SUPER_ADMIN saat membuat BAP baru (BAP dibuat atas nama PPTK)
     function isiPicker(pertahankan) {
@@ -2062,11 +1824,13 @@ const BAP = (function () {
         tampil('infoKontrak', false);
         $('bannerEditNomor').textContent = `${k.noBap} · ${k.tahapBayar} · ${k.noKontrak}`;
         tampil('bannerEditBap', true);
+        $('judulFormBap').textContent = 'Edit Data BAP LS';
+        $('subJudulFormBap').textContent = 'Nomor BAP tetap. Seluruh nominal dihitung ulang oleh server saat disimpan.';
         $('btnSubmitBap').innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan';
         hitungLive();
-        $('boxFormBap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        openModal('modalFormBap');
+        $('modalFormBap').scrollTop = 0;
     }
-    function batalEdit() { resetForm(); }
 
     // ---------- Simpan (baru / perubahan) ----------
     function simpan(ev) {
@@ -2125,10 +1889,10 @@ const BAP = (function () {
         apiPost(payload)
             .then(res => {
                 if (res.status !== 'success') { alert('Gagal Menyimpan: ' + res.message); return; }
-                terapkanHasil(res);
-                showToast(res.mode === 'update' ? 'Perubahan BAP tersimpan.' : 'BAP tersimpan: ' + res.noBap);
+                terapkanHasil(res);            // tabel riwayat langsung menampilkan data terbaru
+                closeModal('modalFormBap');    // modal tertutup otomatis
                 resetForm();
-                preview(res.kodeSpj);          // Preview terbuka otomatis dengan data terbaru
+                showToast(res.mode === 'update' ? 'Perubahan BAP tersimpan.' : 'BAP tersimpan: ' + res.noBap);
                 tarikDataDariServer();         // selaraskan seluruh state dengan server
             })
             .catch(err => { if (String(err.message) !== 'Sesi berakhir') alert('Koneksi Terputus: ' + err.message + '\nPeriksa tabel Riwayat sebelum mencoba lagi agar tidak terjadi data ganda.'); })
@@ -2180,41 +1944,88 @@ const BAP = (function () {
     }
 
     // ========================================================================
-    // PREVIEW & CETAK (F4)
+    // PREVIEW & CETAK: PDF F4 dibuat SERVER dari tab template pada Google Spreadsheet (aksi pdf_bap).
+    // Tidak ada HTML/CSS dokumen di sini: yang tampil di <iframe> adalah file PDF yang sama dengan hasil cetak.
     // ========================================================================
+    let pdfUrl = '', pdfNama = '', seqPreview = 0;
+
+    function setStatusPdf(mode, pesan) {   // 'loading' | 'error' | 'ok'
+        tampil('statusPdfLoading', mode === 'loading');
+        tampil('statusPdfError', mode === 'error');
+        tampil('areaFramePdf', mode === 'ok');
+        $('pesanPdfError').textContent = pesan || '';
+        ['btnDownloadPdfBap', 'btnCetakPdfBap'].forEach(id => { $(id).disabled = mode !== 'ok'; });
+    }
+    function bersihkanPdf() {
+        $('frameBapPdf').src = 'about:blank';
+        if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+        pdfUrl = ''; pdfNama = '';
+    }
+    function isiBannerPajak(p) {
+        $('pjBayar').textContent = rpTeks(p.pembayaranBapIni);
+        $('pjDpp').textContent = rpTeks(p.dpp);
+        $('pjPpn').textContent = rpTeks(p.ppn);
+        $('pjPphLabel').textContent = `${p.jenisPph || 'PPh'} ${persenId((Number(p.tarifPph) || 0) * 100)}%`;
+        $('pjPph').textContent = rpTeks(p.nilaiPph);
+        $('pjBersih').textContent = rpTeks(p.nilaiBersih);
+        tampil('bannerPajakBap', true);
+    }
+
     function preview(kode) {
         const k = cariKontrak(kode);
         if (!k) { alert('Data BAP tidak ditemukan. Muat ulang halaman.'); return; }
-        if (!KONFIG_TAHAP[k.tahapBayar]) { alert('Tahap pembayaran "' + k.tahapBayar + '" belum memiliki template cetak.'); return; }
-        const cv = cariCv(k.pelaksana);
-        if (!cv) { alert('Data penyedia (direktur, bank, rekening) untuk "' + k.pelaksana + '" belum lengkap! Lengkapi lewat Edit Data.'); return; }
+        if (!KONFIG_TAHAP[k.tahapBayar]) { alert('Tahap pembayaran "' + k.tahapBayar + '" belum memiliki tab template.'); return; }
         previewKode = k.kodeSpj;
-        $('kertasBap').innerHTML = htmlBap(k, cv);
+        const urut = ++seqPreview;                      // penanda: abaikan hasil lama bila modal ditutup / diganti
+        bersihkanPdf();
+        tampil('bannerPajakBap', false); tampil('pesanPeringatanPdf', false);
         $('judulPreviewBap').textContent = `${k.noBap} · ${k.tahapBayar}`;
         tampil('btnEditDariPreview', bolehEdit(k));
-        $('modalPreviewBap').classList.remove('hidden');
-        const sc = $('areaGulirPreview'); if (sc) sc.scrollTop = 0;
+        setStatusPdf('loading');
+        openModal('modalPreviewBap');
+        apiPost({ action: 'pdf_bap', kodeSpj: k.kodeSpj })
+            .then(res => {
+                if (urut !== seqPreview) return;
+                if (res.status !== 'success') { setStatusPdf('error', res.message); return; }
+                isiBannerPajak(res.pajak || {});
+                const bytes = Uint8Array.from(atob(res.pdfBase64), ch => ch.charCodeAt(0));
+                pdfUrl = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+                pdfNama = res.namaFile || 'BAP.pdf';
+                $('frameBapPdf').src = pdfUrl;
+                setStatusPdf('ok');
+                if ((res.peringatan || []).length) {
+                    $('pesanPeringatanPdf').textContent = res.peringatan.length + ' sel template tidak terisi (posisi sel berbeda dari peta). Periksa dokumen, lalu beri tahu Super Admin (rincian di LOG_SISTEM).';
+                    tampil('pesanPeringatanPdf', true);
+                }
+            })
+            .catch(err => {
+                if (urut !== seqPreview || String(err.message) === 'Sesi berakhir') return;
+                setStatusPdf('error', 'Koneksi terputus: ' + err.message);
+            });
     }
-    function tutupPreview() { $('modalPreviewBap').classList.add('hidden'); previewKode = ''; }
+    function ulangiPreview() { if (previewKode) preview(previewKode); }
+    function tutupPreview() { seqPreview++; bersihkanPdf(); previewKode = ''; closeModal('modalPreviewBap'); }
     function editDariPreview() { if (previewKode) mulaiEdit(previewKode); }
 
-    // Cetak / Download PDF: window.print() + aturan @media print F4 di index.html (elemen lain disembunyikan lewat body.cetak-bap)
-    function cetak() {
-        const k = cariKontrak(previewKode);
-        if (!k) return;
-        const judulAsli = document.title;
-        document.title = ('BAP_' + k.tahapBayar + '_' + k.noKontrak + '_' + k.pelaksana).replace(/[\\/:*?"<>|]+/g, '-');   // nama file PDF bawaan
-        document.body.classList.add('cetak-bap');
-        const selesai = () => { document.body.classList.remove('cetak-bap'); document.title = judulAsli; window.removeEventListener('afterprint', selesai); };
-        window.addEventListener('afterprint', selesai);
-        window.print();
+    function unduhPdf() {
+        if (!pdfUrl) return;
+        const a = document.createElement('a');
+        a.href = pdfUrl; a.download = pdfNama || 'BAP.pdf';
+        document.body.appendChild(a); a.click(); a.remove();
+    }
+    // Cetak langsung: mencetak file PDF di <iframe>; bila browser tidak mengizinkan, PDF dibuka di tab baru untuk dicetak dari sana
+    function cetakLangsung() {
+        if (!pdfUrl) return;
+        const f = $('frameBapPdf');
+        try { f.contentWindow.focus(); f.contentWindow.print(); }
+        catch (err) { window.open(pdfUrl, '_blank'); }
     }
 
     return {
         init, setelahLoad, tampilkanTab, renderTabel,
-        aturBagianForm, updateKegiatan, updateSubkegiatan, pilihCvBerubah, generateNomor, simpan, batalEdit,
-        preview, tutupPreview, editDariPreview, cetak, mulaiEdit, hapus,
-        _uji: { hitungInti, terbilang, htmlBap, hitungBap, spdUntukTanggal, dataMaster, kerabat }   // dipakai pengujian
+        bukaForm, tutupForm, aturBagianForm, updateKegiatan, updateSubkegiatan, pilihCvBerubah, generateNomor, simpan,
+        preview, ulangiPreview, tutupPreview, editDariPreview, unduhPdf, cetakLangsung, mulaiEdit, hapus,
+        _uji: { hitungInti }   // dipakai pengujian
     };
 })();
 
