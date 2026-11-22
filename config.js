@@ -16,40 +16,16 @@ const CONFIG = {
 };
 
 // ==========================================
-// DATA TETAP UNTUK PREVIEW & CETAK BAP F4 (sesuai template BAP_LS_2026_DISPERKIMTAN.xlsx)
-// Kop dinas & kota TTD ada di sini. Data PPK, DPA, dan SPD di bawah hanya CADANGAN: bila sheet MASTER_BAP ada di Spreadsheet,
-// isinya (dikirim server lewat aksi "load" -> masterBap) yang dipakai. Cetakan tidak perlu mengubah kode app.js.
+// PARAMETER HITUNG BAP (hanya untuk pratinjau angka di modal form BAP)
+// Dokumen BAP TIDAK dibangun dari HTML: server (Code.gs, aksi "pdf_bap") mengisi tab template pada Google Spreadsheet lalu
+// mengekspornya ke PDF F4. Kop surat, logo, redaksi, tata letak, serta Data PPK / Nomor & Tanggal DPA / SPD (tab MASTER_BAP)
+// hanya diubah di Spreadsheet template, TIDAK ada di file ini.
+// Nilai di bawah HARUS sama dengan BAP_PPN, BAP_RETENSI, dan TAHAP_BAP di Code.gs (server yang menjadi acuan saat menyimpan).
 // ==========================================
 const BAP_CONFIG = {
-    instansi: "PEMERINTAH KABUPATEN BLITAR",
-    dinas: "DINAS PERUMAHAN RAKYAT, KAWASAN PERMUKIMAN, DAN PERTANAHAN",
-    alamatDinas: "Jl. S. Supriyadi No. 86  Pos Box. 24  Telp. (0342) 801317  Kode Pos 66132",
-    kotaDinas: "B  L  I  T  A  R",
-    webDinas: "Website: www.dpkp.blitarkab.go.id, Email: dpkp@blitarkab.go.id",
-    kotaTtd: "Blitar",
     tahunAnggaran: 2026,
-    ppn: 0.11,   // PPN efektif (12% x 11/12), sama dengan rumus pada template Excel
-    ppk: {
-        nama: "ANTONIUS NANANG ADI PUTRANTO, ST., MT.",
-        jabatan: "Pejabat Pembuat Komitmen (PPK)",
-        alamat: "Jl. S. Supriyadi 86 Blitar",
-        pangkat: "Pembina Tk. I",
-        nip: "19780714 200212 1 006"
-    },
-    dpa: {
-        nomor: "DPA/A.1/1.04.2.10.0.00.01.0000/001/2026",
-        tanggal: "2026-01-02"
-    },
-    // Surat Penyediaan Dana (SPD) TA 2026. Indeks 0..3 = Triwulan I..IV.
-    // Preview/cetak BAP memilih SPD otomatis dari triwulan TGL_BAP (Jan-Mar=TW I, Apr-Jun=TW II, Jul-Sep=TW III, Okt-Des=TW IV).
-    spd: [
-        { nomor: "35.05/01.0/000001/1.04.2.10.0.00.01.0000/M/1/2026",  tanggal: "2026-01-02" },
-        { nomor: "35.05/01.0/000002/1.04.2.10.0.00.01.0000/P1/6/2026", tanggal: "2026-04-01" },
-        { nomor: "35.05/01.0/000003/1.04.2.10.0.00.01.0000/P1/7/2026", tanggal: "2026-07-01" },
-        { nomor: "35.05/01.0/000004/1.04.2.10.0.00.01.0000/P1/9/2026", tanggal: "2026-10-01" }
-    ],
+    ppn: 0.11,             // PPN efektif (12% x 11/12): DPP = pembayaran / 1,11
     retensiPersen: 0.05,   // potongan retensi 5% (tahap I (100) & 100) bila tidak memakai Jaminan Pemeliharaan
-    // Tarif PPh per kelompok tahap. HARUS sama dengan TAHAP_BAP di Code.gs (server yang menjadi acuan saat menyimpan).
     pph: {
         fisik: { label: "PPh Pasal 4(2)", tarif: 0.0175 },   // UM, I (100), 100
         jasa:  { label: "PPh Pasal 23",   tarif: 0.02 }      // UM JASA, 100 JASA
