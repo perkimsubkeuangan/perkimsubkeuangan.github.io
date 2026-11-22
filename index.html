@@ -28,51 +28,7 @@
       .node-float { animation: float 6s ease-in-out infinite; }
       .font-credit { font-family: 'Montserrat', sans-serif; letter-spacing: 0.05em; }
 
-      /* ===== Form BAP ===== */
-      .inp { width: 100%; padding: .45rem .75rem; border: 1px solid #cbd5e1; border-radius: .375rem; font-size: .8rem; color: #334155; background: #fff; outline: none; }
-      .inp:focus { border-color: #059669; box-shadow: 0 0 0 1px #059669; }
-      .inp[readonly], .inp:disabled { background: #f1f5f9; color: #64748b; cursor: not-allowed; }
-      .inp.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-      .lbl { display: block; font-size: .68rem; font-weight: 700; color: #475569; margin-bottom: .25rem; }
-      .lbl small { font-weight: 400; color: #94a3b8; }
       .kartu { background: #fff; border: 1px solid #e2e8f0; border-radius: .5rem; box-shadow: 0 1px 2px rgba(15, 23, 42, .05); }
-      .judul-seksi { font-size: .78rem; font-weight: 700; color: #1e293b; padding-bottom: .5rem; margin-bottom: .75rem; border-bottom: 1px solid #f1f5f9; }
-
-      /* ===== Dokumen BAP: preview layar + cetak F4 (Folio 215 x 330 mm) ===== */
-      #kertasBap { width: 215mm; min-height: 330mm; margin: 0 auto; background: #fff; color: #000; padding: 10mm 12mm; box-sizing: border-box; box-shadow: 0 2px 12px rgba(0,0,0,.3); font-family: Tahoma, Arial, sans-serif; font-size: 11px; line-height: 1.35; }
-      #kertasBap * { box-sizing: border-box; }
-      #kertasBap table { border-collapse: collapse; width: 100%; }
-      #kertasBap td, #kertasBap th { vertical-align: top; padding: 1px 3px; }
-      #kertasBap .kop { display: flex; align-items: center; gap: 12px; border-bottom: 3px double #000; padding-bottom: 6px; margin-bottom: 10px; }
-      #kertasBap .kop img { width: 70px; height: auto; }
-      #kertasBap .kop-teks { flex: 1; text-align: center; font-size: 11px; line-height: 1.3; }
-      #kertasBap .kop-teks .b { font-weight: bold; font-size: 13px; }
-      #kertasBap .judul { text-align: center; font-weight: bold; font-size: 13px; margin-top: 4px; }
-      #kertasBap .nomor { text-align: center; margin-bottom: 8px; }
-      #kertasBap p.j { text-align: justify; margin: 6px 0; }
-      #kertasBap .plain td.no { width: 24px; }
-      #kertasBap .plain td.rom { width: 30px; font-weight: bold; }
-      #kertasBap td.c { width: 12px; text-align: center; }
-      #kertasBap td.r { text-align: right; white-space: nowrap; }
-      #kertasBap .tbl-ii td.no { width: 24px; }
-      #kertasBap .rek th, #kertasBap .rek td { border: 1px solid #000; padding: 3px 5px; }
-      #kertasBap .rek th { text-align: center; font-weight: bold; }
-      #kertasBap .rek tr.nm td { font-size: 9px; }
-      #kertasBap .rek td.c { width: auto; }
-      #kertasBap .blok { break-inside: avoid; page-break-inside: avoid; }
-      #kertasBap .ttd { margin-top: 10px; }
-      #kertasBap .ttd td { width: 50%; text-align: center; }
-      #kertasBap .ttd td.kanan { text-align: center; padding-bottom: 6px; }
-      @media (max-width: 900px) { #kertasBap { zoom: .6; } }
-      @page { size: 215mm 330mm; margin: 10mm 12mm; }
-      @media print {
-        html, body { height: auto !important; overflow: visible !important; background: #fff !important; }
-        body.cetak-bap > *:not(#modalPreviewBap) { display: none !important; }
-        body.cetak-bap #modalPreviewBap { position: static !important; display: block !important; background: none !important; backdrop-filter: none !important; padding: 0 !important; }
-        body.cetak-bap #modalPreviewBap .no-print { display: none !important; }
-        body.cetak-bap #areaGulirPreview { overflow: visible !important; padding: 0 !important; background: none !important; max-width: none !important; border-radius: 0 !important; }
-        body.cetak-bap #kertasBap { width: auto !important; min-height: 0 !important; padding: 0 !important; margin: 0 !important; box-shadow: none !important; zoom: 1 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      }
     </style>
 </head>
 <body class="bg-sipd-light font-sans text-sipd-slate h-screen overflow-hidden flex flex-col">
@@ -313,134 +269,7 @@
 
                 <!-- ================= PANEL MODUL BAP LS (tab sidebar, tanpa reload) ================= -->
                 <div id="viewBap" class="hidden max-w-5xl space-y-6">
-                    <section id="boxFormBap" class="kartu hidden">
-            <div class="p-4 sm:p-5 border-b border-slate-100">
-                <h2 class="font-bold text-sipd-slate"><i class="fa-solid fa-file-circle-plus text-emerald-600 me-2"></i>Input BAP Baru</h2>
-                <p class="text-[11px] text-slate-500 mt-1">Isi data lalu klik <b>Simpan &amp; Generate BAP</b>. Setelah tersimpan, Preview dokumen F4 terbuka otomatis dan siap dicetak / diunduh sebagai PDF.</p>
-            </div>
-
-            <div id="bannerEditBap" class="hidden mx-4 sm:mx-5 mt-4 bg-amber-50 border border-amber-300 rounded p-3 flex flex-wrap items-center justify-between gap-2">
-                <div class="text-xs text-amber-900"><i class="fa-solid fa-pen-to-square me-1"></i><b>MODE EDIT</b> &middot; <span id="bannerEditNomor" class="font-mono"></span><div class="text-[10px] text-amber-700 mt-0.5">Nomor BAP tetap. Tahap tidak dapat diubah. Seluruh nominal dihitung ulang oleh server saat disimpan.</div></div>
-                <button type="button" onclick="BAP.batalEdit()" class="px-3 py-1.5 bg-white border border-amber-400 text-amber-800 rounded text-[11px] font-bold hover:bg-amber-100">Batal Edit</button>
-            </div>
-
-            <form id="formBap" onsubmit="BAP.simpan(event)" class="p-4 sm:p-5 space-y-6" autocomplete="off">
-
-                <!-- 1. Tahap & PPTK -->
-                <div class="space-y-3">
-                    <div class="judul-seksi"><i class="fa-solid fa-layer-group me-2 text-blue-500"></i>1. Tahap Pembayaran</div>
-                    <div>
-                        <label class="lbl" for="bapTahap">Tahap <span class="text-red-500">*</span> <small>(menentukan jenis dokumen dan isian yang tampil)</small></label>
-                        <select id="bapTahap" required onchange="BAP.aturBagianForm()" class="inp">
-                            <option value="" disabled selected>-- Pilih Tahap --</option>
-                            <option value="UM">UM - Uang Muka (Fisik)</option>
-                            <option value="I (100)">I (100) - Termin I setelah Uang Muka (Fisik)</option>
-                            <option value="100">100 - Termin 100% tanpa Uang Muka (Fisik)</option>
-                            <option value="UM JASA">UM JASA - Uang Muka (Jasa Konsultansi / Pengawasan)</option>
-                            <option value="100 JASA">100 JASA - Termin 100% (Jasa Konsultansi / Pengawasan)</option>
-                        </select>
-                    </div>
-                    <div id="boxBapPptk" class="hidden">
-                        <label class="lbl" for="bapPptk">Atas Nama PPTK <span class="text-red-500">*</span></label>
-                        <select id="bapPptk" class="inp"></select>
-                    </div>
-                </div>
-
-                <!-- 2. Anggaran & pekerjaan -->
-                <div class="space-y-3">
-                    <div class="judul-seksi"><i class="fa-solid fa-sitemap me-2 text-blue-500"></i>2. Anggaran &amp; Pekerjaan</div>
-                    <div><label class="lbl" for="bapProgram">Program <span class="text-red-500">*</span></label><select id="bapProgram" required onchange="BAP.updateKegiatan()" class="inp"></select></div>
-                    <div><label class="lbl" for="bapKegiatan">Kegiatan <span class="text-red-500">*</span></label><select id="bapKegiatan" required onchange="BAP.updateSubkegiatan()" class="inp"></select></div>
-                    <div><label class="lbl" for="bapSubKegiatan">Sub Kegiatan <span class="text-red-500">*</span></label><select id="bapSubKegiatan" required class="inp"></select></div>
-                    <div><label class="lbl" for="bapUraian">Uraian Pekerjaan <span class="text-red-500">*</span></label><textarea id="bapUraian" required rows="2" maxlength="1000" class="inp" placeholder="Cth: Pembangunan Jalan Lingkungan Desa ..."></textarea></div>
-                </div>
-
-                <!-- 3. Kontrak -->
-                <div class="space-y-3">
-                    <div class="judul-seksi"><i class="fa-solid fa-file-lines me-2 text-blue-500"></i>3. Kontrak / SPK</div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div><label class="lbl" for="bapNoKontrak">Nomor Kontrak/SPK Awal <span class="text-red-500">*</span></label><input type="text" id="bapNoKontrak" required maxlength="120" class="inp" placeholder="Cth: 027/01/SPK/2026"></div>
-                        <div><label class="lbl" for="bapTglKontrak">Tanggal Kontrak/SPK Awal <span class="text-red-500">*</span></label><input type="date" id="bapTglKontrak" required class="inp"></div>
-                    </div>
-                    <div id="infoKontrak" class="hidden text-[11px] bg-blue-50 border border-blue-200 text-blue-800 rounded p-2"></div>
-                    <div><label class="lbl" for="bapNilaiKontrak">Nilai Kontrak Awal (Rp, termasuk PPN) <span class="text-red-500">*</span></label><input type="number" id="bapNilaiKontrak" required min="1" step="any" class="inp mono"></div>
-                    <details id="detAddendum" class="border border-slate-200 rounded">
-                        <summary class="cursor-pointer px-3 py-2 text-[11px] font-bold text-slate-600 select-none">Addendum (opsional) <span class="font-normal text-slate-400">- bila ada, isi nomor, tanggal, dan nilai</span></summary>
-                        <div class="p-3 grid grid-cols-1 md:grid-cols-3 gap-3 border-t border-slate-100">
-                            <div><label class="lbl" for="bapAddNo">Nomor Addendum</label><input type="text" id="bapAddNo" maxlength="120" class="inp"></div>
-                            <div><label class="lbl" for="bapAddTgl">Tanggal Addendum</label><input type="date" id="bapAddTgl" class="inp"></div>
-                            <div><label class="lbl" for="bapAddNilai">Nilai Kontrak Setelah Addendum (Rp)</label><input type="number" id="bapAddNilai" min="0" step="any" class="inp mono"></div>
-                        </div>
-                    </details>
-                </div>
-
-                <!-- 4. Pembayaran -->
-                <div class="space-y-3">
-                    <div class="judul-seksi"><i class="fa-solid fa-coins me-2 text-blue-500"></i>4. Pembayaran</div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div><label class="lbl" for="bapTglBap">Tanggal BAP <span class="text-red-500">*</span></label><input type="date" id="bapTglBap" required onchange="BAP.generateNomor()" class="inp"></div>
-                        <div><label class="lbl" for="bapNoBap">Nomor BAP <small>(final dibuat server)</small></label><input type="text" id="bapNoBap" readonly class="inp"></div>
-                    </div>
-                    <div id="boxPersen" class="hidden"><label class="lbl" for="bapPersen">Persentase Uang Muka (%) <span class="text-red-500">*</span> <small>(standar 30%)</small></label><input type="number" id="bapPersen" min="0.01" max="99.99" step="any" value="30" class="inp mono"></div>
-                    <div id="boxSkema" class="hidden bg-amber-50 border border-amber-200 rounded p-3">
-                        <div class="text-[11px] font-bold text-amber-800 mb-2"><i class="fa-solid fa-scale-balanced me-1"></i>Jaminan masa pemeliharaan</div>
-                        <label class="flex items-center gap-2 text-xs text-slate-700 mb-1"><input type="radio" name="bapSkema" value="RETENSI" checked> Potong <b>Retensi 5%</b> dari nilai kontrak (tanpa Jaminan Pemeliharaan)</label>
-                        <label class="flex items-center gap-2 text-xs text-slate-700"><input type="radio" name="bapSkema" value="JAMINAN"> Pakai <b>Jaminan Pemeliharaan 5%</b> (tidak ada potongan retensi)</label>
-                    </div>
-                    <div><label class="lbl" for="bapDak">Sumber Dana DAK (Rp) <small>(kosongkan bila 0; DAU = pembayaran dikurangi DAK, otomatis)</small></label><input type="number" id="bapDak" min="0" step="any" class="inp mono"></div>
-                    <div id="panelHitung" class="hidden bg-slate-50 border border-slate-200 rounded p-3"></div>
-                </div>
-
-                <!-- 5. Jaminan / BAST / Pernyataan (tampil sesuai tahap) -->
-                <div id="secJaminan" class="hidden space-y-3">
-                    <div class="judul-seksi"><i class="fa-solid fa-shield-halved me-2 text-purple-500"></i><span id="lblJaminan">Jaminan</span></div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div class="md:col-span-2"><label class="lbl" for="bapJamPenjamin">Nama Penjamin (Bank / Asuransi)</label><input type="text" id="bapJamPenjamin" maxlength="150" class="inp"></div>
-                        <div><label class="lbl" for="bapJamNo">Nomor Jaminan</label><input type="text" id="bapJamNo" maxlength="120" class="inp"></div>
-                        <div><label class="lbl" for="bapJamTgl">Tanggal Jaminan</label><input type="date" id="bapJamTgl" class="inp"></div>
-                        <div><label class="lbl" for="bapJamNilai">Sebesar (Rp) <small>(terisi otomatis, dapat diubah)</small></label><input type="number" id="bapJamNilai" min="0" step="any" class="inp mono"></div>
-                        <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div><label class="lbl" for="bapJamBerlakuMulai">Berlaku Mulai Tanggal</label><input type="date" id="bapJamBerlakuMulai" class="inp"></div>
-                            <div><label class="lbl" for="bapJamBerlakuAkhir">Berlaku Sampai Tanggal</label><input type="date" id="bapJamBerlakuAkhir" class="inp"></div>
-                        </div>
-                    </div>
-                </div>
-                <div id="secBast" class="hidden space-y-3">
-                    <div class="judul-seksi"><i class="fa-solid fa-clipboard-check me-2 text-purple-500"></i><span id="lblBast">BAST</span></div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div><label class="lbl" for="bapBastTgl">Tanggal <span class="text-red-500">*</span></label><input type="date" id="bapBastTgl" class="inp"></div>
-                        <div><label class="lbl" for="bapBastNo">Nomor <span class="text-red-500">*</span></label><input type="text" id="bapBastNo" maxlength="120" class="inp"></div>
-                    </div>
-                </div>
-                <div id="boxPernyataan" class="hidden">
-                    <label class="lbl" for="bapPernyataan">Pernyataan <small>(kalimat setelah "Yang Menyatakan bahwa ..."; kosongkan untuk memakai kalimat standar di template)</small></label>
-                    <textarea id="bapPernyataan" rows="2" maxlength="600" class="inp"></textarea>
-                </div>
-
-                <!-- 6. Penyedia -->
-                <div class="space-y-3">
-                    <div class="judul-seksi"><i class="fa-solid fa-building me-2 text-purple-500"></i>6. Penyedia Jasa (Pihak Kedua)</div>
-                    <div>
-                        <label class="lbl" for="bapPilihCv">Penyedia / CV <span class="text-red-500">*</span> <small>(dari DB_PENYEDIA, atau pilih "Penyedia baru")</small></label>
-                        <select id="bapPilihCv" required onchange="BAP.pilihCvBerubah()" class="inp"></select>
-                        <div id="infoCv" class="text-[10px] mt-1 hidden"></div>
-                    </div>
-                    <div id="boxCvBaru" class="hidden"><label class="lbl" for="bapPelaksanaCv">Nama Penyedia / CV Baru <span class="text-red-500">*</span></label><input type="text" id="bapPelaksanaCv" maxlength="150" class="inp" placeholder="Cth: CV. MAJU JAYA"></div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div><label class="lbl" for="bapDirektur">Nama Direktur / Pimpinan <span class="text-red-500">*</span></label><input type="text" id="bapDirektur" required maxlength="120" class="inp"></div>
-                        <div><label class="lbl" for="bapJabatan">Jabatan <span class="text-red-500">*</span></label><input type="text" id="bapJabatan" required maxlength="80" value="Direktur" class="inp"></div>
-                        <div><label class="lbl" for="bapNpwp">NPWP <span class="text-red-500">*</span></label><input type="text" id="bapNpwp" required maxlength="30" class="inp mono" placeholder="00.000.000.0-000.000"></div>
-                        <div><label class="lbl" for="bapAlamatCv">Alamat <span class="text-red-500">*</span></label><input type="text" id="bapAlamatCv" required maxlength="300" class="inp"></div>
-                        <div><label class="lbl" for="bapBank">Nama Bank <span class="text-red-500">*</span></label><input type="text" id="bapBank" required maxlength="80" class="inp"></div>
-                        <div><label class="lbl" for="bapNoRek">No. Rekening <span class="text-red-500">*</span></label><input type="text" id="bapNoRek" required inputmode="numeric" maxlength="30" class="inp mono"></div>
-                    </div>
-                </div>
-
-                <div class="pt-2 border-t border-slate-100">
-                    <button type="submit" id="btnSubmitBap" class="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded font-bold text-sm shadow-sm transition-colors flex items-center justify-center gap-2"><i class="fa-solid fa-floppy-disk"></i> Simpan &amp; Generate BAP</button>
-                </div>
-            </form>
-        </section>
+                    
 
                     <p id="catatanBacaSaja" class="hidden text-[11px] text-slate-500 bg-white border border-slate-200 rounded p-3"><i class="fa-solid fa-eye me-1"></i>Peran Anda hanya dapat melihat riwayat BAP.</p>
 
@@ -448,9 +277,12 @@
         <section class="kartu overflow-hidden">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border-b border-slate-100">
                 <h2 class="font-bold text-sipd-slate"><i class="fa-solid fa-clock-rotate-left text-blue-500 me-2"></i>Riwayat BAP</h2>
-                <div class="relative w-full sm:w-64">
-                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
-                    <input type="text" id="cariBap" placeholder="Cari kontrak, CV, uraian..." class="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-sipd-emerald outline-none bg-white">
+                <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+                    <div class="relative w-full sm:w-64">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                        <input type="text" id="cariBap" placeholder="Cari kontrak, CV, uraian..." class="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-sipd-emerald outline-none bg-white">
+                    </div>
+                    <button id="btnBukaFormBap" type="button" onclick="BAP.bukaForm()" class="hidden px-4 py-2 bg-sipd-emerald hover:bg-emerald-700 text-white font-bold rounded shadow-sm transition-colors text-xs items-center justify-center gap-2 whitespace-nowrap"><i class="fa-solid fa-plus"></i> Buat BAP Baru</button>
                 </div>
             </div>
             <div class="overflow-x-auto max-h-[28rem]">
@@ -469,7 +301,7 @@
                     </tbody>
                 </table>
             </div>
-            <p class="text-[10px] text-slate-400 px-4 py-2 border-t border-slate-100"><b>Preview / Cetak</b> membuka dokumen F4 (cetak atau simpan sebagai PDF). <b>Edit Data</b> memuat BAP ke form; Nomor BAP tetap. Tombol <b>Hapus</b> hanya tampil untuk Super Admin.</p>
+            <p class="text-[10px] text-slate-400 px-4 py-2 border-t border-slate-100"><b>Preview / Cetak</b> membuat PDF F4 dari Spreadsheet template (cetak langsung atau unduh). <b>Edit Data</b> membuka form; Nomor BAP tetap. Tombol <b>Hapus</b> hanya tampil untuk Super Admin.</p>
         </section>
                 </div>
             </main>
@@ -573,6 +405,101 @@
         </div>
     </div>
 
+
+
+    <!-- MODAL FORM BAP (tambah & edit) — struktur/ukuran/perilaku sama dengan modal pengajuan SPJ -->
+    <div id="modalFormBap" class="fixed inset-0 bg-sipd-navy/60 backdrop-blur-sm z-[200] hidden flex items-start justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full my-8 relative border border-slate-200">
+            <div class="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50 rounded-t-lg">
+                <div><h2 id="judulFormBap" class="text-base font-bold text-sipd-slate">Form Input BAP LS</h2><p id="subJudulFormBap" class="text-[10px] text-slate-500 mt-0.5">Isi data kontrak &amp; pembayaran. Dokumen BAP dibuat dari template Spreadsheet.</p></div>
+                <button type="button" onclick="BAP.tutupForm()" class="w-8 h-8 rounded bg-white border border-slate-200 text-slate-500 hover:text-red-500 shadow-sm flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="formBap" class="p-6" onsubmit="BAP.simpan(event)" autocomplete="off">
+                <div id="bannerEditBap" class="hidden mb-6 p-3 bg-amber-50 border border-amber-300 rounded text-xs text-amber-900"><i class="fa-solid fa-pen-to-square me-1"></i><b>MODE EDIT</b> &middot; <span id="bannerEditNomor" class="font-mono"></span><div class="text-[10px] text-amber-700 mt-0.5">Nomor BAP tetap. Tahap tidak dapat diubah. Seluruh nominal dihitung ulang oleh server saat disimpan.</div></div>
+
+                <div class="mb-6 p-4 border border-slate-200 bg-slate-50 rounded flex items-center gap-4">
+                    <label class="font-bold text-sipd-slate text-sm w-32">Tahap:</label>
+                    <select id="bapTahap" required onchange="BAP.aturBagianForm()" class="flex-1 px-4 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm bg-white font-bold text-sipd-slate disabled:bg-slate-100">
+                        <option value="" disabled selected>-- Pilih Tahap --</option>
+                        <option value="UM">UM - Uang Muka (Fisik)</option>
+                        <option value="I (100)">I (100) - Termin I setelah Uang Muka (Fisik)</option>
+                        <option value="100">100 - Termin 100% tanpa Uang Muka (Fisik)</option>
+                        <option value="UM JASA">UM JASA - Uang Muka (Jasa Konsultansi / Pengawasan)</option>
+                        <option value="100 JASA">100 JASA - Termin 100% (Jasa Konsultansi / Pengawasan)</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                    <div id="boxBapPptk" class="hidden md:col-span-2"><label class="block text-xs font-bold text-slate-700 mb-1">Atas Nama PPTK <span class="text-red-500">*</span></label><select id="bapPptk" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700 bg-white"></select></div>
+                    <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-700 mb-1">Program <span class="text-red-500">*</span></label><select id="bapProgram" required onchange="BAP.updateKegiatan()" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700 bg-white"></select></div>
+                    <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-700 mb-1">Kegiatan <span class="text-red-500">*</span></label><select id="bapKegiatan" required onchange="BAP.updateSubkegiatan()" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700 bg-white"></select></div>
+                    <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-700 mb-1">Sub Kegiatan <span class="text-red-500">*</span></label><select id="bapSubKegiatan" required class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700 bg-white"></select></div>
+                    <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-700 mb-1">Uraian Pekerjaan <span class="text-red-500">*</span></label><textarea id="bapUraian" required rows="3" maxlength="1000" placeholder="Cth: Pembangunan Jalan Lingkungan Desa ..." class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700"></textarea></div>
+
+                    <div class="md:col-span-2 pt-2 text-xs font-bold text-sipd-slate border-b border-slate-100 pb-2"><i class="fa-solid fa-file-lines me-2 text-blue-500"></i>Kontrak / SPK</div>
+                    <div class=""><label class="block text-xs font-bold text-slate-700 mb-1">Nomor Kontrak/SPK Awal <span class="text-red-500">*</span></label><input type="text" id="bapNoKontrak" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700" required maxlength="120" placeholder="Cth: 027/01/SPK/2026"></div>
+                    <div class=""><label class="block text-xs font-bold text-slate-700 mb-1">Tanggal Kontrak/SPK Awal <span class="text-red-500">*</span></label><input type="date" id="bapTglKontrak" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700" required></div>
+                    <div id="infoKontrak" class="hidden md:col-span-2 text-[11px] bg-blue-50 border border-blue-200 text-blue-800 rounded p-2"></div>
+                    <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-700 mb-1">Nilai Kontrak Awal (Rp, termasuk PPN) <span class="text-red-500">*</span></label><input type="number" id="bapNilaiKontrak" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700 font-mono" required min="1" step="any"></div>
+                    <details id="detAddendum" class="md:col-span-2 border border-slate-200 rounded">
+                        <summary class="cursor-pointer px-3 py-2 text-xs font-bold text-slate-600 select-none">Addendum (opsional) <span class="font-normal text-slate-400">- bila ada, isi nomor, tanggal, dan nilai</span></summary>
+                        <div class="p-3 grid grid-cols-1 md:grid-cols-3 gap-3 border-t border-slate-100">
+                            <div class=""><label class="block text-xs font-bold text-slate-700 mb-1">Nomor Addendum</label><input type="text" id="bapAddNo" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700" maxlength="120"></div>
+                            <div class=""><label class="block text-xs font-bold text-slate-700 mb-1">Tanggal Addendum</label><input type="date" id="bapAddTgl" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700" ></div>
+                            <div class=""><label class="block text-xs font-bold text-slate-700 mb-1">Nilai Kontrak Setelah Addendum (Rp)</label><input type="number" id="bapAddNilai" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700 font-mono" min="0" step="any"></div>
+                        </div>
+                    </details>
+
+                    <div class="md:col-span-2 pt-2 text-xs font-bold text-sipd-slate border-b border-slate-100 pb-2"><i class="fa-solid fa-coins me-2 text-blue-500"></i>Pembayaran</div>
+                    <div class=""><label class="block text-xs font-bold text-slate-700 mb-1">Tanggal BAP <span class="text-red-500">*</span></label><input type="date" id="bapTglBap" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700" required onchange="BAP.generateNomor()"></div>
+                    <div class=""><label class="block text-xs font-bold text-slate-700 mb-1">Nomor BAP <span class="font-normal text-slate-400">(final dibuat server)</span></label><input type="text" id="bapNoBap" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700 bg-slate-100 text-slate-500 cursor-not-allowed" readonly></div>
+                    <div id="boxPersen" class="hidden"><label class="block text-xs font-bold text-slate-700 mb-1">Persentase Uang Muka (%) <span class="text-red-500">*</span> <span class="font-normal text-slate-400">(standar 30%)</span></label><input type="number" id="bapPersen" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700 font-mono" min="0.01" max="99.99" step="any" value="30"></div>
+                    <div class=""><label class="block text-xs font-bold text-slate-700 mb-1">Sumber Dana DAK (Rp) <span class="font-normal text-slate-400">(DAU = pembayaran dikurangi DAK, otomatis)</span></label><input type="number" id="bapDak" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700 font-mono" min="0" step="any"></div>
+                    <div id="boxSkema" class="hidden md:col-span-2 bg-amber-50 border border-amber-200 rounded p-4">
+                        <div class="text-xs font-bold text-amber-800 mb-2"><i class="fa-solid fa-scale-balanced me-1"></i>Jaminan masa pemeliharaan</div>
+                        <label class="flex items-center gap-2 text-xs text-slate-700 mb-1"><input type="radio" name="bapSkema" value="RETENSI" checked> Potong <b>Retensi 5%</b> dari nilai kontrak (tanpa Jaminan Pemeliharaan)</label>
+                        <label class="flex items-center gap-2 text-xs text-slate-700"><input type="radio" name="bapSkema" value="JAMINAN"> Pakai <b>Jaminan Pemeliharaan 5%</b> (tidak ada potongan retensi)</label>
+                    </div>
+
+                    <div id="secJaminan" class="hidden md:col-span-2 bg-purple-50 p-4 rounded-lg border border-purple-200">
+                        <div class="text-xs font-bold text-purple-800 mb-3"><i class="fa-solid fa-shield-halved me-1"></i><span id="lblJaminan">Jaminan</span></div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                            <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-700 mb-1">Nama Penjamin (Bank / Asuransi)</label><input type="text" id="bapJamPenjamin" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700" maxlength="150"></div>
+                            <div class=""><label class="block text-xs font-bold text-slate-700 mb-1">Nomor Jaminan</label><input type="text" id="bapJamNo" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700" maxlength="120"></div>
+                            <div class=""><label class="block text-xs font-bold text-slate-700 mb-1">Tanggal Jaminan</label><input type="date" id="bapJamTgl" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700" ></div>
+                            <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-700 mb-1">Sebesar (Rp) <span class="font-normal text-slate-400">(terisi otomatis, dapat diubah)</span></label><input type="number" id="bapJamNilai" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700 font-mono" min="0" step="any"></div>
+                            <div class=""><label class="block text-xs font-bold text-slate-700 mb-1">Berlaku Mulai Tanggal</label><input type="date" id="bapJamBerlakuMulai" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700" ></div>
+                            <div class=""><label class="block text-xs font-bold text-slate-700 mb-1">Berlaku Sampai Tanggal</label><input type="date" id="bapJamBerlakuAkhir" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700" ></div>
+                        </div>
+                    </div>
+                    <div id="secBast" class="hidden md:col-span-2 bg-purple-50 p-4 rounded-lg border border-purple-200">
+                        <div class="text-xs font-bold text-purple-800 mb-3"><i class="fa-solid fa-clipboard-check me-1"></i><span id="lblBast">BAST</span></div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                            <div class=""><label class="block text-xs font-bold text-slate-700 mb-1">Tanggal <span class="text-red-500">*</span></label><input type="date" id="bapBastTgl" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700" ></div>
+                            <div class=""><label class="block text-xs font-bold text-slate-700 mb-1">Nomor <span class="text-red-500">*</span></label><input type="text" id="bapBastNo" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700" maxlength="120"></div>
+                        </div>
+                    </div>
+                    <div id="boxPernyataan" class="hidden md:col-span-2"><label class="block text-xs font-bold text-slate-700 mb-1">Pernyataan <span class="font-normal text-slate-400">(lanjutan kalimat "Yang menyatakan bahwa ..."; kosongkan untuk memakai kalimat standar di template)</span></label><textarea id="bapPernyataan" rows="2" maxlength="600" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700"></textarea></div>
+
+                    <div id="panelHitung" class="hidden md:col-span-2 bg-slate-50 border border-slate-200 rounded p-4"></div>
+
+                    <div class="md:col-span-2 pt-2 text-xs font-bold text-sipd-slate border-b border-slate-100 pb-2"><i class="fa-solid fa-building me-2 text-purple-500"></i>Penyedia Jasa (Pihak Kedua)</div>
+                    <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-700 mb-1">Penyedia / CV <span class="text-red-500">*</span> <span class="font-normal text-slate-400">(dari DB_PENYEDIA, atau pilih "Penyedia baru")</span></label><select id="bapPilihCv" required onchange="BAP.pilihCvBerubah()" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700 bg-white"></select><div id="infoCv" class="hidden text-[10px] mt-1"></div></div>
+                    <div id="boxCvBaru" class="hidden md:col-span-2"><label class="block text-xs font-bold text-slate-700 mb-1">Nama Penyedia / CV Baru <span class="text-red-500">*</span></label><input type="text" id="bapPelaksanaCv" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700 bg-slate-50 font-bold" maxlength="150" placeholder="Sesuai rekening bank, Cth: CV. MAJU JAYA"><p class="text-[10px] text-red-500 mt-1.5 font-bold tracking-wide"><i class="fa-solid fa-triangle-exclamation"></i> PENTING: Nama wajib sama persis dengan buku rekening (titik, koma, &amp; spasi).</p></div>
+                    <div class=""><label class="block text-xs font-bold text-slate-700 mb-1">Nama Direktur / Pimpinan <span class="text-red-500">*</span></label><input type="text" id="bapDirektur" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700" required maxlength="120"></div>
+                    <div class=""><label class="block text-xs font-bold text-slate-700 mb-1">Jabatan <span class="text-red-500">*</span></label><input type="text" id="bapJabatan" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700" required maxlength="80" value="Direktur"></div>
+                    <div class=""><label class="block text-xs font-bold text-slate-700 mb-1">NPWP <span class="text-red-500">*</span></label><input type="text" id="bapNpwp" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700 font-mono" required maxlength="30" placeholder="00.000.000.0-000.000"></div>
+                    <div class=""><label class="block text-xs font-bold text-slate-700 mb-1">Alamat <span class="text-red-500">*</span></label><input type="text" id="bapAlamatCv" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700" required maxlength="300"></div>
+                    <div class=""><label class="block text-xs font-bold text-slate-700 mb-1">Nama Bank <span class="text-red-500">*</span></label><input type="text" id="bapBank" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700" required maxlength="80"></div>
+                    <div class=""><label class="block text-xs font-bold text-slate-700 mb-1">No. Rekening <span class="text-red-500">*</span></label><input type="text" id="bapNoRek" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-sipd-emerald outline-none text-sm text-slate-700 font-mono" required inputmode="numeric" maxlength="30"></div>
+                </div>
+                <div class="mt-8 pt-4 border-t border-slate-100 flex justify-end gap-3">
+                    <button type="button" onclick="BAP.tutupForm()" class="px-5 py-2 bg-slate-100 text-slate-600 font-bold rounded hover:bg-slate-200 transition-colors text-xs border border-slate-200">Batal</button>
+                    <button type="submit" id="btnSubmitBap" class="px-5 py-2 bg-sipd-navy text-white font-bold rounded hover:bg-slate-800 shadow-sm transition-colors text-xs flex items-center gap-2 disabled:opacity-60"><i class="fa-solid fa-floppy-disk"></i> Simpan &amp; Generate BAP</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <!-- MODAL VERIFIKASI -->
     <div id="modalVerify" class="fixed inset-0 bg-sipd-navy/60 backdrop-blur-sm z-[200] hidden flex items-start justify-center p-4 overflow-y-auto">
@@ -727,24 +654,54 @@
     </div>
 
 
-    <!-- MODAL PREVIEW DOKUMEN BAP (F4 / Folio 215 x 330 mm) -->
-    <div id="modalPreviewBap" class="fixed inset-0 bg-sipd-navy/70 backdrop-blur-sm z-[250] hidden flex flex-col items-center p-2 sm:p-4">
-        <div class="no-print w-full max-w-[230mm] flex flex-wrap items-center justify-between gap-2 bg-white rounded-t-lg px-4 py-3 border-b border-slate-200">
-            <div><div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Preview BAP &middot; F4 (215 &times; 330 mm)</div><div id="judulPreviewBap" class="font-bold text-sm text-sipd-slate break-all"></div></div>
-            <div class="flex flex-wrap gap-2">
-                <button id="btnEditDariPreview" type="button" onclick="BAP.editDariPreview()" class="hidden px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold flex items-center gap-1.5"><i class="fa-solid fa-pen-to-square"></i> Edit Data BAP</button>
-                <button type="button" onclick="BAP.cetak()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-bold flex items-center gap-1.5"><i class="fa-solid fa-print"></i> Cetak / Download PDF</button>
-                <button type="button" onclick="BAP.tutupPreview()" class="px-3 py-1.5 border border-slate-300 text-slate-600 hover:bg-slate-50 rounded text-xs font-bold">Tutup</button>
+    <!-- MODAL PREVIEW BAP: PDF F4 hasil generate Spreadsheet template (ditampilkan di <iframe>) -->
+    <div id="modalPreviewBap" class="fixed inset-0 bg-sipd-navy/60 backdrop-blur-sm z-[250] hidden flex items-start justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-lg shadow-xl max-w-5xl w-full my-4 relative border border-slate-200">
+            <div class="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50 rounded-t-lg gap-3">
+                <div class="min-w-0"><h2 class="text-base font-bold text-sipd-slate">Preview BAP <span class="text-[10px] font-normal text-slate-400">&middot; PDF F4 (215 &times; 330 mm)</span></h2><p id="judulPreviewBap" class="text-[11px] text-slate-500 mt-0.5 break-all"></p></div>
+                <button type="button" onclick="BAP.tutupPreview()" class="shrink-0 w-8 h-8 rounded bg-white border border-slate-200 text-slate-500 hover:text-red-500 shadow-sm flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-4 space-y-3">
+                <!-- Banner internal (hanya tampil di layar; bukan bagian dokumen PDF) -->
+                <div id="bannerPajakBap" class="hidden bg-emerald-50 border border-emerald-200 rounded p-3">
+                    <div class="text-[10px] font-bold text-emerald-800 uppercase tracking-wide mb-2"><i class="fa-solid fa-eye-slash me-1"></i>Informasi internal potongan pajak (tidak tercetak di dokumen)</div>
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+                        <div><div class="text-[10px] text-slate-500">Pembayaran BAP ini</div><div id="pjBayar" class="font-mono font-bold text-slate-800"></div></div>
+                        <div><div class="text-[10px] text-slate-500">DPP (Nilai Fisik)</div><div id="pjDpp" class="font-mono font-bold text-slate-800"></div></div>
+                        <div><div class="text-[10px] text-slate-500">PPN 11%</div><div id="pjPpn" class="font-mono font-bold text-slate-800"></div></div>
+                        <div><div id="pjPphLabel" class="text-[10px] text-slate-500">PPh</div><div id="pjPph" class="font-mono font-bold text-slate-800"></div></div>
+                        <div><div class="text-[10px] text-slate-500">Bersih Transfer</div><div id="pjBersih" class="font-mono font-bold text-emerald-700"></div></div>
+                    </div>
+                </div>
+                <div id="pesanPeringatanPdf" class="hidden text-[11px] bg-amber-50 border border-amber-200 text-amber-800 rounded p-2"></div>
+
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex flex-wrap gap-2">
+                        <button id="btnDownloadPdfBap" type="button" onclick="BAP.unduhPdf()" disabled class="px-4 py-2 bg-sipd-navy text-white font-bold rounded hover:bg-slate-800 shadow-sm transition-colors text-xs flex items-center gap-2 disabled:opacity-50"><i class="fa-solid fa-file-arrow-down"></i> Download PDF</button>
+                        <button id="btnCetakPdfBap" type="button" onclick="BAP.cetakLangsung()" disabled class="px-4 py-2 bg-emerald-600 text-white font-bold rounded hover:bg-emerald-700 shadow-sm transition-colors text-xs flex items-center gap-2 disabled:opacity-50"><i class="fa-solid fa-print"></i> Cetak Langsung</button>
+                        <button id="btnEditDariPreview" type="button" onclick="BAP.editDariPreview()" class="hidden px-4 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 shadow-sm transition-colors text-xs flex items-center gap-2"><i class="fa-solid fa-pen-to-square"></i> Edit Data BAP</button>
+                    </div>
+                    <button type="button" onclick="BAP.tutupPreview()" class="px-5 py-2 bg-slate-100 text-slate-600 font-bold rounded hover:bg-slate-200 transition-colors text-xs border border-slate-200">Tutup</button>
+                </div>
+
+                <div id="statusPdfLoading" class="hidden text-center py-16 text-slate-500"><i class="fa-solid fa-spinner fa-spin text-2xl text-blue-500"></i><div class="mt-3 text-sm font-medium">Membuat PDF dari Spreadsheet template...</div><div class="text-[11px] text-slate-400 mt-1">Biasanya 5&ndash;15 detik. Jangan tutup jendela ini.</div></div>
+                <div id="statusPdfError" class="hidden text-center py-12">
+                    <i class="fa-solid fa-triangle-exclamation text-2xl text-red-500"></i>
+                    <div id="pesanPdfError" class="mt-3 text-sm text-red-600 font-medium max-w-xl mx-auto break-words"></div>
+                    <button type="button" onclick="BAP.ulangiPreview()" class="mt-4 px-4 py-2 bg-white border border-slate-300 text-slate-600 font-bold rounded hover:bg-slate-50 text-xs"><i class="fa-solid fa-rotate-right me-1"></i> Coba lagi</button>
+                </div>
+                <div id="areaFramePdf" class="hidden">
+                    <iframe id="frameBapPdf" title="Preview PDF BAP" class="w-full h-[75vh] border border-slate-300 rounded bg-slate-100"></iframe>
+                    <p class="text-[10px] text-slate-400 mt-1">Jika PDF tidak tampil di perangkat ini (mis. sebagian browser seluler), gunakan tombol <b>Download PDF</b>.</p>
+                </div>
             </div>
         </div>
-        <div id="areaGulirPreview" class="flex-1 min-h-0 w-full max-w-[230mm] overflow-auto bg-slate-300 p-3 rounded-b-lg">
-            <div id="kertasBap"></div>
-        </div>
     </div>
+
     <div id="toast" class="fixed top-5 right-5 bg-sipd-navy text-white px-5 py-2.5 rounded shadow-lg transform -translate-y-20 opacity-0 transition-all duration-300 z-[9999] flex items-center gap-2"><i class="fa-solid fa-circle-check text-sipd-emerald"></i><span id="toastMessage" class="text-xs font-bold tracking-wide">Sukses!</span></div>
 
-    <script src="config.js?v=64"></script>
-    <script src="app.js?v=66"></script>
+    <script src="config.js?v=65"></script>
+    <script src="app.js?v=67"></script>
     
     <script>
         const catatanRevisiArea = document.getElementById('catatanRevisiInput');
