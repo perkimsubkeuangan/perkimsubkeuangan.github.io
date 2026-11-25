@@ -18,8 +18,7 @@ const CONFIG = {
 // ==========================================
 // PARAMETER HITUNG BAP (hanya untuk pratinjau angka di modal form BAP)
 // Dokumen BAP TIDAK dibangun dari HTML: server (Code.gs, aksi "pdf_bap") mengisi tab template pada Google Spreadsheet lalu
-// mengekspornya ke PDF F4. Kop surat, logo, redaksi, tata letak, serta Data PPK / Nomor & Tanggal DPA / SPD (tab MASTER_BAP)
-// hanya diubah di Spreadsheet template, TIDAK ada di file ini.
+// mengekspornya ke PDF A4. Kop surat, logo, redaksi, tata letak, serta Data PPK / Nomor & Tanggal DPA / SPD (tab MASTER_BAP)// hanya diubah di Spreadsheet template, TIDAK ada di file ini.
 // Nilai di bawah HARUS sama dengan BAP_PPN, BAP_RETENSI, dan TAHAP_BAP di Code.gs (server yang menjadi acuan saat menyimpan).
 // ==========================================
 const BAP_CONFIG = {
