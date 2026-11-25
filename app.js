@@ -1378,11 +1378,10 @@ function auditPasswordAkun() {
 
 
 // ============================================================================
-// MODUL BAP LS (tab "Modul BAP LS" pada sidebar) — form input/edit (modal), riwayat, preview & cetak PDF F4.
-// Seluruh logika berada di namespace BAP agar tidak bentrok dengan fungsi SPJ. Handler HTML memakai BAP.xxx().
-// Data memakai state yang sama dengan bagian SPJ: window.DATABASE_KONTRAK (DB_KONTRAK_LS), DATABASE_PENYEDIA, DATABASE_AKUN, referensiData.
-// DOKUMEN BAP TIDAK DIBANGUN DI SINI: server (aksi pdf_bap) mengisi tab template pada Google Spreadsheet lalu mengekspornya ke PDF F4.
-// Kop, logo, redaksi, tata letak, serta data PPK / DPA / SPD (tab MASTER_BAP) hanya ada di Spreadsheet template.
+// ========================================================================
+// PREVIEW & CETAK: PDF A4 dibuat SERVER dari tab template pada Google Spreadsheet (aksi pdf_bap).
+// Tidak ada HTML/CSS dokumen di sini: yang tampil di <iframe> adalah file PDF yang sama dengan hasil cetak.
+// ========================================================================// Kop, logo, redaksi, tata letak, serta data PPK / DPA / SPD (tab MASTER_BAP) hanya ada di Spreadsheet template.
 //
 // PENTING: hitungInti() HARUS identik dengan hitungBapInti_() di Code.gs. Server selalu menghitung ulang saat menyimpan;
 // angka di form hanyalah pratinjau; angka pada dokumen dihitung oleh rumus di Spreadsheet template.
