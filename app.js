@@ -9,7 +9,7 @@
 
 let spjData = []; let referensiData = {}; 
 let activeSelectedId = null; let pendingStatusChange = null;
-let sesiAktif = { role: "", username: "", namaLengkap: "" };
+let sesiAktif = { role: "", username: "", namaLengkap: "", nip: "", unitKerja: "", email: "", wa: "" };
 let isEditMode = false; let editIdTarget = null;
 let currentPage = 1; let rowsPerPage = 10;
 let filterJenis = 'ALL'; 
@@ -78,7 +78,7 @@ function checkLogin() {
         .then(res => {
             if (res.status === 'success') {
                 sessionStorage.setItem('sesi_token', res.token);
-                sesiAktif = { role: res.user.role, username: res.user.username, namaLengkap: res.user.namaLengkap };
+                setSesiUser(res.user);
                 document.getElementById('password-input').value = "";
                 return tarikDataDariServer().then(() => masukSistem());
             }
@@ -111,20 +111,42 @@ document.addEventListener('click', function(event) {
     if (!dropdown.contains(event.target) && !profileBtn.contains(event.target)) { dropdown.classList.add('hidden'); }
 });
 
-function masukSistem() {
+function setSesiUser(u) {
+    if (!u) return;
+    sesiAktif = {
+        role: u.role || sesiAktif.role || "",
+        username: u.username || sesiAktif.username || "",
+        namaLengkap: u.namaLengkap || sesiAktif.namaLengkap || "",
+        nip: u.nip !== undefined ? (u.nip || "") : (sesiAktif.nip || ""),
+        unitKerja: u.unitKerja !== undefined ? (u.unitKerja || "") : (sesiAktif.unitKerja || ""),
+        email: u.email !== undefined ? (u.email || "") : (sesiAktif.email || ""),
+        wa: u.wa !== undefined ? (u.wa || "") : (sesiAktif.wa || "")
+    };
     sessionStorage.setItem('sesiAktif_role', sesiAktif.role);
     sessionStorage.setItem('sesiAktif_username', sesiAktif.username);
     sessionStorage.setItem('sesiAktif_namaLengkap', sesiAktif.namaLengkap);
+    sessionStorage.setItem('sesiAktif_nip', sesiAktif.nip);
+    sessionStorage.setItem('sesiAktif_unitKerja', sesiAktif.unitKerja);
+    sessionStorage.setItem('sesiAktif_email', sesiAktif.email);
+    sessionStorage.setItem('sesiAktif_wa', sesiAktif.wa);
+    perbaruiHeaderProfil();
+}
+
+function perbaruiHeaderProfil() {
+    const rb = document.getElementById('role-badge'); if (rb) rb.innerText = sesiAktif.role;
+    const ud = document.getElementById('user-display'); if (ud) ud.innerText = sesiAktif.namaLengkap;
+    const jh = document.getElementById('jabatan-header-text'); if (jh) jh.innerText = sesiAktif.role;
+    const dn = document.getElementById('dd-nama'); if (dn) dn.innerText = sesiAktif.namaLengkap;
+    const dr = document.getElementById('dd-role'); if (dr) dr.innerText = sesiAktif.role;
+    const du = document.getElementById('dd-unit'); if (du) du.innerText = sesiAktif.unitKerja || (sesiAktif.nip ? 'NIP ' + sesiAktif.nip : '');
+}
+
+function masukSistem() {
+    setSesiUser(sesiAktif);
 
     document.getElementById('login-screen').style.display = 'none'; 
     document.getElementById('main-app').style.display = 'flex';
     updateSapaanWaktu();
-    
-    document.getElementById('role-badge').innerText = sesiAktif.role; 
-    document.getElementById('user-display').innerText = sesiAktif.namaLengkap;
-    const jabatanHeader = document.getElementById('jabatan-header-text'); if(jabatanHeader) jabatanHeader.innerText = sesiAktif.role; 
-    const ddNama = document.getElementById('dd-nama'); if(ddNama) ddNama.innerText = sesiAktif.namaLengkap;
-    const ddRole = document.getElementById('dd-role'); if(ddRole) ddRole.innerText = sesiAktif.role;
 
     const sidebarSuperAdmin = document.getElementById('sidebarSuperAdmin');
     if (sesiAktif.role === 'SUPER_ADMIN') {
@@ -153,8 +175,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         sesiAktif = { 
             role: savedRole, 
-            username: sessionStorage.getItem('sesiAktif_username'), 
-            namaLengkap: savedName 
+            username: sessionStorage.getItem('sesiAktif_username') || '', 
+            namaLengkap: savedName,
+            nip: sessionStorage.getItem('sesiAktif_nip') || '',
+            unitKerja: sessionStorage.getItem('sesiAktif_unitKerja') || '',
+            email: sessionStorage.getItem('sesiAktif_email') || '',
+            wa: sessionStorage.getItem('sesiAktif_wa') || ''
         };
         
         tarikDataDariServer().then(() => {
@@ -169,6 +195,7 @@ function tarikDataDariServer() {
     return apiPost({ action: 'load' })
         .then(data => {
             if (data.status !== 'success') { alert("Gagal mengambil data dari server: " + (data.message || '')); return; }
+            if (data.user) setSesiUser(data.user);
             window.DATABASE_AKUN = data.akun || [];
             window.DATABASE_KONTRAK = data.kontrakLS || [];
             window.DATABASE_PENYEDIA = data.penyediaCV || [];
@@ -354,6 +381,7 @@ function setSelectValue(el, val) {
 function openModal(id) { 
     if(id === 'modalNewSpj' && !isEditMode) { 
         document.getElementById('formNewSpj').reset(); ubahLabelNpdKontrak(); kunciPptkLogin();
+        if (typeof autoFillKontakPptk === 'function') autoFillKontakPptk();
         const existingSukses = document.getElementById('pesanSuksesDiv'); if(existingSukses) existingSukses.remove();
         document.getElementById('formNewSpj').classList.remove('hidden'); document.getElementById('btnSubmitNew').innerText = "Lanjut ke Form Upload"; 
     }
@@ -385,19 +413,34 @@ function infoPasswordAkun(akun) {
     return html;
 }
 
+function badgeStatusAkun(status) {
+    return String(status || 'AKTIF').toUpperCase() === 'NONAKTIF'
+        ? '<span class="px-2 py-0.5 bg-red-50 text-red-700 border border-red-200 rounded text-[9px] font-bold">NONAKTIF</span>'
+        : '<span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[9px] font-bold">AKTIF</span>';
+}
+
 function renderTabelAkunAdmin() {
     const tbody = document.getElementById('tabelAkunBody'); const tbPptk = document.getElementById('tabelPptkBody');
     if (!tbody || !tbPptk) return; tbody.innerHTML = ''; tbPptk.innerHTML = '';
     (window.DATABASE_AKUN || []).forEach((akun, index) => {
         const nama = escapeHtml(akun.namaLengkap);
+        const nonaktif = String(akun.status || 'AKTIF').toUpperCase() === 'NONAKTIF';
+        const rowDim = nonaktif ? 'bg-slate-50/70 opacity-75' : '';
+        const kontakTxt = [akun.email, akun.wa].filter(Boolean).map(escapeHtml).join(' · ');
+        const unitTxt = akun.unitKerja ? `<div class="text-[10px] text-slate-400 font-normal mt-0.5">${escapeHtml(akun.unitKerja)}</div>` : '';
+        const btnToggle = nonaktif
+            ? `<button onclick="toggleStatusAkun(${index})" title="Aktifkan kembali akun" class="px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10px] font-bold hover:bg-emerald-100 mr-1"><i class="fa-solid fa-power-off"></i></button>`
+            : `<button onclick="toggleStatusAkun(${index})" title="Nonaktifkan akun (putus akses &amp; jaga riwayat)" class="px-2 py-1 bg-slate-100 text-slate-600 border border-slate-300 rounded text-[10px] font-bold hover:bg-red-50 hover:text-red-600 hover:border-red-200 mr-1"><i class="fa-solid fa-power-off"></i></button>`;
+
         if (akun.role === 'PPTK') {
             tbPptk.innerHTML += `
-            <tr class="hover:bg-slate-50 transition-colors">
-                <td class="p-3 px-4 border-b border-slate-200 font-bold text-slate-800 text-xs">${nama}</td>
-                <td class="p-3 px-4 border-b border-slate-200 text-slate-500 font-mono text-[11px]">${escapeHtml(akun.nip || '-')}</td>
+            <tr class="hover:bg-slate-50 transition-colors ${rowDim}">
+                <td class="p-3 px-4 border-b border-slate-200 font-bold text-slate-800 text-xs">${nama}${unitTxt}</td>
+                <td class="p-3 px-4 border-b border-slate-200 text-slate-500 text-[11px]"><div class="font-mono">${escapeHtml(akun.nip || '-')}</div>${kontakTxt ? `<div class="text-[10px] text-slate-400 mt-0.5">${kontakTxt}</div>` : ''}</td>
+                <td class="p-3 px-4 border-b border-slate-200 text-center whitespace-nowrap">${badgeStatusAkun(akun.status)}</td>
                 <td class="p-3 px-4 border-b border-slate-200 text-center whitespace-nowrap">
-                    <button onclick="editDataPptk(${index})" class="px-2 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded text-[10px] font-bold hover:bg-amber-100"><i class="fa-solid fa-pen"></i></button>
-                    <button onclick="hapusDataAkun(${index})" class="px-2 py-1 bg-red-50 text-red-600 border border-red-200 rounded text-[10px] font-bold hover:bg-red-100 ml-1"><i class="fa-solid fa-trash"></i></button>
+                    ${btnToggle}<button onclick="editDataPptk(${index})" title="Edit PPTK" class="px-2 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded text-[10px] font-bold hover:bg-amber-100"><i class="fa-solid fa-pen"></i></button>
+                    <button onclick="hapusDataAkun(${index})" title="Hapus permanen" class="px-2 py-1 bg-red-50 text-red-600 border border-red-200 rounded text-[10px] font-bold hover:bg-red-100 ml-1"><i class="fa-solid fa-trash"></i></button>
                 </td>
             </tr>`;
         }
@@ -405,18 +448,20 @@ function renderTabelAkunAdmin() {
         const roleBadge = `<span class="px-2.5 py-1 ${warna} text-[10px] font-bold rounded-md border">${escapeHtml(akun.role)}</span>`;
         const infoPw = infoPasswordAkun(akun);
         const tombolUji = akun.username ? `<button onclick="bukaUjiPassword(${index})" title="Uji kecocokan password" class="px-2 py-1 bg-sky-50 text-sky-700 border border-sky-200 rounded text-[10px] font-bold hover:bg-sky-100 mr-1"><i class="fa-solid fa-key"></i></button>` : '';
+        const tombolCabut = (akun.username && !nonaktif && akun.username.toLowerCase() !== String(sesiAktif.username || '').toLowerCase())
+            ? `<button onclick="cabutSesiAkun(${index})" title="Keluarkan paksa (cabut sesi aktif)" class="px-2 py-1 bg-purple-50 text-purple-700 border border-purple-200 rounded text-[10px] font-bold hover:bg-purple-100 mr-1"><i class="fa-solid fa-right-from-bracket"></i></button>` : '';
         const identitasLogin = akun.username
-            ? `<span class="text-blue-600 font-bold">${escapeHtml(akun.username)}</span>`
-            : `<span class="text-red-500 italic text-[10px]">Belum Punya Akun</span>`;
+            ? `<div class="text-blue-600 font-bold font-mono">${escapeHtml(akun.username)}</div>`
+            : `<div class="text-red-500 italic text-[10px]">Belum Punya Akun</div>`;
         tbody.innerHTML += `
-            <tr class="hover:bg-slate-50 transition-colors">
-                <td class="p-3 px-4 border-b border-slate-200 font-bold text-slate-800 text-xs">${nama}</td>
-                <td class="p-3 px-4 border-b border-slate-200 text-slate-500 font-mono text-[11px]">${identitasLogin}</td>
+            <tr class="hover:bg-slate-50 transition-colors ${rowDim}">
+                <td class="p-3 px-4 border-b border-slate-200 font-bold text-slate-800 text-xs">${nama}${unitTxt}${kontakTxt ? `<div class="text-[10px] text-slate-400 font-normal">${kontakTxt}</div>` : ''}</td>
+                <td class="p-3 px-4 border-b border-slate-200 text-slate-500 text-[11px]">${identitasLogin}<div class="mt-1">${badgeStatusAkun(akun.status)}</div></td>
                 <td class="p-3 px-4 border-b border-slate-200 text-xs">${roleBadge}</td>
                 <td class="p-3 px-4 border-b border-slate-200 text-xs">${infoPw}</td>
                 <td class="p-3 px-4 border-b border-slate-200 text-center whitespace-nowrap">
-                    ${tombolUji}<button onclick="editDataAkun(${index})" class="px-2 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded text-[10px] font-bold hover:bg-amber-100"><i class="fa-solid fa-pen"></i></button>
-                    <button onclick="hapusDataAkun(${index})" class="px-2 py-1 bg-red-50 text-red-600 border border-red-200 rounded text-[10px] font-bold hover:bg-red-100 ml-1"><i class="fa-solid fa-trash"></i></button>
+                    ${tombolUji}${tombolCabut}${btnToggle}<button onclick="editDataAkun(${index})" title="Edit akun" class="px-2 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded text-[10px] font-bold hover:bg-amber-100"><i class="fa-solid fa-pen"></i></button>
+                    <button onclick="hapusDataAkun(${index})" title="Hapus permanen" class="px-2 py-1 bg-red-50 text-red-600 border border-red-200 rounded text-[10px] font-bold hover:bg-red-100 ml-1"><i class="fa-solid fa-trash"></i></button>
                 </td>
             </tr>`;
     });
@@ -435,32 +480,49 @@ function kirimAkunKeServer(payload, pesanSukses) {
 
 function simpanDataPptk() {
     const nama = document.getElementById('pptkNama').value.trim(); const nip = document.getElementById('pptkNip').value.trim();
+    const unitKerja = document.getElementById('pptkUnit') ? document.getElementById('pptkUnit').value : '';
+    const email = document.getElementById('pptkEmail') ? document.getElementById('pptkEmail').value.trim() : '';
+    const wa = document.getElementById('pptkWa') ? document.getElementById('pptkWa').value.trim() : '';
     if (!nama) { alert('Nama Lengkap wajib diisi!'); return; }
     const lama = editIndexPptk > -1 ? window.DATABASE_AKUN[editIndexPptk] : null;
-    kirimAkunKeServer({ action: 'akun_simpan', namaLama: lama ? lama.namaLengkap : '', namaLengkap: nama,
-        username: lama ? lama.username : '', role: lama ? lama.role : 'PPTK', nip: nip, password: '' }, 'Data PPTK tersimpan.')
-        .then(ok => { if (ok) resetFormPptk(); });
+    kirimAkunKeServer({
+        action: 'akun_simpan', namaLama: lama ? lama.namaLengkap : '', namaLengkap: nama,
+        username: lama ? lama.username : '', role: lama ? lama.role : 'PPTK', nip: nip, password: '',
+        status: lama ? (lama.status || 'AKTIF') : 'AKTIF', unitKerja: unitKerja, email: email, wa: wa
+    }, 'Data PPTK tersimpan.').then(ok => { if (ok) resetFormPptk(); });
 }
 function editDataPptk(index) {
     editIndexPptk = index; const ak = window.DATABASE_AKUN[index];
     document.getElementById('titleFormPptk').innerHTML = `<i class="fa-solid fa-pen text-emerald-600"></i> Edit Data PPTK`;
     document.getElementById('pptkNama').value = ak.namaLengkap || ""; document.getElementById('pptkNip').value = ak.nip || "";
+    if (document.getElementById('pptkUnit')) document.getElementById('pptkUnit').value = ak.unitKerja || "";
+    if (document.getElementById('pptkEmail')) document.getElementById('pptkEmail').value = ak.email || "";
+    if (document.getElementById('pptkWa')) document.getElementById('pptkWa').value = ak.wa || "";
 }
 function resetFormPptk() {
     editIndexPptk = -1; document.getElementById('titleFormPptk').innerHTML = `<i class="fa-solid fa-plus-circle text-emerald-600"></i> Tambah / Edit PPTK`;
     document.getElementById('pptkNama').value = ""; document.getElementById('pptkNip').value = "";
+    if (document.getElementById('pptkUnit')) document.getElementById('pptkUnit').value = "";
+    if (document.getElementById('pptkEmail')) document.getElementById('pptkEmail').value = "";
+    if (document.getElementById('pptkWa')) document.getElementById('pptkWa').value = "";
 }
 
 function simpanDataAkun() {
     const nama = document.getElementById('akunNama').value.trim(); const user = document.getElementById('akunUsername').value.trim().toLowerCase();
     const pass = document.getElementById('akunPassword').value; const role = document.getElementById('akunRole').value;
+    const status = document.getElementById('akunStatus') ? document.getElementById('akunStatus').value : 'AKTIF';
+    const unitKerja = document.getElementById('akunUnit') ? document.getElementById('akunUnit').value : '';
+    const email = document.getElementById('akunEmail') ? document.getElementById('akunEmail').value.trim() : '';
+    const wa = document.getElementById('akunWa') ? document.getElementById('akunWa').value.trim() : '';
     const lama = editIndexAkun > -1 ? window.DATABASE_AKUN[editIndexAkun] : null;
     if (!nama || !user) { alert('Nama dan username wajib diisi!'); return; }
     if (!lama && pass.length < 8) { alert('Password akun baru minimal 8 karakter.'); return; }
     if (pass && pass.length < 8) { alert('Password minimal 8 karakter.'); return; }
-    kirimAkunKeServer({ action: 'akun_simpan', namaLama: lama ? lama.namaLengkap : '', namaLengkap: nama,
-        username: user, password: pass, role: role, nip: lama ? lama.nip : '' }, 'Akun tersimpan.')
-        .then(ok => { if (ok) resetFormAkun(); });
+    kirimAkunKeServer({
+        action: 'akun_simpan', namaLama: lama ? lama.namaLengkap : '', namaLengkap: nama,
+        username: user, password: pass, role: role, nip: lama ? lama.nip : '',
+        status: status, unitKerja: unitKerja, email: email, wa: wa
+    }, 'Akun tersimpan.').then(ok => { if (ok) resetFormAkun(); });
 }
 function editDataAkun(index) {
     editIndexAkun = index; const ak = window.DATABASE_AKUN[index];
@@ -468,16 +530,51 @@ function editDataAkun(index) {
     document.getElementById('akunNama').value = ak.namaLengkap || ""; document.getElementById('akunUsername').value = ak.username || "";
     const pw = document.getElementById('akunPassword'); pw.value = ""; pw.placeholder = "Kosongkan jika tidak diubah";
     document.getElementById('akunRole').value = ak.role || "PPTK";
+    if (document.getElementById('akunStatus')) document.getElementById('akunStatus').value = ak.status || "AKTIF";
+    if (document.getElementById('akunUnit')) document.getElementById('akunUnit').value = ak.unitKerja || "";
+    if (document.getElementById('akunEmail')) document.getElementById('akunEmail').value = ak.email || "";
+    if (document.getElementById('akunWa')) document.getElementById('akunWa').value = ak.wa || "";
 }
 function resetFormAkun() {
     editIndexAkun = -1; document.getElementById('titleFormAkun').innerHTML = `<i class="fa-solid fa-user-plus text-blue-600"></i> Buat / Edit Detail Akun`;
     document.getElementById('akunNama').value = ""; document.getElementById('akunUsername').value = "";
     const pw = document.getElementById('akunPassword'); pw.value = ""; pw.placeholder = "Min. 8 karakter";
     document.getElementById('akunRole').value = "VERIFIKATOR";
+    if (document.getElementById('akunStatus')) document.getElementById('akunStatus').value = "AKTIF";
+    if (document.getElementById('akunUnit')) document.getElementById('akunUnit').value = "";
+    if (document.getElementById('akunEmail')) document.getElementById('akunEmail').value = "";
+    if (document.getElementById('akunWa')) document.getElementById('akunWa').value = "";
+}
+function toggleStatusAkun(index) {
+    const ak = window.DATABASE_AKUN[index]; if (!ak) return;
+    const akanAktif = String(ak.status || 'AKTIF').toUpperCase() === 'NONAKTIF';
+    const pesan = akanAktif
+        ? `Aktifkan kembali akun "${ak.namaLengkap}"?`
+        : `Nonaktifkan akun "${ak.namaLengkap}"?
+
+User tidak dapat login lagi dan sesi aktifnya langsung dicabut, tetapi seluruh riwayat SPJ & BAP tetap utuh.`;
+    if (!confirm(pesan)) return;
+    kirimAkunKeServer({ action: 'akun_toggle_status', namaLengkap: ak.namaLengkap }, akanAktif ? 'Akun diaktifkan kembali.' : 'Akun dinonaktifkan & sesi dicabut.');
+}
+function cabutSesiAkun(index) {
+    const ak = window.DATABASE_AKUN[index]; if (!ak || !ak.username) return;
+    if (!confirm(`Keluarkan paksa seluruh sesi aktif untuk "${ak.namaLengkap}" (${ak.username})?
+User harus login ulang pada perangkat yang sedang terbuka.`)) return;
+    apiPost({ action: 'akun_cabut_sesi', username: ak.username })
+        .then(res => {
+            if (res.status !== 'success') { alert('Gagal: ' + res.message); return; }
+            showToast('Sesi ' + ak.username + ' berhasil dicabut.');
+        })
+        .catch(e => { if (String(e.message) !== 'Sesi berakhir') alert('Koneksi gagal: ' + e.message); });
 }
 function hapusDataAkun(index) {
     const ak = window.DATABASE_AKUN[index]; if (!ak) return;
-    if (confirm('Anda yakin ingin menghapus "' + ak.namaLengkap + '"?')) kirimAkunKeServer({ action: 'akun_hapus', namaLengkap: ak.namaLengkap }, 'Berhasil dihapus dari server.');
+    const pesan = `HAPUS PERMANEN "${ak.namaLengkap}"?
+
+Tip: Bila pegawai hanya mutasi atau pensiun, sebaiknya gunakan tombol Nonaktifkan (ikon daya) agar arsip akun tetap tercatat.
+
+Lanjutkan hapus permanen?`;
+    if (confirm(pesan)) kirimAkunKeServer({ action: 'akun_hapus', namaLengkap: ak.namaLengkap }, 'Berhasil dihapus dari server.');
 }
 function bukaModalSuperAdmin() { const profileDd = document.getElementById('profileDropdown'); if(profileDd) profileDd.classList.add('hidden'); renderTabelAkunAdmin(); switchTabAdmin('pptk'); openModal('modalSuperAdmin'); }
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
@@ -486,8 +583,98 @@ function showToast(msg) { const toast = document.getElementById('toast'); docume
 function keluarSistem() {
     const t = sessionStorage.getItem('sesi_token');
     if (t) { try { fetch(CONFIG.APPS_SCRIPT_URL, { method: 'POST', keepalive: true, body: JSON.stringify({ action: 'logout', token: t }) }).catch(() => {}); } catch (e) {} }
-    sessionStorage.clear(); sesiAktif = { role: "", username: "", namaLengkap: "" };
+    sessionStorage.clear(); sesiAktif = { role: "", username: "", namaLengkap: "", nip: "", unitKerja: "", email: "", wa: "" };
     window.location.reload();
+}
+
+// ================== AKUN SAYA (PROFIL MANDIRI & GANTI PASSWORD) ==================
+function bukaModalAkunSaya(tab) {
+    const dd = document.getElementById('profileDropdown'); if (dd) dd.classList.add('hidden');
+    document.getElementById('akunSayaSub').textContent = sesiAktif.namaLengkap + ' (' + sesiAktif.role + ')';
+    document.getElementById('profilNamaTxt').textContent = sesiAktif.namaLengkap || '-';
+    document.getElementById('profilRoleTxt').textContent = sesiAktif.role || '-';
+    document.getElementById('profilUserTxt').textContent = sesiAktif.username || '-';
+    document.getElementById('profilNipTxt').textContent = sesiAktif.nip || '-';
+    setSelectValue(document.getElementById('profilUnitKerja'), sesiAktif.unitKerja || '');
+    document.getElementById('profilEmail').value = sesiAktif.email || '';
+    document.getElementById('profilWa').value = sesiAktif.wa || '';
+
+    document.getElementById('pwLamaInput').value = '';
+    document.getElementById('pwBaruInput').value = '';
+    document.getElementById('pwKonfirmInput').value = '';
+    const chk = document.getElementById('chkLihatPwMandiri'); if (chk) { chk.checked = false; toggleLihatPwMandiri(); }
+    const msg = document.getElementById('pwMandiriPesan'); if (msg) { msg.classList.add('hidden'); msg.textContent = ''; }
+
+    switchTabAkunSaya(tab || 'profil');
+    openModal('modalAkunSaya');
+}
+
+function switchTabAkunSaya(tab) {
+    const isProfil = tab !== 'password';
+    document.getElementById('tabAkunSayaProfil').classList.toggle('hidden', !isProfil);
+    document.getElementById('tabAkunSayaPassword').classList.toggle('hidden', isProfil);
+    const b1 = document.getElementById('btnTabSayaProfil'), b2 = document.getElementById('btnTabSayaPassword');
+    if (b1 && b2) {
+        b1.className = 'px-3 py-2 text-xs transition-colors border-b-2 ' + (isProfil ? 'font-bold border-sipd-emerald text-sipd-emerald' : 'font-medium border-transparent text-slate-500 hover:text-slate-700');
+        b2.className = 'px-3 py-2 text-xs transition-colors border-b-2 ' + (!isProfil ? 'font-bold border-sky-600 text-sky-600' : 'font-medium border-transparent text-slate-500 hover:text-slate-700');
+    }
+    if (!isProfil) setTimeout(() => { const el = document.getElementById('pwLamaInput'); if (el) el.focus(); }, 80);
+}
+
+function toggleLihatPwMandiri() {
+    const show = !!(document.getElementById('chkLihatPwMandiri') && document.getElementById('chkLihatPwMandiri').checked);
+    ['pwLamaInput', 'pwBaruInput', 'pwKonfirmInput'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.type = show ? 'text' : 'password';
+    });
+}
+
+function simpanProfilMandiri(ev) {
+    ev.preventDefault();
+    const unitKerja = document.getElementById('profilUnitKerja').value;
+    const email = document.getElementById('profilEmail').value.trim();
+    const wa = document.getElementById('profilWa').value.trim();
+    const btn = document.getElementById('btnSimpanProfilSaya');
+    const teksAsli = btn.textContent;
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Menyimpan...';
+    apiPost({ action: 'akun_update_profil', unitKerja, email, wa })
+        .then(res => {
+            if (res.status !== 'success') { alert('Gagal menyimpan profil: ' + res.message); return; }
+            if (res.user) setSesiUser(res.user);
+            tarikDataDariServer();
+            closeModal('modalAkunSaya');
+            showToast('Profil & kontak tersimpan.');
+        })
+        .catch(e => { if (String(e.message) !== 'Sesi berakhir') alert('Koneksi gagal: ' + e.message); })
+        .finally(() => { btn.disabled = false; btn.textContent = teksAsli; });
+}
+
+function simpanPasswordMandiri(ev) {
+    ev.preventDefault();
+    const passwordLama = document.getElementById('pwLamaInput').value;
+    const passwordBaru = document.getElementById('pwBaruInput').value;
+    const konfirm = document.getElementById('pwKonfirmInput').value;
+    const msg = document.getElementById('pwMandiriPesan');
+    const tampilPesan = (teks, err) => {
+        msg.className = 'text-xs font-medium p-2 rounded border ' + (err ? 'bg-red-50 border-red-200 text-red-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700');
+        msg.textContent = teks;
+    };
+    if (passwordBaru.length < 8) { tampilPesan('Password baru minimal 8 karakter.', true); return; }
+    if (passwordBaru !== konfirm) { tampilPesan('Konfirmasi password baru tidak cocok.', true); return; }
+    if (passwordBaru === passwordLama) { tampilPesan('Password baru tidak boleh sama dengan password saat ini.', true); return; }
+
+    const btn = document.getElementById('btnSimpanPwMandiri');
+    const teksAsli = btn.textContent;
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Memproses...';
+    msg.classList.add('hidden');
+    apiPost({ action: 'akun_ganti_password', passwordLama, passwordBaru })
+        .then(res => {
+            if (res.status !== 'success') { tampilPesan(res.message || 'Gagal mengganti password.', true); return; }
+            if (res.token) sessionStorage.setItem('sesi_token', res.token);
+            closeModal('modalAkunSaya');
+            showToast('Password berhasil diganti. Sesi di perangkat lain dicabut.');
+        })
+        .catch(e => { if (String(e.message) !== 'Sesi berakhir') tampilPesan('Koneksi gagal: ' + e.message, true); })
+        .finally(() => { btn.disabled = false; btn.textContent = teksAsli; });
 }
 
 // ================== CEK PASSWORD (SUPER_ADMIN) ==================
@@ -534,3 +721,119 @@ function auditPasswordAkun() {
         .finally(() => { btn.disabled = false; btn.innerHTML = asli; });
 }
 
+// ================== LUPA PASSWORD VIA OTP EMAIL ==================
+let lupaUsernameTarget = '';
+
+function bukaModalLupaPassword() {
+    const uLogin = document.getElementById('username-input');
+    const uLupa = document.getElementById('lupaUsernameInput');
+    lupaUsernameTarget = (uLogin ? uLogin.value.trim().toLowerCase() : '');
+    if (uLupa) uLupa.value = lupaUsernameTarget;
+    ['lupaOtpInput', 'lupaPwBaruInput', 'lupaPwKonfirmInput'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.value = '';
+    });
+    const chk = document.getElementById('chkLihatPwLupa');
+    if (chk) { chk.checked = false; toggleLihatPwLupa(); }
+    sembunyiPesanLupa();
+    setStepLupaPassword('minta');
+    openModal('modalLupaPassword');
+    setTimeout(() => { if (uLupa) uLupa.focus(); }, 80);
+}
+
+function tutupModalLupaPassword() {
+    closeModal('modalLupaPassword');
+}
+
+function setStepLupaPassword(step) {
+    const isMinta = step !== 'verif';
+    document.getElementById('stepLupaMinta').classList.toggle('hidden', !isMinta);
+    document.getElementById('stepLupaVerif').classList.toggle('hidden', isMinta);
+    if (!isMinta) {
+        const b = document.getElementById('lupaUserBadge');
+        if (b) b.textContent = lupaUsernameTarget || '-';
+        setTimeout(() => { const el = document.getElementById('lupaOtpInput'); if (el) el.focus(); }, 80);
+    }
+}
+
+function sembunyiPesanLupa() {
+    const box = document.getElementById('lupaPesanBox');
+    if (box) { box.classList.add('hidden'); box.textContent = ''; }
+}
+
+function tampilPesanLupa(teks, tipe) {
+    const box = document.getElementById('lupaPesanBox');
+    if (!box) return;
+    const gaya = tipe === 'ok'
+        ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+        : (tipe === 'info' ? 'bg-sky-50 border-sky-200 text-sky-800' : 'bg-red-50 border-red-200 text-red-700');
+    box.className = 'mb-3 text-xs font-medium p-2.5 rounded border leading-relaxed ' + gaya;
+    box.textContent = teks;
+}
+
+function toggleLihatPwLupa() {
+    const show = !!(document.getElementById('chkLihatPwLupa') && document.getElementById('chkLihatPwLupa').checked);
+    ['lupaPwBaruInput', 'lupaPwKonfirmInput'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.type = show ? 'text' : 'password';
+    });
+}
+
+function lanjutMasukkanOtp() {
+    const uname = (document.getElementById('lupaUsernameInput').value || '').trim().toLowerCase();
+    if (!uname) { tampilPesanLupa('Isi Username / NIP terlebih dahulu.', 'err'); return; }
+    lupaUsernameTarget = uname;
+    sembunyiPesanLupa();
+    setStepLupaPassword('verif');
+}
+
+function kirimPermintaanOtp(ev) {
+    ev.preventDefault();
+    const uname = (document.getElementById('lupaUsernameInput').value || '').trim().toLowerCase();
+    if (!uname) { tampilPesanLupa('Masukkan Username / NIP Anda.', 'err'); return; }
+    lupaUsernameTarget = uname;
+
+    const btn = document.getElementById('btnKirimOtp');
+    const teksAsli = btn.textContent;
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Mengirim...';
+    sembunyiPesanLupa();
+
+    apiPost({ action: 'lupa_password_minta', username: uname })
+        .then(res => {
+            if (res.status !== 'success') { tampilPesanLupa(res.message || 'Gagal meminta kode OTP.', 'err'); return; }
+            tampilPesanLupa(res.message || 'Kode OTP telah dikirim ke email terdaftar.', 'info');
+            setStepLupaPassword('verif');
+        })
+        .catch(e => { tampilPesanLupa('Gagal terhubung ke server. Periksa koneksi lalu coba lagi.', 'err'); })
+        .finally(() => { btn.disabled = false; btn.textContent = teksAsli; });
+}
+
+function prosesResetPasswordOtp(ev) {
+    ev.preventDefault();
+    const uname = lupaUsernameTarget || (document.getElementById('lupaUsernameInput').value || '').trim().toLowerCase();
+    const otp = (document.getElementById('lupaOtpInput').value || '').replace(/\s+/g, '');
+    const passwordBaru = document.getElementById('lupaPwBaruInput').value;
+    const konfirm = document.getElementById('lupaPwKonfirmInput').value;
+
+    if (!/^\d{6}$/.test(otp)) { tampilPesanLupa('Kode OTP harus berupa 6 digit angka.', 'err'); return; }
+    if (passwordBaru.length < 8) { tampilPesanLupa('Password baru minimal 8 karakter.', 'err'); return; }
+    if (passwordBaru !== konfirm) { tampilPesanLupa('Konfirmasi password baru tidak cocok.', 'err'); return; }
+
+    const btn = document.getElementById('btnSimpanResetOtp');
+    const teksAsli = btn.textContent;
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Memproses...';
+    sembunyiPesanLupa();
+
+    apiPost({ action: 'lupa_password_reset', username: uname, otp: otp, passwordBaru: passwordBaru })
+        .then(res => {
+            if (res.status !== 'success') { tampilPesanLupa(res.message || 'Reset password gagal.', 'err'); return; }
+            tutupModalLupaPassword();
+            const uInp = document.getElementById('username-input');
+            const pInp = document.getElementById('password-input');
+            const pe = document.getElementById('pin-error');
+            if (uInp) uInp.value = uname;
+            if (pInp) { pInp.value = ''; pInp.focus(); }
+            if (pe) pe.classList.add('hidden');
+            showToast('Password berhasil direset! Silakan masuk dengan password baru.');
+        })
+        .catch(e => { tampilPesanLupa('Gagal terhubung ke server. Periksa koneksi lalu coba lagi.', 'err'); })
+        .finally(() => { btn.disabled = false; btn.textContent = teksAsli; });
+}

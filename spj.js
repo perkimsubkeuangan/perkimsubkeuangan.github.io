@@ -14,8 +14,27 @@ function isiDropdownPptkUtama() {
     const selectPptk = document.getElementById('inputPptk');
     if(selectPptk && window.DATABASE_AKUN) {
         selectPptk.innerHTML = '<option value="" disabled selected>-- Pilih Nama PPTK --</option>';
-        window.DATABASE_AKUN.forEach(user => { if(user.role === 'PPTK') { selectPptk.innerHTML += `<option value="${escapeHtml(user.namaLengkap)}">${escapeHtml(user.namaLengkap)}</option>`; } });
+        window.DATABASE_AKUN.forEach(user => {
+            if(user.role === 'PPTK' && String(user.status || 'AKTIF').toUpperCase() !== 'NONAKTIF') {
+                selectPptk.innerHTML += `<option value="${escapeHtml(user.namaLengkap)}">${escapeHtml(user.namaLengkap)}</option>`;
+            }
+        });
     }
+}
+
+// Auto-fill Unit Kerja, Email, dan No. WA dari profil akun PPTK terpilih (hanya saat pengajuan baru)
+function autoFillKontakPptk() {
+    if (isEditMode) return;
+    const selPptk = document.getElementById('inputPptk');
+    const nama = selPptk ? String(selPptk.value || '').trim() : '';
+    let profil = (window.DATABASE_AKUN || []).find(a => a.role === 'PPTK' && String(a.namaLengkap).trim() === nama);
+    if (!profil && sesiAktif.role === 'PPTK') profil = sesiAktif;
+    if (!profil) return;
+    if (profil.unitKerja) setSelectValue(document.getElementById('inputUnitKerja'), profil.unitKerja);
+    const elEmail = document.getElementById('inputEmail');
+    if (elEmail && profil.email) elEmail.value = profil.email;
+    const elWa = document.getElementById('inputWa');
+    if (elWa && profil.wa) elWa.value = profil.wa;
 }
 
 function bukaFormSpjBaru() {

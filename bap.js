@@ -204,7 +204,7 @@ const BAP = (function () {
         const sel = $('bapPptk'); sel.required = adaPicker;
         const lama = pertahankan ? sel.value : '';
         sel.innerHTML = '<option value="" disabled selected>-- Pilih PPTK --</option>' +
-            (window.DATABASE_AKUN || []).filter(a => a.role === 'PPTK').map(p => `<option value="${e(p.namaLengkap)}">${e(p.namaLengkap)}</option>`).join('');
+            (window.DATABASE_AKUN || []).filter(a => a.role === 'PPTK' && String(a.status || 'AKTIF').toUpperCase() !== 'NONAKTIF').map(p => `<option value="${e(p.namaLengkap)}">${e(p.namaLengkap)}</option>`).join('');
         if (lama && Array.from(sel.options).some(o => o.value === lama)) sel.value = lama;
     }
 
