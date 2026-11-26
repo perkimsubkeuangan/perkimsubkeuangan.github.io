@@ -1656,14 +1656,20 @@ const BAP = (function () {
     function skemaTerpilih() { const r = document.querySelector('input[name="bapSkema"]:checked'); return r ? r.value : 'RETENSI'; }
     function perbaruiPlaceholderPernyataan() {
         const tahap = v('bapTahap'), t = KONFIG_TAHAP[tahap];
-        if (t && t.pernyataan) $('bapPernyataan').placeholder = 'Kalimat standar: ' + pernyataanDefault(tahap, v('bapUraian'));
+        if (!t || !t.pernyataan) return;
+        if (tahap === '100 JASA') {
+            $('bapPernyataan').placeholder = 'Cth: Laporan Akhir Pengawasan Pembangunan ... (ketik keterangan dokumen sesuai BAST)';
+        } else {
+            $('bapPernyataan').placeholder = 'Kalimat standar: ' + pernyataanDefault(tahap, v('bapUraian'));
+        }
     }
 
     // Bagian formulir yang tampil mengikuti tahap (dan skema jaminan) terpilih
     function aturBagianForm() {
-        const t = KONFIG_TAHAP[$('bapTahap').value], skema = skemaTerpilih();
+        const tahap = $('bapTahap').value, t = KONFIG_TAHAP[tahap], skema = skemaTerpilih();
         const jamTampil = !!t && (t.jaminan === 'WAJIB' || t.jaminan === 'OPSIONAL' || (t.jaminan === 'SKEMA' && skema === 'JAMINAN'));
         const jamWajib = !!t && (t.jaminan === 'WAJIB' || (t.jaminan === 'SKEMA' && skema === 'JAMINAN'));
+        const wajibDokBast = tahap === '100 JASA';
         tampil('boxPersen', !!t && t.persenBebas);
         tampil('boxSkema', !!t && t.retensi);
         tampil('secJaminan', jamTampil);
@@ -1672,8 +1678,16 @@ const BAP = (function () {
         tampil('panelHitung', !!t);
         if (t && t.labelJaminan) $('lblJaminan').textContent = t.labelJaminan + (jamWajib ? ' (wajib)' : ' (isi bila dipersyaratkan)');
         if (t && t.bast) $('lblBast').textContent = t.bast;
+        if ($('lblPernyataan')) {
+            $('lblPernyataan').textContent = wajibDokBast ? 'Keterangan Dokumen Hasil Pekerjaan (sesuai BAST)' : 'Pernyataan (opsional)';
+            tampil('reqPernyataan', wajibDokBast);
+            $('hintPernyataan').innerHTML = wajibDokBast
+                ? 'Akan dicetak sebagai: <i>"Yang Menyatakan bahwa Pihak Kedua Telah Menyerahkan Hasil Pekerjaan sesuai dengan Dokumen <b>[isian Anda]</b>"</i>'
+                : 'Lanjutan kalimat <i>"Yang menyatakan bahwa ..."</i> (kosongkan untuk memakai kalimat standar template).';
+        }
         ['bapJamPenjamin', 'bapJamNo', 'bapJamTgl', 'bapJamNilai', 'bapJamBerlakuMulai', 'bapJamBerlakuAkhir'].forEach(id => { $(id).required = jamWajib; });
         ['bapBastTgl', 'bapBastNo'].forEach(id => { $(id).required = !!(t && t.bast); });
+        $('bapPernyataan').required = wajibDokBast;
         $('bapPersen').required = !!(t && t.persenBebas);
         if (t && t.persenBebas && !v('bapPersen')) $('bapPersen').value = t.persenDef;
         perbaruiPlaceholderPernyataan();
