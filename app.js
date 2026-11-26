@@ -1905,6 +1905,7 @@ const BAP = (function () {
             const arr = window.DATABASE_KONTRAK = window.DATABASE_KONTRAK || [];
             const i = arr.findIndex(x => x.kodeSpj === res.kontrak.kodeSpj);
             if (i > -1) arr[i] = res.kontrak; else arr.push(res.kontrak);
+            hapusCachePdf(res.kontrak.kodeSpj);
         }
         if (res.penyedia) {
             const arr = window.DATABASE_PENYEDIA = window.DATABASE_PENYEDIA || [];
@@ -1935,6 +1936,7 @@ const BAP = (function () {
             .then(res => {
                 if (res.status !== 'success') { alert('Gagal menghapus: ' + res.message); if (btn) { btn.disabled = false; btn.innerHTML = awal; } return; }
                 window.DATABASE_KONTRAK = daftar().filter(x => x.kodeSpj !== k.kodeSpj);   // buang dari cache memori
+                hapusCachePdf(k.kodeSpj);
                 if (editKode === k.kodeSpj) resetForm();
                 renderTabel();
                 showToast('BAP ' + k.noBap + ' dihapus.');
@@ -1948,7 +1950,14 @@ const BAP = (function () {
     // Tidak ada HTML/CSS dokumen di sini: yang tampil di <iframe> adalah file PDF yang sama dengan hasil cetak.
     // ========================================================================
     let pdfUrl = '', pdfNama = '', seqPreview = 0;
+    const cachePdfBap = {};
 
+    function hapusCachePdf(kode) {
+        if (kode && cachePdfBap[kode]) {
+            URL.revokeObjectURL(cachePdfBap[kode].url);
+            delete cachePdfBap[kode];
+        }
+    }
     function setStatusPdf(mode, pesan) {   // 'loading' | 'error' | 'ok'
         tampil('statusPdfLoading', mode === 'loading');
         tampil('statusPdfError', mode === 'error');
@@ -1958,7 +1967,6 @@ const BAP = (function () {
     }
     function bersihkanPdf() {
         $('frameBapPdf').src = 'about:blank';
-        if (pdfUrl) URL.revokeObjectURL(pdfUrl);
         pdfUrl = ''; pdfNama = '';
     }
     function isiBannerPajak(p) {
@@ -1970,40 +1978,57 @@ const BAP = (function () {
         $('pjBersih').textContent = rpTeks(p.nilaiBersih);
         tampil('bannerPajakBap', true);
     }
+    function tampilkanHasilPdf(item) {
+        isiBannerPajak(item.pajak || {});
+        pdfUrl = item.url;
+        pdfNama = item.nama;
+        $('frameBapPdf').src = pdfUrl;
+        setStatusPdf('ok');
+        if ((item.peringatan || []).length) {
+            $('pesanPeringatanPdf').textContent = item.peringatan.length + ' sel template tidak terisi (posisi sel berbeda dari peta). Periksa dokumen, lalu beri tahu Super Admin (rincian di LOG_SISTEM).';
+            tampil('pesanPeringatanPdf', true);
+        }
+    }
 
     function preview(kode) {
         const k = cariKontrak(kode);
         if (!k) { alert('Data BAP tidak ditemukan. Muat ulang halaman.'); return; }
         if (!KONFIG_TAHAP[k.tahapBayar]) { alert('Tahap pembayaran "' + k.tahapBayar + '" belum memiliki tab template.'); return; }
         previewKode = k.kodeSpj;
-        const urut = ++seqPreview;                      // penanda: abaikan hasil lama bila modal ditutup / diganti
+        const urut = ++seqPreview;
         bersihkanPdf();
         tampil('bannerPajakBap', false); tampil('pesanPeringatanPdf', false);
         $('judulPreviewBap').textContent = `${k.noBap} · ${k.tahapBayar}`;
         tampil('btnEditDariPreview', bolehEdit(k));
-        setStatusPdf('loading');
         openModal('modalPreviewBap');
+
+        if (cachePdfBap[k.kodeSpj]) {
+            tampilkanHasilPdf(cachePdfBap[k.kodeSpj]);
+            return;
+        }
+
+        setStatusPdf('loading');
         apiPost({ action: 'pdf_bap', kodeSpj: k.kodeSpj })
             .then(res => {
                 if (urut !== seqPreview) return;
                 if (res.status !== 'success') { setStatusPdf('error', res.message); return; }
-                isiBannerPajak(res.pajak || {});
                 const bytes = Uint8Array.from(atob(res.pdfBase64), ch => ch.charCodeAt(0));
-                pdfUrl = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
-                pdfNama = res.namaFile || 'BAP.pdf';
-                $('frameBapPdf').src = pdfUrl;
-                setStatusPdf('ok');
-                if ((res.peringatan || []).length) {
-                    $('pesanPeringatanPdf').textContent = res.peringatan.length + ' sel template tidak terisi (posisi sel berbeda dari peta). Periksa dokumen, lalu beri tahu Super Admin (rincian di LOG_SISTEM).';
-                    tampil('pesanPeringatanPdf', true);
-                }
+                hapusCachePdf(k.kodeSpj);
+                const item = {
+                    url: URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' })),
+                    nama: res.namaFile || 'BAP.pdf',
+                    pajak: res.pajak || {},
+                    peringatan: res.peringatan || []
+                };
+                cachePdfBap[k.kodeSpj] = item;
+                tampilkanHasilPdf(item);
             })
             .catch(err => {
                 if (urut !== seqPreview || String(err.message) === 'Sesi berakhir') return;
                 setStatusPdf('error', 'Koneksi terputus: ' + err.message);
             });
     }
-    function ulangiPreview() { if (previewKode) preview(previewKode); }
+    function ulangiPreview() { if (previewKode) { hapusCachePdf(previewKode); preview(previewKode); } }
     function tutupPreview() { seqPreview++; bersihkanPdf(); previewKode = ''; closeModal('modalPreviewBap'); }
     function editDariPreview() { if (previewKode) mulaiEdit(previewKode); }
 
