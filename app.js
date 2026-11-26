@@ -1693,7 +1693,6 @@ const BAP = (function () {
         perbaruiPlaceholderPernyataan();
         hitungLive();
     }
-
     // BAP lain pada kontrak yang sama, dipisah: lebih dulu tersimpan (earlier) & lanjutan (later). Saat edit, BAP sendiri tidak dihitung.
     function kerabat(noKontrak) {
         const all = daftar(), key = String(noKontrak || '').trim();
