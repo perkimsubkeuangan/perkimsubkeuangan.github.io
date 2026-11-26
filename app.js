@@ -534,7 +534,7 @@ function kirimPengajuanSpjBaru(e) {
                     }
                     document.getElementById('formNewSpj').parentElement.appendChild(divSukses);
                 }
-            } else { alert("GAGAL MENYIMPAN!\n" + res.message); }
+            } else { alert("GAGAL MENYIMPAN!\n" + (res.message || res.pesan || JSON.stringify(res))); }
         })
         .catch(err => alert("KONEKSI TERPUTUS!\nError: " + err.message))
         .finally(() => { 
