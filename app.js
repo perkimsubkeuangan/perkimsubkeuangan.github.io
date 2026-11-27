@@ -160,8 +160,9 @@ function masukSistem() {
     // Buat Pengajuan: hanya PPTK & SUPER_ADMIN (VERIFIKATOR & PIMPINAN hanya melihat / memverifikasi)
     document.querySelectorAll('.btn-buat-spj').forEach(btn => { const li = btn.closest('li'); (li || btn).style.display = bisaBuatSpj() ? '' : 'none'; });
     
-    isiDropdownPptkUtama(); kunciPptkLogin(); renderTabelSpj(); hitungAnggaran(); isiDropdownProgram();
+    isiDropdownPptkUtama(); kunciPptkLogin(); hitungAnggaran(); isiDropdownProgram();
     BAP.init();   // form (modal) & riwayat BAP (tab sidebar "Modul BAP LS")
+    setJenisTampilan(filterJenis || 'ALL');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -249,7 +250,7 @@ function hitungAnggaran() {
             </div>`;
         }).join('');
     }
-    let cat = 'Triwulan ditentukan dari bulan pada nomor NPD (contoh <b>.../P2/<u>4</u>/2026</b> = bulan 4) untuk GU, dan dari tanggal pindahbuku untuk LS. “Cair” = sudah dipindahbukukan; “Proses” = diajukan namun belum cair (ditolak tidak dihitung).';
+    let cat = 'Triwulan ditentukan dari bulan pada nomor NPD (contoh <b>.../P2/<u>4</u>/2026</b> = bulan 4) untuk GU, dan dari tanggal pengajuan untuk LS. “Cair” = GU sudah dipindahbukukan &amp; LS sudah disetujui; “Proses” = diajukan namun belum selesai (ditolak tidak dihitung).';
     if (real.tanpaPeriode) cat += ` <span class="text-amber-600">${real.tanpaPeriode} pengajuan tidak terhitung karena bulan tidak dapat dibaca.</span>`;
     if (real.luarTahun) cat += ` <span class="text-slate-500">${real.luarTahun} pengajuan di luar TA ${CONFIG.TAHUN_ANGGARAN} tidak dihitung.</span>`;
     const elCat = document.getElementById('infoPaguCatatan'); if (elCat) elCat.innerHTML = cat;
@@ -296,70 +297,166 @@ function setJenisTampilan(jenis) {
     const modeBap = (jenis === 'BAP');
     if (!modeBap) filterJenis = jenis;      // BAP bukan filter SPJ: filterJenis tetap pada nilai SPJ terakhir
     currentPage = 1;
+
+    const temaMenu = {
+        ALL: { aktif: ['bg-emerald-50', 'text-emerald-700', 'border-emerald-100'], ikon: 'text-emerald-500', dot: 'bg-emerald-500' },
+        GU:  { aktif: ['bg-indigo-50', 'text-indigo-700', 'border-indigo-100'],   ikon: 'text-indigo-600',  dot: 'bg-indigo-600' },
+        LS:  { aktif: ['bg-purple-50', 'text-purple-700', 'border-purple-100'],   ikon: 'text-purple-600',  dot: 'bg-purple-600' },
+        BAP: { aktif: ['bg-blue-50', 'text-blue-700', 'border-blue-100'],         ikon: 'text-blue-600',    dot: 'bg-blue-600' }
+    };
+    const semuaKelasAktif = [
+        'bg-emerald-50', 'text-emerald-700', 'border-emerald-100', 'text-sipd-emerald',
+        'bg-indigo-50', 'text-indigo-700', 'border-indigo-100',
+        'bg-purple-50', 'text-purple-700', 'border-purple-100',
+        'bg-blue-50', 'text-blue-700', 'border-blue-100',
+        'active-menu', 'font-bold', 'justify-between'
+    ];
+    const semuaKelasIkon = ['text-emerald-500', 'text-indigo-600', 'text-purple-600', 'text-blue-600'];
+
     document.querySelectorAll('.menu-item').forEach(el => {
-        el.classList.remove('bg-emerald-50', 'text-emerald-700', 'border-emerald-100', 'active-menu', 'font-bold');
+        el.classList.remove(...semuaKelasAktif);
         el.classList.add('text-slate-600', 'hover:bg-slate-50', 'hover:text-emerald-600', 'font-medium', 'border-transparent');
-        const icon = el.querySelector('.menu-icon'); if(icon) icon.classList.replace('text-emerald-500', 'text-slate-400');
-        const dot = el.querySelector('.indicator-dot'); if(dot) dot.remove();
+        const icon = el.querySelector('.menu-icon');
+        if (icon) { icon.classList.remove(...semuaKelasIkon); icon.classList.add('text-slate-400'); }
+        const dot = el.querySelector('.indicator-dot'); if (dot) dot.remove();
     });
     const activeEl = document.getElementById('menu-' + jenis.toLowerCase());
+    const tm = temaMenu[jenis] || temaMenu.ALL;
     if (activeEl) {
         activeEl.classList.remove('text-slate-600', 'hover:bg-slate-50', 'hover:text-emerald-600', 'font-medium', 'border-transparent');
-        activeEl.classList.add('bg-emerald-50', 'text-emerald-700', 'border-emerald-100', 'active-menu', 'font-bold');
-        const icon = activeEl.querySelector('.menu-icon'); if(icon) icon.classList.replace('text-slate-400', 'text-emerald-500');
-        if (!activeEl.querySelector('.indicator-dot')) { const dot = document.createElement('div'); dot.className = 'w-1.5 h-1.5 bg-emerald-500 rounded-full indicator-dot'; activeEl.appendChild(dot); }
+        activeEl.classList.add(...tm.aktif, 'active-menu', 'font-bold');
+        const icon = activeEl.querySelector('.menu-icon');
+        if (icon) { icon.classList.remove('text-slate-400'); icon.classList.add(tm.ikon); }
+        if (!activeEl.querySelector('.indicator-dot')) {
+            const dot = document.createElement('div');
+            dot.className = `w-1.5 h-1.5 ${tm.dot} rounded-full indicator-dot ml-auto`;
+            activeEl.appendChild(dot);
+        }
     }
-    
-    const title = document.getElementById('page-title'); 
-    const breadcrumb = document.getElementById('breadcrumb-text'); 
+
+    const title = document.getElementById('page-title');
+    const sub = document.getElementById('page-subtitle');
+    const breadcrumb = document.getElementById('breadcrumb-text');
     const tbTitle = document.getElementById('tabel-judul-jenis');
-    
+
     BAP.tampilkanTab(modeBap);              // BAP: tampilkan panel BAP, sembunyikan dashboard/tabel SPJ (tanpa reload halaman)
     if (modeBap) {
         if (title) title.innerText = 'Modul BAP LS';
+        if (sub) sub.innerText = 'Input, edit, riwayat, dan cetak dokumen PDF A4 Berita Acara Pembayaran LS';
         if (breadcrumb) breadcrumb.innerText = 'Modul BAP LS';
         return;
     }
-    
-    if (jenis === 'ALL') { 
-        if(title) title.innerText = 'Dashboard Utama'; 
-        if(breadcrumb) breadcrumb.innerText = 'Dashboard Semua'; 
-        if(tbTitle) tbTitle.innerText = 'GU & LS'; 
-    } else if (jenis === 'GU') { 
-        if(title) title.innerText = 'Data SPJ Ganti Uang (GU)'; 
-        if(breadcrumb) breadcrumb.innerText = 'Data SPJ GU'; 
-        if(tbTitle) tbTitle.innerText = 'Ganti Uang (GU)'; 
-    } else if (jenis === 'LS') { 
-        if(title) title.innerText = 'Data SPJ Langsung (LS)'; 
-        if(breadcrumb) breadcrumb.innerText = 'Data SPJ LS'; 
-        if(tbTitle) tbTitle.innerText = 'Langsung (LS)'; 
+
+    // Tampilkan panel sesuai mode (ALL vs GU vs LS)
+    const pSemua = document.getElementById('panelDashboardSemua');
+    const pGu = document.getElementById('panelModeGu');
+    const pLs = document.getElementById('panelModeLs');
+    if (pSemua) pSemua.classList.toggle('hidden', jenis !== 'ALL');
+    if (pGu) pGu.classList.toggle('hidden', jenis !== 'GU');
+    if (pLs) pLs.classList.toggle('hidden', jenis !== 'LS');
+
+    // Tombol header & aksen tabel yang berbeda untuk GU dan LS
+    const btnBuat = document.getElementById('btnHeaderBuatSpj');
+    const lblBuat = document.getElementById('lblHeaderBuatSpj');
+    const btnKeBap = document.getElementById('btnHeaderKeBap');
+    const secTabel = document.getElementById('sectionTabelSpj');
+    const headTabel = document.getElementById('spjTableHead');
+    const thAksi = document.getElementById('th-aksi');
+    const ikonTabel = document.getElementById('ikonTabelSpj');
+    const thNpd = document.getElementById('th-npd-kontrak');
+    const thUraian = document.getElementById('th-uraian');
+    const inpCari = document.getElementById('inputSearchSpj');
+
+    if (btnKeBap) {
+        btnKeBap.classList.toggle('hidden', jenis !== 'LS');
+        btnKeBap.classList.toggle('flex', jenis === 'LS');
     }
-    
-    const thJenis = document.getElementById('th-jenis'); 
+
+    if (jenis === 'ALL') {
+        if (title) title.innerText = 'Dashboard Utama';
+        if (sub) sub.innerText = 'Ringkasan pagu, total berkas pencairan GU & LS, serta antrean verifikasi';
+        if (breadcrumb) breadcrumb.innerText = 'Dashboard Semua';
+        if (tbTitle) tbTitle.innerText = 'GU & LS';
+        if (lblBuat) lblBuat.innerText = 'Buat SPJ Baru';
+        if (btnBuat) btnBuat.className = 'btn-buat-spj px-4 py-2 bg-sipd-navy hover:bg-slate-800 border border-transparent rounded text-xs font-bold text-white shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap';
+        if (secTabel) secTabel.className = 'bg-white rounded-lg shadow-sm border border-slate-200 p-4 relative z-0 transition-colors';
+        if (headTabel) headTabel.className = 'bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px] sticky top-0 z-20 shadow-sm border-b border-slate-200';
+        if (thAksi) thAksi.className = 'py-3.5 px-4 border-b border-slate-200 text-center sticky right-0 bg-slate-50 shadow-[-4px_0_10px_rgba(0,0,0,0.02)] z-20 border-l border-slate-200';
+        if (ikonTabel) ikonTabel.className = 'fa-solid fa-list-check text-sipd-emerald me-2';
+        if (thNpd) thNpd.innerText = 'No. NPD / Kontrak';
+        if (thUraian) thUraian.innerText = 'Nama Pekerjaan / Uraian';
+        if (inpCari) inpCari.placeholder = 'Cari NPD, Kontrak, Kegiatan, CV...';
+    } else if (jenis === 'GU') {
+        if (title) title.innerText = 'Data SPJ Ganti Uang (GU)';
+        if (sub) sub.innerText = 'Daftar pengajuan GU berbasis Nomor NPD hingga tahap Transfer PB';
+        if (breadcrumb) breadcrumb.innerText = 'Data SPJ GU';
+        if (tbTitle) tbTitle.innerText = 'Ganti Uang (GU)';
+        if (lblBuat) lblBuat.innerText = 'Buat SPJ GU';
+        if (btnBuat) btnBuat.className = 'btn-buat-spj px-4 py-2 bg-indigo-600 hover:bg-indigo-700 border border-transparent rounded text-xs font-bold text-white shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap';
+        if (secTabel) secTabel.className = 'bg-white rounded-lg shadow-sm border border-indigo-200 border-t-4 border-t-indigo-600 p-4 relative z-0 transition-colors';
+        if (headTabel) headTabel.className = 'bg-indigo-50 text-indigo-900 font-bold uppercase tracking-wider text-[10px] sticky top-0 z-20 shadow-sm border-b border-indigo-200';
+        if (thAksi) thAksi.className = 'py-3.5 px-4 border-b border-indigo-200 text-center sticky right-0 bg-indigo-50 shadow-[-4px_0_10px_rgba(0,0,0,0.02)] z-20 border-l border-indigo-200';
+        if (ikonTabel) ikonTabel.className = 'fa-solid fa-file-invoice-dollar text-indigo-600 me-2';
+        if (thNpd) thNpd.innerText = 'Nomor NPD';
+        if (thUraian) thUraian.innerText = 'Uraian SPJ';
+        if (inpCari) inpCari.placeholder = 'Cari Nomor NPD, Kegiatan, Uraian GU...';
+    } else if (jenis === 'LS') {
+        if (title) title.innerText = 'Data SPJ Langsung (LS)';
+        if (sub) sub.innerText = 'Daftar pengajuan LS berbasis BAP & Kontrak (berakhir pada status Disetujui)';
+        if (breadcrumb) breadcrumb.innerText = 'Data SPJ LS';
+        if (tbTitle) tbTitle.innerText = 'Langsung (LS)';
+        if (lblBuat) lblBuat.innerText = 'Buat SPJ LS';
+        if (btnBuat) btnBuat.className = 'btn-buat-spj px-4 py-2 bg-purple-600 hover:bg-purple-700 border border-transparent rounded text-xs font-bold text-white shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap';
+        if (secTabel) secTabel.className = 'bg-white rounded-lg shadow-sm border border-purple-200 border-t-4 border-t-purple-600 p-4 relative z-0 transition-colors';
+        if (headTabel) headTabel.className = 'bg-purple-50 text-purple-900 font-bold uppercase tracking-wider text-[10px] sticky top-0 z-20 shadow-sm border-b border-purple-200';
+        if (thAksi) thAksi.className = 'py-3.5 px-4 border-b border-purple-200 text-center sticky right-0 bg-purple-50 shadow-[-4px_0_10px_rgba(0,0,0,0.02)] z-20 border-l border-purple-200';
+        if (ikonTabel) ikonTabel.className = 'fa-solid fa-file-signature text-purple-600 me-2';
+        if (thNpd) thNpd.innerText = 'No. Kontrak / SPK';
+        if (thUraian) thUraian.innerText = 'Nama Pekerjaan';
+        if (inpCari) inpCari.placeholder = 'Cari No. Kontrak, Penyedia/CV, Pekerjaan...';
+    }
+
+    // Re-apply hak akses tombol Buat SPJ (karena className berubah di atas)
+    if (btnBuat) btnBuat.style.display = bisaBuatSpj() ? '' : 'none';
+
+    const thJenis = document.getElementById('th-jenis');
     const thCv = document.getElementById('th-cv');
     const thTahap = document.getElementById('th-tahap');
     const thTglPb = document.getElementById('th-tglpb');
-    
-    if (jenis === 'ALL') { 
-        if(thJenis) thJenis.style.display = 'table-cell'; 
-        if(thCv) thCv.style.display = 'table-cell';
-        if(thTahap) thTahap.style.display = 'table-cell';
-        if(thTglPb) thTglPb.style.display = 'table-cell';
-    } 
-    else if (jenis === 'GU') { 
-        if(thJenis) thJenis.style.display = 'none'; 
-        if(thCv) thCv.style.display = 'none';
-        if(thTahap) thTahap.style.display = 'none';
-        if(thTglPb) thTglPb.style.display = 'table-cell';
+
+    if (jenis === 'ALL') {
+        if (thJenis) thJenis.style.display = 'table-cell';
+        if (thCv) thCv.style.display = 'table-cell';
+        if (thTahap) thTahap.style.display = 'table-cell';
+        if (thTglPb) thTglPb.style.display = 'table-cell';
+    } else if (jenis === 'GU') {
+        if (thJenis) thJenis.style.display = 'none';
+        if (thCv) thCv.style.display = 'none';
+        if (thTahap) thTahap.style.display = 'none';
+        if (thTglPb) thTglPb.style.display = 'table-cell';
+    } else if (jenis === 'LS') {
+        if (thJenis) thJenis.style.display = 'none';
+        if (thCv) thCv.style.display = 'table-cell';
+        if (thTahap) thTahap.style.display = 'table-cell';
+        if (thTglPb) thTglPb.style.display = 'none';
     }
-    else if (jenis === 'LS') {
-        if(thJenis) thJenis.style.display = 'none'; 
-        if(thCv) thCv.style.display = 'table-cell';
-        if(thTahap) thTahap.style.display = 'table-cell';
-        if(thTglPb) thTglPb.style.display = 'none';
-    }
-    
+
     renderTabelSpj();
+}
+
+function validasiDaftarEmail(raw, maks = 5) {
+    const teks = String(raw || '').trim();
+    if (!teks) return { ok: true, teks: '' };
+    const arr = teks.split(/[,;\n]+/).map(x => x.trim()).filter(Boolean);
+    if (arr.length > maks) return { ok: false, pesan: `Maksimal ${maks} alamat email.` };
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const unik = [], seen = {};
+    for (const em of arr) {
+        if (!re.test(em)) return { ok: false, pesan: `Format email tidak valid: ${em}` };
+        const k = em.toLowerCase();
+        if (!seen[k]) { seen[k] = true; unik.push(em); }
+    }
+    return { ok: true, teks: unik.join(', ') };
 }
 
 function escapeHtml(s) {
@@ -380,7 +477,13 @@ function setSelectValue(el, val) {
 
 function openModal(id) { 
     if(id === 'modalNewSpj' && !isEditMode) { 
-        document.getElementById('formNewSpj').reset(); ubahLabelNpdKontrak(); kunciPptkLogin();
+        document.getElementById('formNewSpj').reset();
+        const selJenis = document.getElementById('inputJenisSurat');
+        if (selJenis && window._defaultJenisSpjBaru && (window._defaultJenisSpjBaru === 'GU' || window._defaultJenisSpjBaru === 'LS')) {
+            selJenis.value = window._defaultJenisSpjBaru;
+        }
+        window._defaultJenisSpjBaru = '';
+        ubahLabelNpdKontrak(); kunciPptkLogin();
         if (typeof autoFillKontakPptk === 'function') autoFillKontakPptk();
         const existingSukses = document.getElementById('pesanSuksesDiv'); if(existingSukses) existingSukses.remove();
         document.getElementById('formNewSpj').classList.remove('hidden'); document.getElementById('btnSubmitNew').innerText = "Lanjut ke Form Upload"; 

@@ -155,7 +155,7 @@ const BAP = (function () {
             return `
             <tr class="hover:bg-blue-50/30 border-b border-slate-100">
                 <td class="py-3 px-4 font-bold text-slate-700">${e(k.noKontrak || '-')}<br><span class="text-[10px] text-slate-400 font-normal">Tgl: ${formatTgl(k.tglKontrak)} &middot; ${e(k.noBap || '-')}</span></td>
-                <td class="py-3 px-4 font-bold text-purple-700">${e(k.pelaksana || '-')}<br><span class="text-[10px] text-slate-500 font-normal block w-64 truncate" title="${e(k.uraian)}">${e(k.uraian || '-')}</span></td>
+                <td class="py-3 px-4 font-bold text-purple-700">${e(k.pelaksana || '-')}<br><span class="text-[10px] text-slate-500 font-normal block max-w-xs lg:max-w-md xl:max-w-2xl truncate" title="${e(k.uraian)}">${e(k.uraian || '-')}</span></td>
                 <td class="py-3 px-4 font-bold text-slate-800">${rpTeks(k.pembayaranBapIni)}${adaPotongan ? `<br><span class="text-[10px] text-slate-400 font-normal">Bruto ${rpTeks(k.nilaiBayar)} &minus; potongan ${rpTeks(k.jumlahPotongan)}</span>` : ''}</td>
                 <td class="py-3 px-4 font-bold text-blue-600 text-xs">${e(k.tahapBayar || '-')}</td>
                 <td class="py-3 px-4 text-center space-x-1">${aksi}</td>

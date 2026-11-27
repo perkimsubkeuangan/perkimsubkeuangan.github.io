@@ -37,9 +37,11 @@ function autoFillKontakPptk() {
     if (elWa && profil.wa) elWa.value = profil.wa;
 }
 
-function bukaFormSpjBaru() {
+function bukaFormSpjBaru(jenisDefault) {
     if (!bisaBuatSpj()) { alert('Peran Anda tidak memiliki hak membuat pengajuan.'); return; }
-    isEditMode = false; editIdTarget = null; openModal('modalNewSpj');
+    isEditMode = false; editIdTarget = null;
+    window._defaultJenisSpjBaru = (jenisDefault === 'GU' || jenisDefault === 'LS') ? jenisDefault : '';
+    openModal('modalNewSpj');
 }
 
 function isiDropdownProgram() {
@@ -149,6 +151,9 @@ function autoFillDariBap() {
 
 function kirimPengajuanSpjBaru(e) {
     e.preventDefault();
+    const cekEm = validasiDaftarEmail(document.getElementById('inputEmail').value, 5);
+    if (!cekEm.ok) { alert(cekEm.pesan); return; }
+    document.getElementById('inputEmail').value = cekEm.teks;
     const btn = document.getElementById('btnSubmitNew'); btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Menyimpan...'; btn.disabled = true;
     
     const rawDate = document.getElementById('inputTanggal').value; 
@@ -278,27 +283,73 @@ function terapkanFilterDanSort() {
 
 function renderTabelSpj() {
     const tbody = document.getElementById('spjTableBody'); tbody.innerHTML = '';
-    // --- TAMBAHAN LOGIKA ACTIONABLE COUNTERS ---
-    let totalMenunggu = 0;
-    let totalRevisi = 0;
-    let totalSiapPb = 0;
+
+    // --- HITUNG STATISTIK BERKAS GU, LS, & ACTIONABLE COUNTERS ---
+    let guTotal = 0, guNominal = 0, guMenunggu = 0, guRevisi = 0, guSiapPb = 0, guSelesaiPb = 0, guDitolak = 0;
+    let lsTotal = 0, lsNominal = 0, lsMenunggu = 0, lsRevisi = 0, lsDisetujui = 0, lsNominalDisetujui = 0, lsDitolak = 0;
 
     spjData.forEach(item => {
-        if (sesiAktif.role === 'PPTK' && item.pptk !== sesiAktif.namaLengkap) return;
-        if (item.status === 'BELUM_DIPROSES') totalMenunggu++;
-        if (item.status === 'REVISI') totalRevisi++;
-        if (item.status === 'DISETUJUI') totalSiapPb++; 
+        if (sesiAktif.role === 'PPTK' && String(item.pptk).trim() !== String(sesiAktif.namaLengkap).trim()) return;
+        const jns = String(item.jenisSurat || 'GU').trim();
+        const nom = Number(item.nominal) || 0;
+        const st = String(item.status || '');
+        if (jns === 'LS') {
+            lsTotal++;
+            if (st !== 'DITOLAK') lsNominal += nom;
+            if (st === 'BELUM_DIPROSES') lsMenunggu++;
+            else if (st === 'REVISI') lsRevisi++;
+            else if (st === 'DISETUJUI' || st === 'SUDAH DIPINDAHBUKUKAN') { lsDisetujui++; lsNominalDisetujui += nom; }
+            else if (st === 'DITOLAK') lsDitolak++;
+        } else {
+            guTotal++;
+            if (st !== 'DITOLAK') guNominal += nom;
+            if (st === 'BELUM_DIPROSES') guMenunggu++;
+            else if (st === 'REVISI') guRevisi++;
+            else if (st === 'DISETUJUI') guSiapPb++;
+            else if (st === 'SUDAH DIPINDAHBUKUKAN') guSelesaiPb++;
+            else if (st === 'DITOLAK') guDitolak++;
+        }
     });
 
-    const elMenunggu = document.getElementById('countMenunggu');
-    const elRevisi = document.getElementById('countRevisi');
-    const elSiapPb = document.getElementById('countSiapPb');
+    const setT = (id, txt) => { const el = document.getElementById(id); if (el) el.innerText = txt; };
 
-    if(elMenunggu) elMenunggu.innerText = totalMenunggu;
-    if(elRevisi) elRevisi.innerText = totalRevisi;
-    if(elSiapPb) elSiapPb.innerText = totalSiapPb;
-    
-    let filteredData = [...spjData]; 
+    // Dashboard Semua: Total Berkas Pencairan GU & LS
+    const guProses = guMenunggu + guRevisi + guSiapPb;
+    const lsProses = lsMenunggu + lsRevisi;
+    setT('totalBerkasGu', String(guTotal));
+    setT('totalNominalGu', formatRupiah(guNominal));
+    setT('subBerkasGu', `Selesai PB: ${guSelesaiPb} · Siap PB: ${guSiapPb} · Proses: ${guMenunggu + guRevisi}`);
+
+    setT('totalBerkasLs', String(lsTotal));
+    setT('totalNominalLs', formatRupiah(lsNominal));
+    setT('subBerkasLs', `Disetujui: ${lsDisetujui} · Proses: ${lsProses}${lsDitolak ? ' · Ditolak: ' + lsDitolak : ''}`);
+
+    setT('totalBerkasSemua', String(guTotal + lsTotal));
+    setT('totalNominalSemua', formatRupiah(guNominal + lsNominal));
+    setT('subBerkasSemua', `Selesai: ${guSelesaiPb + lsDisetujui} · Proses: ${guProses + lsProses} · Ditolak: ${guDitolak + lsDitolak}`);
+
+    // Dashboard Semua: Actionable Counters (Tunggu Transfer PB KHUSUS GU, LS tidak masuk!)
+    setT('countMenunggu', String(guMenunggu + lsMenunggu));
+    setT('countRevisi', String(guRevisi + lsRevisi));
+    setT('countSiapPb', String(guSiapPb));
+
+    // Panel Khusus GU
+    setT('guCountTotal', String(guTotal));
+    setT('guNominalTotal', formatRupiah(guNominal));
+    setT('guSubSelesaiPb', `Selesai PB: ${guSelesaiPb}`);
+    setT('guCountMenunggu', String(guMenunggu));
+    setT('guCountRevisi', String(guRevisi));
+    setT('guCountSiapPb', String(guSiapPb));
+
+    // Panel Khusus LS (berakhir di Disetujui)
+    setT('lsCountTotal', String(lsTotal));
+    setT('lsNominalTotal', formatRupiah(lsNominal));
+    setT('lsCountMenunggu', String(lsMenunggu));
+    setT('lsCountRevisi', String(lsRevisi));
+    setT('lsCountDisetujui', String(lsDisetujui));
+    setT('lsNominalDisetujui', formatRupiah(lsNominalDisetujui));
+
+    let filteredData = [...spjData];
     if (filterJenis !== 'ALL') {
         filteredData = filteredData.filter(item => String(item.jenisSurat || 'GU') === filterJenis);
     }
@@ -331,33 +382,41 @@ function renderTabelSpj() {
     if (dataHalamanIni.length === 0) { tbody.innerHTML = `<tr><td colspan="${colSpanNum}" class="text-center py-10 text-slate-500 font-medium">Belum ada data SPJ untuk ditampilkan.</td></tr>`; return; }
 
     dataHalamanIni.forEach(item => {
+        let jenisSurat = String(item.jenisSurat || 'GU');
         let badge = `<span class="px-2.5 py-1 rounded-full border border-slate-200 font-bold text-slate-600 bg-slate-100 text-[10px] tracking-wide">MENUNGGU</span>`;
-        if(item.status === 'DISETUJUI') badge = `<span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200 text-[10px] tracking-wide">DISETUJUI</span>`;
-        if(item.status === 'REVISI') badge = `<span class="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-bold border border-amber-200 text-[10px] tracking-wide">REVISI</span>`;
-        if(item.status === 'DITOLAK') badge = `<span class="px-2.5 py-1 rounded-full bg-red-50 text-red-700 font-bold border border-red-200 text-[10px] tracking-wide">DITOLAK</span>`;
-        if(item.status === 'SUDAH DIPINDAHBUKUKAN') badge = `<span class="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-200 text-[10px] tracking-wide">SELESAI PB</span>`;
-        
+        if (item.status === 'DISETUJUI') {
+            badge = jenisSurat === 'LS'
+                ? `<span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-300 text-[10px] tracking-wide"><i class="fa-solid fa-circle-check me-1"></i>DISETUJUI</span>`
+                : `<span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200 text-[10px] tracking-wide">DISETUJUI</span>`;
+        }
+        if (item.status === 'REVISI') badge = `<span class="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-bold border border-amber-200 text-[10px] tracking-wide">REVISI</span>`;
+        if (item.status === 'DITOLAK') badge = `<span class="px-2.5 py-1 rounded-full bg-red-50 text-red-700 font-bold border border-red-200 text-[10px] tracking-wide">DITOLAK</span>`;
+        if (item.status === 'SUDAH DIPINDAHBUKUKAN') badge = `<span class="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-200 text-[10px] tracking-wide">SELESAI PB</span>`;
+
         const bacaSaja = (sesiAktif.role === 'PPTK' || sesiAktif.role === 'PIMPINAN');
         let actionBtnText = bacaSaja ? '<i class="fa-solid fa-folder-open"></i> DETAIL' : '<i class="fa-solid fa-clipboard-check"></i> VERIFIKASI';
-        let actionBtnColor = bacaSaja ? 'bg-slate-700 hover:bg-slate-800' : 'bg-sipd-navy hover:bg-slate-800';
+        let actionBtnColor = bacaSaja
+            ? 'bg-slate-700 hover:bg-slate-800'
+            : (filterJenis === 'GU' ? 'bg-indigo-600 hover:bg-indigo-700' : (filterJenis === 'LS' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-sipd-navy hover:bg-slate-800'));
 
-        let jenisSurat = String(item.jenisSurat || 'GU');
         let jenisBadge = jenisSurat === 'LS' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200';
         let tdJenisHtml = filterJenis === 'ALL' ? `<td class="py-4 px-4 text-xs align-top text-center whitespace-nowrap"><span class="px-2 py-1 rounded-md border font-bold text-[10px] ${jenisBadge}">${jenisSurat}</span></td>` : ``;
 
         let cvText = jenisSurat === 'LS' && item.namaCv ? escapeHtml(item.namaCv) : '-';
         let tahapText = jenisSurat === 'LS' && item.tahap ? escapeHtml(item.tahap) : '-';
-        let tglPbText = item.tglPb ? formatTanggalIndo(String(item.tglPb)) : '-';
+        let tglPbText = jenisSurat === 'LS' ? '<span class="text-slate-300">-</span>' : (item.tglPb ? formatTanggalIndo(String(item.tglPb)) : '-');
         let uraianPekerjaan = escapeHtml(item.uraian || '-');
+        let npdColor = filterJenis === 'GU' ? 'text-indigo-900' : (filterJenis === 'LS' ? 'text-purple-900' : 'text-slate-800');
+        let rowHover = filterJenis === 'GU' ? 'hover:bg-indigo-50/40' : (filterJenis === 'LS' ? 'hover:bg-purple-50/40' : 'hover:bg-slate-50/50');
 
         let tdCvHtml = (filterJenis === 'ALL' || filterJenis === 'LS') ? `<td class="py-4 px-4 text-xs align-top font-bold text-purple-700">${cvText}</td>` : ``;
-        let tdTahapHtml = (filterJenis === 'ALL' || filterJenis === 'LS') ? `<td class="py-4 px-4 text-xs align-top text-center">${tahapText}</td>` : ``;
+        let tdTahapHtml = (filterJenis === 'ALL' || filterJenis === 'LS') ? `<td class="py-4 px-4 text-xs align-top text-center"><span class="${jenisSurat === 'LS' ? 'px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded font-bold text-[10px]' : ''}">${tahapText}</span></td>` : ``;
         let tdTglPbHtml = (filterJenis === 'ALL' || filterJenis === 'GU') ? `<td class="py-4 px-4 text-xs align-top font-bold text-blue-600">${tglPbText}</td>` : ``;
 
         tbody.innerHTML += `
-            <tr class="hover:bg-slate-50/50 border-b border-slate-100 transition-colors">
+            <tr class="${rowHover} border-b border-slate-100 transition-colors">
                 <td class="py-4 px-4 text-xs align-top whitespace-nowrap text-slate-500 font-medium">${formatTanggalIndo(item.createdAt)}</td>
-                <td class="py-4 px-4 text-xs align-top font-bold text-slate-800 max-w-[150px] whitespace-normal break-words">${escapeHtml(item.npd || '-')}</td>
+                <td class="py-4 px-4 text-xs align-top font-bold ${npdColor} max-w-[160px] whitespace-normal break-words">${escapeHtml(item.npd || '-')}</td>
                 ${tdJenisHtml}
                 <td class="py-4 px-4 text-xs align-top whitespace-nowrap">${escapeHtml(item.pptk || '-')}<br><span class="text-[10px] text-slate-500">${escapeHtml(item.unitKerja || '-')}</span></td>
                 <td class="py-4 px-4 text-xs align-top leading-relaxed min-w-[200px] whitespace-normal break-words">
@@ -368,7 +427,7 @@ function renderTabelSpj() {
                 ${tdCvHtml}
                 ${tdTahapHtml}
                 ${tdTglPbHtml}
-                <td class="py-4 px-4 text-xs align-top text-slate-600 max-w-[200px] whitespace-normal break-words">${uraianPekerjaan}</td>
+                <td class="py-4 px-4 text-xs align-top text-slate-600 max-w-[220px] whitespace-normal break-words">${uraianPekerjaan}</td>
                 <td class="py-4 px-4 text-xs text-right font-bold align-top whitespace-nowrap text-slate-800">${formatRupiah(item.nominal)}</td>
                 <td class="py-4 px-4 text-center align-top whitespace-nowrap">${badge}</td>
                 <td class="py-4 px-4 text-center align-top whitespace-nowrap sticky right-0 bg-white/90 backdrop-blur-sm shadow-[-8px_0_15px_rgba(0,0,0,0.02)] z-10 border-l border-slate-100">
@@ -600,9 +659,11 @@ function bukaModalVerifikasi(id) {
     const btnPb = document.getElementById('btnPb');
     
     if(btnSetuju && btnRevisi && btnTolak && btnPb) {
-        // VERIFIKATOR: Setuju/Revisi/Tolak + PB. SUPER_ADMIN: sama (override/cadangan).
-        btnSetuju.style.display = 'flex'; btnRevisi.style.display = 'flex'; btnTolak.style.display = 'flex'; btnPb.style.display = 'flex';
-        document.getElementById('gridTombolAksi').className = "grid grid-cols-4 gap-2 mb-2";
+        // SPJ LS berakhir pada DISETUJUI (tanpa tombol PB). SPJ GU lanjut ke PB.
+        const isLs = String(item.jenisSurat || 'GU').trim() === 'LS';
+        btnSetuju.style.display = 'flex'; btnRevisi.style.display = 'flex'; btnTolak.style.display = 'flex';
+        btnPb.style.display = isLs ? 'none' : 'flex';
+        document.getElementById('gridTombolAksi').className = isLs ? "grid grid-cols-3 gap-2 mb-2" : "grid grid-cols-4 gap-2 mb-2";
     }
     // Edit teks pengajuan milik PPTK: hanya SUPER_ADMIN (koreksi); VERIFIKATOR tidak boleh
     const btnEditVerif = document.getElementById('btnEditTeksVerif'); if (btnEditVerif) btnEditVerif.style.display = (sesiAktif.role === 'SUPER_ADMIN') ? 'flex' : 'none';
