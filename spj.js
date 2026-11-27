@@ -344,9 +344,8 @@ function exportSpjExcel() {
         XLSX.writeFile(wb, namaFile + '.xlsx');
         showToast('File Excel ' + namaFile + '.xlsx berhasil diunduh.');
     } else {
-        const csv = [head, ...rows].map(r => r.map(v => '"' + String(v === null || v === undefined ? '' : v).replace(/"/g, '""') + '"').join(',')).join('
-');
-        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+       const csv = [head, ...rows].map(r => r.map(v => '"' + String(v === null || v === undefined ? '' : v).replace(/"/g, '""') + '"').join(',')).join('\n');
+const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = namaFile + '.csv';
         document.body.appendChild(a); a.click(); a.remove();
         showToast('File CSV ' + namaFile + '.csv berhasil diunduh.');
