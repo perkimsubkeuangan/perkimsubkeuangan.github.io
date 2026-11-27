@@ -129,9 +129,26 @@ function ubahTahunLogin() {
     }
 }
 
-function urlFormUploadAktif(jenis, idSpj) {
+let filterPemilikSpj = 'ALL';
+
+// Cek apakah Google Form (> 10 MB) tersedia khusus untuk tahun anggaran aktif.
+// Mencegah berkas tahun baru (mis. TA 2027) nyasar ke Google Form & Drive TA 2026.
+function adaFormUploadAktif(jenis) {
+    const key = String(jenis || 'GU').toUpperCase();
     if (typeof CONFIG !== 'undefined' && CONFIG._ACTIVE_FORMS) {
-        const key = String(jenis || 'GU').toUpperCase();
+        return !!(CONFIG._ACTIVE_FORMS[key] || CONFIG._ACTIVE_FORMS[key.toLowerCase()]);
+    }
+    const taAktif = String((typeof CONFIG !== 'undefined' && (CONFIG._TAHUN_TERPILIH || CONFIG.TAHUN_ANGGARAN)) || '2026');
+    if (taAktif === '2026' && typeof FORM_UPLOAD !== 'undefined' && FORM_UPLOAD[key]) {
+        return true;
+    }
+    return false;
+}
+
+function urlFormUploadAktif(jenis, idSpj) {
+    if (!adaFormUploadAktif(jenis)) return '';
+    const key = String(jenis || 'GU').toUpperCase();
+    if (typeof CONFIG !== 'undefined' && CONFIG._ACTIVE_FORMS) {
         const raw = CONFIG._ACTIVE_FORMS[key] || CONFIG._ACTIVE_FORMS[key.toLowerCase()];
         if (raw) {
             return raw.indexOf('{ID}') > -1
@@ -139,7 +156,7 @@ function urlFormUploadAktif(jenis, idSpj) {
                 : raw + encodeURIComponent(String(idSpj || ''));
         }
     }
-    return typeof urlFormUpload === 'function' ? urlFormUpload(jenis, idSpj) : '#';
+    return typeof urlFormUpload === 'function' ? urlFormUpload(key, idSpj) : '';
 }
 
 // ---------- Mobile Sidebar Drawer ----------
@@ -261,6 +278,11 @@ function masukSistem() {
     }
     const liRekapLs = document.getElementById('li-menu-rekap-ls');
     if (liRekapLs) liRekapLs.classList.toggle('hidden', !bisaRekapPencairanLs());
+    const isPptk = sesiAktif.role === 'PPTK';
+    const fSpjP = document.getElementById('filterPemilikSpj');
+    if (fSpjP) { fSpjP.classList.toggle('hidden', !isPptk); if (!isPptk) { fSpjP.value = 'ALL'; filterPemilikSpj = 'ALL'; } }
+    const fBapP = document.getElementById('filterPemilikBap');
+    if (fBapP) { fBapP.classList.toggle('hidden', !isPptk); if (!isPptk) fBapP.value = 'ALL'; }
     const hv = document.getElementById('header-tahun-val'); if (hv) hv.innerText = String(CONFIG.TAHUN_ANGGARAN || '2026');
     const sv = document.getElementById('sidebar-tahun-txt'); if (sv) sv.innerText = 'TA ' + String(CONFIG.TAHUN_ANGGARAN || '2026');
     
@@ -622,11 +644,34 @@ function openModal(id) {
     if(id === 'modalNewSpj' && !isEditMode) { 
         document.getElementById('formNewSpj').reset();
         const selJenis = document.getElementById('inputJenisSurat');
-        if (selJenis && window._defaultJenisSpjBaru && (window._defaultJenisSpjBaru === 'GU' || window._defaultJenisSpjBaru === 'LS')) {
-            selJenis.value = window._defaultJenisSpjBaru;
+        if (selJenis) {
+            selJenis.style.pointerEvents = 'auto';
+            selJenis.tabIndex = 0;
+            selJenis.classList.remove('bg-slate-100');
+            if (window._defaultJenisSpjBaru && (window._defaultJenisSpjBaru === 'GU' || window._defaultJenisSpjBaru === 'LS')) {
+                selJenis.value = window._defaultJenisSpjBaru;
+            }
         }
+        const tglEl = document.getElementById('inputTanggal');
+        if (tglEl && !tglEl.value) {
+            const d = new Date();
+            tglEl.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+        const kodeBapInit = window._defaultKodeBapBaru || '';
         window._defaultJenisSpjBaru = '';
+        window._defaultKodeBapBaru = '';
         ubahLabelNpdKontrak(); kunciPptkLogin();
+        if (kodeBapInit && selJenis && selJenis.value === 'LS') {
+            const selBap = document.getElementById('inputPilihBap');
+            if (selBap) {
+                selBap.value = kodeBapInit;
+                if (typeof autoFillDariBap === 'function') autoFillDariBap();
+            }
+            const dataBap = (window.DATABASE_KONTRAK || []).find(k => String(k.kodeSpj) === String(kodeBapInit));
+            if (dataBap && dataBap.pptk && sesiAktif.role !== 'PPTK') {
+                setSelectValue(document.getElementById('inputPptk'), dataBap.pptk);
+            }
+        }
         if (typeof autoFillKontakPptk === 'function') autoFillKontakPptk();
         const existingSukses = document.getElementById('pesanSuksesDiv'); if(existingSukses) existingSukses.remove();
         document.getElementById('formNewSpj').classList.remove('hidden'); document.getElementById('btnSubmitNew').innerText = "Lanjut ke Form Upload"; 

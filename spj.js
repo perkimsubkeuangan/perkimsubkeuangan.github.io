@@ -37,10 +37,30 @@ function autoFillKontakPptk() {
     if (elWa && profil.wa) elWa.value = profil.wa;
 }
 
+function isPemilikSpj(item) {
+    return !!item && String(item.pptk || '').trim() === String(sesiAktif.namaLengkap || '').trim();
+}
+
 function bukaFormSpjBaru(jenisDefault) {
     if (!bisaBuatSpj()) { alert('Peran Anda tidak memiliki hak membuat pengajuan.'); return; }
     isEditMode = false; editIdTarget = null;
     window._defaultJenisSpjBaru = (jenisDefault === 'GU' || jenisDefault === 'LS') ? jenisDefault : '';
+    window._defaultKodeBapBaru = '';
+    openModal('modalNewSpj');
+}
+
+function bukaFormSpjDariBap(kodeBap) {
+    if (!bisaBuatSpj()) { alert('Peran Anda tidak memiliki hak membuat pengajuan SPJ.'); return; }
+    const k = (window.DATABASE_KONTRAK || []).find(x => String(x.kodeSpj) === String(kodeBap));
+    if (!k) { alert('Data BAP tidak ditemukan. Muat ulang halaman.'); return; }
+    if (sesiAktif.role === 'PPTK' && String(k.pptk).trim() !== String(sesiAktif.namaLengkap).trim()) {
+        alert('Anda hanya dapat mengajukan SPJ dari BAP milik Anda sendiri.');
+        return;
+    }
+    if (bapSudahDiajukan(k)) { alert('BAP ini sudah pernah diajukan SPJ-nya.'); return; }
+    isEditMode = false; editIdTarget = null;
+    window._defaultJenisSpjBaru = 'LS';
+    window._defaultKodeBapBaru = k.kodeSpj;
     openModal('modalNewSpj');
 }
 
@@ -81,10 +101,13 @@ function ubahLabelNpdKontrak() {
         document.getElementById('box-cv').classList.remove('hidden');
         document.getElementById('box-tahap').classList.remove('hidden');
 
-        // Data LS diambil dari BAP -> kolom dikunci
-        if (boxBap) boxBap.classList.remove('hidden');
+        // Data LS diambil dari BAP -> kolom dikunci; saat mode edit, kotak pilih BAP disembunyikan
+        if (boxBap) boxBap.classList.toggle('hidden', isEditMode);
         inputTeks.forEach(el => { if (el) { el.readOnly = true; el.classList.add('bg-slate-100'); } });
         selectAnggaran.forEach(el => { if (el) { el.style.pointerEvents = 'none'; el.tabIndex = -1; el.classList.add('bg-slate-100'); } });
+        const elCvLs = document.getElementById('inputCv'), elTahapLs = document.getElementById('inputTahap');
+        if (elCvLs) { elCvLs.readOnly = true; elCvLs.classList.add('bg-slate-100'); }
+        if (elTahapLs) { elTahapLs.style.pointerEvents = 'none'; elTahapLs.tabIndex = -1; elTahapLs.classList.add('bg-slate-100'); }
 
         if (inputPilihBap) {
             inputPilihBap.required = !isEditMode;
@@ -111,6 +134,9 @@ function ubahLabelNpdKontrak() {
         if (inputPilihBap) inputPilihBap.required = false;
         inputTeks.forEach(el => { if (el) { el.readOnly = false; el.classList.remove('bg-slate-100'); el.value = ""; } });
         selectAnggaran.forEach(el => { if (el) { el.style.pointerEvents = 'auto'; el.tabIndex = 0; el.classList.remove('bg-slate-100'); } });
+        const elCvGu = document.getElementById('inputCv'), elTahapGu = document.getElementById('inputTahap');
+        if (elCvGu) { elCvGu.readOnly = false; elCvGu.classList.remove('bg-slate-100'); }
+        if (elTahapGu) { elTahapGu.style.pointerEvents = 'auto'; elTahapGu.tabIndex = 0; elTahapGu.classList.remove('bg-slate-100'); }
 
         // Pulihkan dropdown anggaran yang sebelumnya dikunci jadi 1 pilihan oleh autoFillDariBap()
         isiDropdownProgram();
@@ -199,7 +225,7 @@ function kirimPengajuanSpjBaru(e) {
                     
                     if (payload.jenisSurat === 'LS') {
                         const jumlahLSSaatIni = spjData.filter(item => String(item.jenisSurat) === 'LS').length;
-                        const noUrut = 'LS-' + String(jumlahLSSaatIni + 1).padStart(4, '0');
+                        const noUrut = res.noAntreanLs || ('LS-' + String(jumlahLSSaatIni + 1).padStart(4, '0'));
                         const safeNpd = payload.npd.replace(/'/g, "\\'").replace(/"/g, "&quot;");
                         
                         divSukses.innerHTML = `
@@ -273,6 +299,9 @@ function cetakNomorUrut(noUrut, npd, tglUpload) {
 
 function getFilteredSpjData() {
     let data = [...spjData];
+    if (sesiAktif.role === 'PPTK' && filterPemilikSpj === 'MINE') {
+        data = data.filter(item => isPemilikSpj(item));
+    }
     if (filterJenis !== 'ALL') {
         data = data.filter(item => String(item.jenisSurat || 'GU') === filterJenis);
     }
@@ -322,6 +351,8 @@ function terapkanFilterDanSort() {
     sortType = document.getElementById('selectSortSpj') ? document.getElementById('selectSortSpj').value : 'TGL_DESC';
     const selSt = document.getElementById('selectStatusSpj');
     if (selSt) filterStatus = selSt.value || 'ALL';
+    const selPem = document.getElementById('filterPemilikSpj');
+    if (selPem) filterPemilikSpj = selPem.value || 'ALL';
     currentPage = 1;
     renderTabelSpj();
 }
@@ -360,7 +391,7 @@ function renderTabelSpj() {
     let lsTotal = 0, lsNominal = 0, lsMenunggu = 0, lsRevisi = 0, lsDisetujui = 0, lsNominalDisetujui = 0, lsDitolak = 0;
 
     spjData.forEach(item => {
-        if (sesiAktif.role === 'PPTK' && String(item.pptk).trim() !== String(sesiAktif.namaLengkap).trim()) return;
+        if (sesiAktif.role === 'PPTK' && filterPemilikSpj === 'MINE' && !isPemilikSpj(item)) return;
         const jns = String(item.jenisSurat || 'GU').trim();
         const nom = Number(item.nominal) || 0;
         const st = String(item.status || '');
@@ -469,7 +500,7 @@ function renderTabelSpj() {
                 <td class="py-4 px-4 text-xs align-top whitespace-nowrap text-slate-500 font-medium">${formatTanggalIndo(item.createdAt)}</td>
                 <td class="py-4 px-4 text-xs align-top font-bold ${npdColor} max-w-[160px] whitespace-normal break-words">${escapeHtml(item.npd || '-')}</td>
                 ${tdJenisHtml}
-                <td class="py-4 px-4 text-xs align-top whitespace-nowrap">${escapeHtml(item.pptk || '-')}<br><span class="text-[10px] text-slate-500">${escapeHtml(item.unitKerja || '-')}</span></td>
+                <td class="py-4 px-4 text-xs align-top whitespace-nowrap">${escapeHtml(item.pptk || '-')}${sesiAktif.role === 'PPTK' && isPemilikSpj(item) ? ' <span class="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[9px] font-bold">Milik Saya</span>' : ''}<br><span class="text-[10px] text-slate-500">${escapeHtml(item.unitKerja || '-')}</span></td>
                 <td class="py-4 px-4 text-xs align-top leading-relaxed min-w-[200px] whitespace-normal break-words">
                     <span class="font-bold text-slate-800">${escapeHtml(item.program || '-')}</span><br>
                     <span class="text-slate-500">${escapeHtml(item.kegiatan || '-')}</span><br>
@@ -497,12 +528,24 @@ function bolehUnggah(item) {
     return pemilik && (item.status === 'BELUM_DIPROSES' || item.status === 'REVISI');
 }
 
+function tombolHapusLampiranHtml(idItem, slot, url, namaFile) {
+    return `<button type="button" data-del-id="${escapeHtml(String(idItem))}" data-del-slot="${escapeHtml(slot)}" data-del-url="${escapeHtml(url)}" data-del-nama="${escapeHtml(namaFile)}" onclick="hapusSatuBerkas(this)" title="Hapus lampiran ini" class="shrink-0 w-7 h-7 rounded bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 flex items-center justify-center text-[11px] transition-colors"><i class="fa-solid fa-trash-can"></i></button>`;
+}
+
+function catatanFormBelumAktifHtml() {
+    const ta = String((typeof CONFIG !== 'undefined' && CONFIG.TAHUN_ANGGARAN) || '');
+    return `<div class="w-full text-[10px] text-slate-500 bg-white border border-slate-200 rounded px-2 py-1 mt-1">Form &gt; 10 MB TA ${escapeHtml(ta)} belum diaktifkan &mdash; kompres/pecah file &le; 10 MB untuk upload langsung.</div>`;
+}
+
 function jadikanLink(textUrl, idItem, formType, slot, boleh) {
     const idq = escapeHtml(String(idItem));
-    // Dua pilihan unggah: langsung (<= 10 MB) atau lewat Google Form (> 10 MB, ID Pengajuan terisi otomatis)
+    const adaForm = typeof adaFormUploadAktif === 'function' ? adaFormUploadAktif(formType) : true;
+    const tombolForm = adaForm
+        ? `<a href="${escapeHtml(urlFormUploadAktif(formType, idItem))}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1.5 bg-white text-blue-700 hover:bg-blue-50 border border-blue-300 rounded text-[10px] font-bold"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Via Google Form <span class="font-normal opacity-80">(&gt; 10 MB)</span></a>`
+        : catatanFormBelumAktifHtml();
     const duaTombol = () => `<div class="flex flex-wrap gap-1.5 mt-2">
         <button type="button" onclick="pilihBerkas('${idq}','${slot}')" class="px-2.5 py-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded text-[10px] font-bold shadow-sm"><i class="fa-solid fa-cloud-arrow-up me-1"></i> Upload Langsung <span class="font-normal opacity-80">(&le; 10 MB)</span></button>
-        <a href="${escapeHtml(urlFormUploadAktif(formType, idItem))}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1.5 bg-white text-blue-700 hover:bg-blue-50 border border-blue-300 rounded text-[10px] font-bold"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Via Google Form <span class="font-normal opacity-80">(&gt; 10 MB)</span></a>
+        ${tombolForm}
     </div>`;
     if (!textUrl || textUrl === "-" || textUrl === "") {
         return `<span class="text-slate-400 italic block">Belum dilampirkan</span>` + (boleh ? duaTombol() : '');
@@ -512,12 +555,13 @@ function jadikanLink(textUrl, idItem, formType, slot, boleh) {
         let url = line, namaFile = "Dokumen_Lampiran";
         if (line.includes("|")) { const parts = line.split("|"); url = parts[0]; namaFile = parts.slice(1).join("|"); }
         else { const matchId = line.match(/[-\w]{25,}/); if (matchId) namaFile = "File_" + matchId[0].substring(0, 8) + "..."; }
-        return `<a href="${escapeHtml(amanUrl(url))}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-bold bg-blue-50 hover:bg-blue-100 border border-blue-100 px-2 py-1.5 rounded inline-block mt-1 transition-colors flex items-center gap-1.5 w-fit"><i class="fa-solid fa-file-pdf text-red-500"></i> <span class="truncate max-w-[200px]">${escapeHtml(namaFile)}</span></a>`;
+        const btnDel = boleh ? tombolHapusLampiranHtml(idItem, slot, url, namaFile) : '';
+        return `<div class="flex items-center gap-1.5 mt-1"><a href="${escapeHtml(amanUrl(url))}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-bold bg-blue-50 hover:bg-blue-100 border border-blue-100 px-2 py-1.5 rounded transition-colors inline-flex items-center gap-1.5 max-w-[240px]"><i class="fa-solid fa-file-pdf text-red-500 shrink-0"></i> <span class="truncate">${escapeHtml(namaFile)}</span></a>${btnDel}</div>`;
     }).join('');
     return daftar + (boleh ? duaTombol() : '');
 }
 
-function renderListRevisi(textRaw) {
+function renderListRevisi(textRaw, idItem, boleh) {
     if (!textRaw || textRaw === "-" || textRaw === "") return `<span class="text-slate-400 italic text-[11px]">Belum ada lampiran revisi.</span>`;
     let htmlResult = '<div class="space-y-2 mt-2">';
     String(textRaw).split('\n').forEach(line => {
@@ -528,17 +572,41 @@ function renderListRevisi(textRaw) {
             let url = sisaTeks; let namaFile = "Dokumen_Revisi.pdf";
             if (sisaTeks.includes("|")) { const parts = sisaTeks.split("|"); url = parts[0]; namaFile = parts.slice(1).join("|"); }
             else { const matchId = url.match(/[-\w]{25,}/); if (matchId) namaFile = "Revisi_" + matchId[0].substring(0, 8) + "...pdf"; }
+            const btnDel = (boleh && idItem) ? tombolHapusLampiranHtml(idItem, 'revisi', url, namaFile) : '';
             htmlResult += `
-            <div class="flex items-start gap-2 text-[11px]">
-                <span class="font-bold text-slate-700 min-w-[12px] pt-1.5">${escapeHtml(noUtama)}</span>
-                <span class="font-bold text-slate-500 pt-1.5">${escapeHtml(tgl)}</span>
-                <a href="${escapeHtml(amanUrl(url))}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-bold bg-blue-50 px-2 py-1.5 rounded flex items-center gap-1 border border-blue-100"><i class="fa-solid fa-file-pdf text-red-500"></i> <span class="truncate max-w-[150px]">${escapeHtml(namaFile)}</span></a>
+            <div class="flex items-center gap-1.5 text-[11px] flex-wrap">
+                <span class="font-bold text-slate-700 min-w-[12px]">${escapeHtml(noUtama)}</span>
+                <span class="font-bold text-slate-500">${escapeHtml(tgl)}</span>
+                <a href="${escapeHtml(amanUrl(url))}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-bold bg-blue-50 px-2 py-1.5 rounded inline-flex items-center gap-1 border border-blue-100 max-w-[190px]"><i class="fa-solid fa-file-pdf text-red-500 shrink-0"></i> <span class="truncate">${escapeHtml(namaFile)}</span></a>
+                ${btnDel}
             </div>`;
         } else {
             htmlResult += `<div class="text-[11px] text-slate-600">${escapeHtml(trimmed)}</div>`;
         }
     });
     return htmlResult + '</div>';
+}
+
+function hapusSatuBerkas(btn) {
+    if (!btn) return;
+    const id = btn.getAttribute('data-del-id');
+    const slot = btn.getAttribute('data-del-slot');
+    const url = btn.getAttribute('data-del-url');
+    const nama = btn.getAttribute('data-del-nama') || 'berkas ini';
+    if (!id || !slot || !url) return;
+    if (!confirm(`Hapus lampiran "${nama}"?\n\nTautan akan dicabut dari pengajuan ini dan file di Google Drive dipindahkan ke Trash (masih dapat dipulihkan dalam 30 hari).`)) return;
+    const awal = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    apiPost({ action: 'hapus_berkas', id, slot, url, nama })
+        .then(res => {
+            if (res.status !== 'success') { alert('Gagal menghapus lampiran: ' + (res.message || '')); btn.disabled = false; btn.innerHTML = awal; return; }
+            showToast('Lampiran "' + (res.nama || nama) + '" berhasil dihapus.');
+            return tarikDataDariServer().then(() => { if (String(activeSelectedId) === String(id)) bukaModalVerifikasi(id); });
+        })
+        .catch(err => {
+            if (String(err.message) !== 'Sesi berakhir') alert('Koneksi terputus: ' + err.message);
+            btn.disabled = false; btn.innerHTML = awal;
+        });
 }
 
 function bukaModalVerifikasi(id) {
@@ -575,7 +643,7 @@ function bukaModalVerifikasi(id) {
     if (String(item.jenisSurat) === 'LS') {
         const allLS = [...spjData].reverse().filter(i => String(i.jenisSurat) === 'LS');
         const idx = allLS.findIndex(i => String(i.id) === String(item.id)) + 1;
-        const noUrut = 'LS-' + String(idx).padStart(4, '0');
+        const noUrut = item.noAntreanLs || ('LS-' + String(idx).padStart(4, '0'));
         const safeNpd = String(item.npd || '-').replace(/'/g, "\\'").replace(/"/g, "&quot;");
         const tgl = String(item.createdAt || '-').split('T')[0];
         
@@ -592,9 +660,12 @@ function bukaModalVerifikasi(id) {
     
     document.getElementById('linkDokKeuangan').innerHTML = jadikanLink(item.linkKeuangan, item.id, item.jenisSurat, 'keuangan', bolehUnggah(item)); 
     document.getElementById('linkDokSpj').innerHTML = jadikanLink(item.linkSpj, item.id, item.jenisSurat, 'spj', bolehUnggah(item)); 
-    document.getElementById('linkDokRevisi').innerHTML = renderListRevisi(item.linkRevisi) + (sesiAktif.role === 'SUPER_ADMIN'
-        ? `<div class="flex flex-wrap gap-1.5 mt-2"><button type="button" onclick="pilihBerkas('${escapeHtml(String(item.id))}','revisi')" class="px-2.5 py-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded text-[10px] font-bold shadow-sm"><i class="fa-solid fa-cloud-arrow-up me-1"></i> Upload Revisi <span class="font-normal opacity-80">(admin, &le; 10 MB)</span></button>
-           <a href="${escapeHtml(urlFormUploadAktif('REVISI', item.id))}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1.5 bg-white text-blue-700 hover:bg-blue-50 border border-blue-300 rounded text-[10px] font-bold"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Via Google Form <span class="font-normal opacity-80">(&gt; 10 MB)</span></a></div>` : '');
+    const adaFormRev = typeof adaFormUploadAktif === 'function' ? adaFormUploadAktif('REVISI') : true;
+    const btnFormRevAdmin = adaFormRev
+        ? `<a href="${escapeHtml(urlFormUploadAktif('REVISI', item.id))}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1.5 bg-white text-blue-700 hover:bg-blue-50 border border-blue-300 rounded text-[10px] font-bold"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Via Google Form <span class="font-normal opacity-80">(&gt; 10 MB)</span></a>`
+        : catatanFormBelumAktifHtml();
+    document.getElementById('linkDokRevisi').innerHTML = renderListRevisi(item.linkRevisi, item.id, bolehUnggah(item)) + (sesiAktif.role === 'SUPER_ADMIN'
+        ? `<div class="flex flex-wrap gap-1.5 mt-2"><button type="button" onclick="pilihBerkas('${escapeHtml(String(item.id))}','revisi')" class="px-2.5 py-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded text-[10px] font-bold shadow-sm"><i class="fa-solid fa-cloud-arrow-up me-1"></i> Upload Revisi <span class="font-normal opacity-80">(admin, &le; 10 MB)</span></button>${btnFormRevAdmin}</div>` : '');
 
     const buktiPbBox = document.getElementById('detailBuktiPbBox');
     if (item.status === 'SUDAH DIPINDAHBUKUKAN' && item.buktiPb) {
@@ -671,6 +742,7 @@ function bukaModalVerifikasi(id) {
                     } else { isiHtml = `<span class="bg-blue-600 ${badgeClass}"><i class="fa-solid fa-money-bill-transfer"></i> ${isiHtml}</span>`; }
                 }
                 else if (isUpload) { dotColor = 'bg-blue-500 ring-blue-200'; isiHtml = `<div><span class="bg-blue-600 ${badgeClass}"><i class="fa-solid fa-cloud-arrow-up"></i> ${isiHtml}</span></div>${extraLinkHtml}`; }
+                else if (isiHtml.includes('BERKAS DIHAPUS')) { dotColor = 'bg-rose-500 ring-rose-200'; isiHtml = `<span class="bg-rose-600 ${badgeClass}"><i class="fa-solid fa-trash-can"></i> ${isiHtml}</span>`; }
                 else if (isRevisiUpload) { dotColor = 'bg-orange-500 ring-orange-200'; isiHtml = `<div><span class="bg-orange-500 ${badgeClass}"><i class="fa-solid fa-cloud-arrow-up"></i> ${isiHtml}</span></div>${extraLinkHtml}`; }
                 else if (isiHtml.includes('REVISI')) { dotColor = 'bg-orange-500 ring-orange-200'; isiHtml = `<span class="bg-orange-500 ${badgeClass}"><i class="fa-solid fa-rotate-left"></i> ${isiHtml}</span>`; }
                 else if (isiHtml.includes('DITOLAK')) { dotColor = 'bg-red-600 ring-red-200'; isiHtml = `<span class="bg-red-600 ${badgeClass}"><i class="fa-solid fa-circle-xmark"></i> ${isiHtml}</span>`; } 
@@ -741,7 +813,21 @@ function bukaModalVerifikasi(id) {
             if(item.status === 'BELUM_DIPROSES') document.getElementById('teksRevisiPptk').innerText = "Anda masih dapat mengubah data teks atau mengunggah ulang berkas.";
             if(item.status === 'REVISI') document.getElementById('teksRevisiPptk').innerHTML = "Catatan Verifikator: <br>" + teksCatatan(item.catatanRevisi || "-");
             const btnRev = document.getElementById('btnUploadRevisi'); btnRev.setAttribute('href', '#'); btnRev.removeAttribute('target'); btnRev.onclick = (ev) => { ev.preventDefault(); pilihBerkas(item.id, 'revisi'); };
-            const btnRevForm = document.getElementById('btnUploadRevisiForm'); if (btnRevForm) btnRevForm.setAttribute('href', urlFormUploadAktif('REVISI', item.id));
+            const btnRevForm = document.getElementById('btnUploadRevisiForm');
+            const infoRevForm = document.getElementById('infoFormRevisiPptk');
+            if (btnRevForm) {
+                if (adaFormRev) {
+                    btnRevForm.classList.remove('hidden');
+                    btnRevForm.setAttribute('href', urlFormUploadAktif('REVISI', item.id));
+                    if (infoRevForm) infoRevForm.classList.add('hidden');
+                } else {
+                    btnRevForm.classList.add('hidden');
+                    if (infoRevForm) {
+                        infoRevForm.classList.remove('hidden');
+                        infoRevForm.textContent = `Form > 10 MB TA ${CONFIG.TAHUN_ANGGARAN || ''} belum diaktifkan — kompres/pecah file ≤ 10 MB untuk upload langsung.`;
+                    }
+                }
+            }
             let existingEditBtnPptk = document.getElementById('btnEditDataPptk'); if(existingEditBtnPptk) existingEditBtnPptk.remove();
             const editBtnPptkHtml = `<button id="btnEditDataPptk" onclick="bukaFormEdit()" class="w-full mt-2 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded font-bold text-xs shadow-sm transition-colors flex items-center justify-center gap-1.5"><i class="fa-solid fa-pen-to-square"></i> EDIT DATA TEKS</button>`;
             document.getElementById('panelPptkRevisi').insertAdjacentHTML('beforeend', editBtnPptkHtml);
@@ -770,7 +856,12 @@ function bukaFormEdit() {
         else { document.getElementById('inputTanggal').value = rawTglStr; }
     } catch(e){}
 
-    document.getElementById('inputJenisSurat').value = item.jenisSurat || 'GU'; ubahLabelNpdKontrak();
+    const selJenisEdit = document.getElementById('inputJenisSurat');
+    selJenisEdit.value = item.jenisSurat || 'GU';
+    selJenisEdit.style.pointerEvents = 'none';
+    selJenisEdit.tabIndex = -1;
+    selJenisEdit.classList.add('bg-slate-100');
+    ubahLabelNpdKontrak();
     document.getElementById('inputNpd').value = item.npd; document.getElementById('inputPptk').value = item.pptk;
     document.getElementById('inputUnitKerja').value = item.unitKerja; document.getElementById('inputEmail').value = item.emailPptk; document.getElementById('inputWa').value = item.wa;
     isiDropdownProgram(); setSelectValue(document.getElementById('inputProgram'), item.program); updateKegiatanDropdown(); setSelectValue(document.getElementById('inputKegiatan'), item.kegiatan); updateSubkegiatanDropdown(); setSelectValue(document.getElementById('inputSubkegiatan'), item.subKegiatan);
@@ -954,10 +1045,12 @@ function panelUploadHtml(idSpj, jenis) {
         <div class="text-[11px] font-bold text-slate-600">Pilihan 1 &mdash; Upload langsung <span class="font-normal text-slate-500">(maks. 10 MB per berkas; PDF/JPG/PNG/Word/Excel)</span></div>
         ${kotak('keuangan', l1, 1)}${kotak('spj', l2, 2)}
         <button type="button" id="btnUnggahPanel" onclick="unggahDariPanel('${escapeHtml(idSpj)}')" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md text-sm"><i class="fa-solid fa-cloud-arrow-up me-2"></i> Unggah Berkas</button>
+        ${(typeof adaFormUploadAktif === 'function' ? adaFormUploadAktif(jenis) : true) ? `
         <div class="flex items-center gap-2 text-[10px] text-slate-400"><div class="flex-1 h-px bg-slate-200"></div>ATAU<div class="flex-1 h-px bg-slate-200"></div></div>
         <div class="text-[11px] font-bold text-slate-600">Pilihan 2 &mdash; Untuk file lebih dari 10 MB</div>
         <a href="${escapeHtml(urlFormUploadAktif(jenis, idSpj))}" target="_blank" rel="noopener noreferrer" class="block w-full text-center py-2.5 bg-white border-2 border-blue-600 text-blue-700 hover:bg-blue-50 font-bold rounded-lg text-sm"><i class="fa-solid fa-arrow-up-right-from-square me-2"></i> Upload via Google Form</a>
-        <p class="text-[10px] text-slate-500 leading-relaxed">ID Pengajuan terisi otomatis. Setelah mengirim Form, tunggu &plusmn; 1 menit lalu tekan tombol <b>Refresh</b> pada tabel agar berkas tampil.</p>
+        <p class="text-[10px] text-slate-500 leading-relaxed">ID Pengajuan terisi otomatis. Setelah mengirim Form, tunggu &plusmn; 1 menit lalu tekan tombol <b>Refresh</b> pada tabel agar berkas tampil.</p>` : `
+        <p class="text-[10px] text-slate-500 bg-white border border-slate-200 rounded p-2 leading-relaxed"><i class="fa-solid fa-circle-info text-blue-500 me-1"></i>Upload via Google Form (&gt; 10 MB) untuk TA ${escapeHtml(String((typeof CONFIG !== 'undefined' && CONFIG.TAHUN_ANGGARAN) || ''))} belum diaktifkan. Kompres atau pecah berkas menjadi &le; 10 MB per file lalu gunakan tombol <b>Unggah Berkas</b> di atas.</p>`}
         <button type="button" onclick="closeModal('modalNewSpj')" class="w-full text-xs text-slate-500 hover:text-slate-800 underline">Unggah nanti (lewat tombol Detail pada tabel)</button>
     </div>`;
 }

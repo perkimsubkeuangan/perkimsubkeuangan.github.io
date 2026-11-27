@@ -97,6 +97,7 @@ const BAP = (function () {
         if (!siap) {
             siap = true;
             $('cariBap').addEventListener('input', renderTabel);
+            if ($('filterPemilikBap')) $('filterPemilikBap').addEventListener('change', renderTabel);
             $('tabelBapBody').addEventListener('click', (ev) => {
                 const b = ev.target.closest('button[data-aksi]');
                 if (!b) return;
@@ -104,6 +105,7 @@ const BAP = (function () {
                 if (aksi === 'preview') preview(kode);
                 else if (aksi === 'edit') mulaiEdit(kode);
                 else if (aksi === 'hapus') hapus(kode, b);
+                else if (aksi === 'ajukan_spj' && typeof bukaFormSpjDariBap === 'function') bukaFormSpjDariBap(kode);
             });
             ['bapNilaiKontrak', 'bapPersen', 'bapAddNilai', 'bapDak', 'bapNoKontrak'].forEach(id => { $(id).addEventListener('input', hitungLive); });
             document.querySelectorAll('input[name="bapSkema"]').forEach(r => r.addEventListener('change', aturBagianForm));
@@ -138,7 +140,11 @@ const BAP = (function () {
         const tbody = $('tabelBapBody');
         if (!tbody) return;
         const q = ($('cariBap').value || '').toLowerCase();
-        const data = daftar().filter(k => `${k.pelaksana} ${k.noKontrak} ${k.kodeBerkas || ''} ${k.uraian} ${k.tahapBayar} ${k.noBap}`.toLowerCase().includes(q));
+        const fPem = ($('filterPemilikBap') && sesiAktif.role === 'PPTK') ? $('filterPemilikBap').value : 'ALL';
+        const data = daftar().filter(k => {
+            if (fPem === 'MINE' && String(k.pptk || '').trim() !== String(sesiAktif.namaLengkap || '').trim()) return false;
+            return `${k.pelaksana} ${k.noKontrak} ${k.kodeBerkas || ''} ${k.pptk || ''} ${k.uraian} ${k.tahapBayar} ${k.noBap}`.toLowerCase().includes(q);
+        });
         if (data.length === 0) {
             tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400 font-medium">Belum ada riwayat BAP.</td></tr>`;
             return;
@@ -147,17 +153,29 @@ const BAP = (function () {
         tbody.innerHTML = data.map(k => {
             const adaPotongan = Number(k.jumlahPotongan) > 0;
             const kode = e(k.kodeSpj);
+            const milikSaya = String(k.pptk || '').trim() === String(sesiAktif.namaLengkap || '').trim();
+            const sudahSpj = typeof bapSudahDiajukan === 'function' ? bapSudahDiajukan(k) : false;
+            const bolehAjukan = (adalahAdmin() || (sesiAktif.role === 'PPTK' && milikSaya));
             let aksi = KONFIG_TAHAP[k.tahapBayar]
                 ? `<button type="button" data-aksi="preview" data-kode="${kode}" class="${tb} bg-sipd-navy hover:bg-slate-800"><i class="fa-solid fa-print"></i> Preview / Cetak</button>`
                 : `<span class="text-[10px] text-slate-400">Tahap tidak dikenal</span>`;
+            if (!sudahSpj && bolehAjukan && KONFIG_TAHAP[k.tahapBayar]) {
+                aksi += ` <button type="button" data-aksi="ajukan_spj" data-kode="${kode}" class="${tb} bg-purple-600 hover:bg-purple-700" title="Buat SPJ LS langsung dari BAP ini"><i class="fa-solid fa-paper-plane"></i> Ajukan SPJ</button>`;
+            }
             if (bolehEdit(k)) aksi += ` <button type="button" data-aksi="edit" data-kode="${kode}" class="${tb} bg-blue-600 hover:bg-blue-700"><i class="fa-solid fa-pen-to-square"></i> Edit Data</button>`;
             if (adalahAdmin()) aksi += ` <button type="button" data-aksi="hapus" data-kode="${kode}" class="${tb} bg-red-600 hover:bg-red-700"><i class="fa-solid fa-trash"></i> Hapus</button>`;
+            const badgeMilik = (sesiAktif.role === 'PPTK' && milikSaya)
+                ? ` <span class="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[9px] font-bold">Milik Saya</span>`
+                : (k.pptk ? ` <span class="text-[10px] text-slate-400 font-normal">&middot; ${e(k.pptk)}</span>` : '');
+            const badgeSpj = sudahSpj
+                ? `<div class="mt-1"><span class="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[9px] font-bold inline-flex items-center gap-1"><i class="fa-solid fa-check"></i> Sudah SPJ</span></div>`
+                : '';
             return `
             <tr class="hover:bg-blue-50/30 border-b border-slate-100">
-                <td class="py-3 px-4 font-bold text-slate-700">${k.kodeBerkas ? `<span class="px-1.5 py-0.5 mr-1.5 bg-teal-50 text-teal-800 border border-teal-200 rounded font-mono text-[10px]">${e(k.kodeBerkas)}</span>` : ''}${e(k.noKontrak || '-')}<br><span class="text-[10px] text-slate-400 font-normal">Tgl: ${formatTgl(k.tglKontrak)} &middot; ${e(k.noBap || '-')}</span></td>
+                <td class="py-3 px-4 font-bold text-slate-700">${k.kodeBerkas ? `<span class="px-1.5 py-0.5 mr-1.5 bg-teal-50 text-teal-800 border border-teal-200 rounded font-mono text-[10px]">${e(k.kodeBerkas)}</span>` : ''}${e(k.noKontrak || '-')}${badgeMilik}<br><span class="text-[10px] text-slate-400 font-normal">Tgl: ${formatTgl(k.tglKontrak)} &middot; ${e(k.noBap || '-')}</span></td>
                 <td class="py-3 px-4 font-bold text-purple-700">${e(k.pelaksana || '-')}<br><span class="text-[10px] text-slate-500 font-normal block max-w-xs lg:max-w-md xl:max-w-2xl truncate" title="${e(k.uraian)}">${e(k.uraian || '-')}</span></td>
                 <td class="py-3 px-4 font-bold text-slate-800">${rpTeks(k.pembayaranBapIni)}${adaPotongan ? `<br><span class="text-[10px] text-slate-400 font-normal">Bruto ${rpTeks(k.nilaiBayar)} &minus; potongan ${rpTeks(k.jumlahPotongan)}</span>` : ''}</td>
-                <td class="py-3 px-4 font-bold text-blue-600 text-xs">${e(k.tahapBayar || '-')}</td>
+                <td class="py-3 px-4 font-bold text-blue-600 text-xs">${e(k.tahapBayar || '-')}${badgeSpj}</td>
                 <td class="py-3 px-4 text-center space-x-1">${aksi}</td>
             </tr>`;
         }).join('');

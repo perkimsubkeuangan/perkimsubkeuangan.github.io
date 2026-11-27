@@ -363,6 +363,10 @@
                                 <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
                                 <input type="text" id="inputSearchSpj" onkeyup="terapkanFilterDanSort()" placeholder="Cari NPD, Kegiatan, CV..." class="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-sipd-emerald outline-none bg-white">
                             </div>
+                            <select id="filterPemilikSpj" onchange="terapkanFilterDanSort()" class="hidden border border-emerald-300 bg-emerald-50/70 text-emerald-900 font-bold rounded px-2 py-1.5 text-xs outline-none focus:border-sipd-emerald cursor-pointer" title="Tampilkan semua pengajuan atau milik saya saja">
+                                <option value="ALL">Semua PPTK</option>
+                                <option value="MINE">Milik Saya</option>
+                            </select>
                             <select id="selectStatusSpj" onchange="terapkanFilterDanSort()" class="border border-slate-200 rounded px-2 py-1.5 text-xs outline-none bg-white focus:border-sipd-emerald cursor-pointer">
                                 <option value="ALL">Semua Status</option>
                                 <option value="BELUM_DIPROSES">Menunggu Verifikasi</option>
@@ -430,6 +434,10 @@
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border-b border-slate-100">
                 <h2 class="font-bold text-sipd-slate"><i class="fa-solid fa-clock-rotate-left text-blue-500 me-2"></i>Riwayat BAP</h2>
                 <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+                    <select id="filterPemilikBap" class="hidden border border-blue-300 bg-blue-50/70 text-blue-900 font-bold rounded px-2.5 py-1.5 text-xs outline-none focus:border-blue-600 cursor-pointer" title="Tampilkan semua BAP atau milik saya saja">
+                        <option value="ALL">Semua PPTK</option>
+                        <option value="MINE">Milik Saya</option>
+                    </select>
                     <div class="relative w-full sm:w-64">
                         <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
                         <input type="text" id="cariBap" placeholder="Cari kontrak, CV, uraian..." class="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-sipd-emerald outline-none bg-white">
@@ -777,7 +785,7 @@
                     </div>
                 </div>
                 
-                <div class="flex flex-col h-full border-l border-slate-100 pl-6">
+                <div class="flex flex-col h-full border-t md:border-t-0 md:border-l border-slate-100 pt-5 md:pt-0 md:pl-6">
                     <div class="bg-sipd-navy text-white px-4 py-2 rounded mb-3 shadow-sm"><h4 class="text-[11px] font-bold uppercase flex items-center gap-2 tracking-wide"><i class="fa-solid fa-clock-rotate-left text-slate-300"></i> Riwayat Status</h4></div>
                     <div id="detailRiwayatBox" class="flex-1 overflow-y-auto pr-2 min-h-[200px]"></div>
                     
@@ -787,6 +795,7 @@
                             <p id="teksRevisiPptk" class="text-[11px] text-slate-600 leading-relaxed mb-3"></p>
                             <a id="btnUploadRevisi" href="#" class="block w-full py-1.5 bg-sipd-navy hover:bg-slate-800 text-white font-bold rounded text-xs text-center transition-colors"><i class="fa-solid fa-cloud-arrow-up me-1"></i> Upload Revisi Langsung (&le; 10 MB)</a>
                             <a id="btnUploadRevisiForm" href="#" target="_blank" rel="noopener noreferrer" class="block w-full mt-2 py-1.5 bg-white border border-sipd-navy text-sipd-navy hover:bg-slate-50 font-bold rounded text-xs text-center transition-colors"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Upload Revisi via Google Form (&gt; 10 MB)</a>
+                            <p id="infoFormRevisiPptk" class="hidden mt-2 text-[10px] text-slate-500 leading-relaxed text-center bg-white border border-slate-200 rounded p-2"></p>
                         </div>
                     </div>
                     
@@ -1192,9 +1201,9 @@
     <div id="toast" class="fixed top-5 right-5 bg-sipd-navy text-white px-5 py-2.5 rounded shadow-lg transform -translate-y-20 opacity-0 transition-all duration-300 z-[9999] flex items-center gap-2"><i class="fa-solid fa-circle-check text-sipd-emerald"></i><span id="toastMessage" class="text-xs font-bold tracking-wide">Sukses!</span></div>
 
     <script src="config.js?v=74"></script>
-    <script src="app.js?v=73"></script>
-    <script src="spj.js?v=73"></script>
-    <script src="bap.js?v=73"></script>
+    <script src="app.js?v=75"></script>
+    <script src="spj.js?v=75"></script>
+    <script src="bap.js?v=75"></script>
     
     <script>
         const catatanRevisiArea = document.getElementById('catatanRevisiInput');
