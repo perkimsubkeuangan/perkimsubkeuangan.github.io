@@ -51,7 +51,7 @@ function urlFormUpload(jenis, idSpj) {
 // ==========================================
 function paksaLogout(pesan) {
     sessionStorage.clear();
-    alert(pesan || "Sesi berakhir. Silakan login ulang.");
+    try { sessionStorage.setItem('login_flash_msg', pesan || "Sesi berakhir. Silakan login ulang."); } catch (e) {}
     window.location.href = "index.html";
 }
 

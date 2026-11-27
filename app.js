@@ -177,7 +177,69 @@ function tutupMobileSidebar() {
     if (bd) bd.classList.add('hidden');
 }
 
-function inisialisasiServer() { updateSapaanWaktu(); initPilihTahunLogin(); }
+function tampilkanFlashLogin() {
+    let msg = '';
+    try { msg = sessionStorage.getItem('login_flash_msg') || ''; if (msg) sessionStorage.removeItem('login_flash_msg'); } catch (e) {}
+    const pe = document.getElementById('pin-error');
+    if (msg && pe) { pe.innerText = msg; pe.classList.remove('hidden'); }
+}
+
+// Banner otomatis saat membuka Tahun Anggaran Arsip (tahun lalu) atau Tahun Uji Coba (tahun depan)
+function perbaruiBannerTahun() {
+    const box = document.getElementById('bannerTahunStatus');
+    if (!box) return;
+    const ta = Number(CONFIG.TAHUN_ANGGARAN) || 2026;
+    const thKini = new Date().getFullYear();
+    const peta = daftarServerTahun();
+    const labelTa = (peta[String(ta)] && peta[String(ta)].label) ? String(peta[String(ta)].label) : ('TA ' + ta);
+    const ikon = document.getElementById('bannerTahunIkon');
+    const judul = document.getElementById('bannerTahunJudul');
+    const teks = document.getElementById('bannerTahunTeks');
+
+    if (ta < thKini) {
+        box.className = 'mb-4 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs shadow-sm';
+        if (ikon) ikon.className = 'fa-solid fa-box-archive text-amber-600 text-base shrink-0';
+        if (judul) judul.textContent = `Mode Arsip TA ${ta}:`;
+        if (teks) teks.textContent = `Anda sedang membuka data arsip tahun anggaran lama. Pastikan tidak salah menginput transaksi TA ${thKini} di sini.`;
+    } else if (ta > thKini || /uji\s*coba|persiapan/i.test(labelTa)) {
+        box.className = 'mb-4 rounded-lg border border-sky-300 bg-sky-50 text-sky-900 px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs shadow-sm';
+        if (ikon) ikon.className = 'fa-solid fa-flask text-sky-600 text-base shrink-0';
+        if (judul) judul.textContent = `Mode Uji Coba (${labelTa}):`;
+        if (teks) teks.textContent = `Data sesi ini tersimpan terpisah pada database & folder Drive TA ${ta} dan tidak memengaruhi TA ${thKini}.`;
+    } else {
+        box.className = 'hidden';
+    }
+}
+
+async function gantiTahunDariBanner() {
+    const ok = await tanyaKonfirmasi({
+        judul: 'Ganti Tahun Anggaran?',
+        pesan: 'Anda akan keluar dari sesi saat ini untuk memilih Tahun Anggaran lain di layar login.',
+        labelYa: 'Ya, Ganti Tahun',
+        tipe: 'primary'
+    });
+    if (ok) keluarSistem();
+}
+
+function skeletonRowsHtml(colSpan, jumlah = 4) {
+    let h = '';
+    for (let i = 0; i < jumlah; i++) {
+        const w1 = i % 2 === 0 ? 'w-full' : 'w-11/12';
+        h += `<tr class="animate-pulse border-b border-slate-100"><td colspan="${colSpan}" class="py-3.5 px-4"><div class="flex items-center gap-3"><div class="h-3.5 bg-slate-200 rounded w-20 shrink-0"></div><div class="h-3.5 bg-slate-200 rounded ${w1}"></div><div class="h-3.5 bg-slate-200 rounded w-24 shrink-0"></div></div></td></tr>`;
+    }
+    return h;
+}
+
+function tampilkanSkeletonSemua() {
+    const tbSpj = document.getElementById('spjTableBody');
+    if (tbSpj) tbSpj.innerHTML = skeletonRowsHtml(9, 5);
+    const tbBap = document.getElementById('tabelBapBody');
+    if (tbBap) tbBap.innerHTML = skeletonRowsHtml(5, 4);
+    const tbRls = document.getElementById('tabelRekapLsBody');
+    if (tbRls) tbRls.innerHTML = skeletonRowsHtml(10, 4);
+}
+
+function inisialisasiServer() { updateSapaanWaktu(); initPilihTahunLogin(); tampilkanFlashLogin(); }
 inisialisasiServer();
 
 // Login diperiksa di SERVER. Browser tidak lagi memegang daftar akun/password.
@@ -284,6 +346,7 @@ function masukSistem() {
     const fBapP = document.getElementById('filterPemilikBap');
     if (fBapP) { fBapP.classList.toggle('hidden', !isPptk); if (!isPptk) fBapP.value = 'ALL'; }
     const hv = document.getElementById('header-tahun-val'); if (hv) hv.innerText = String(CONFIG.TAHUN_ANGGARAN || '2026');
+    perbaruiBannerTahun();
     const sv = document.getElementById('sidebar-tahun-txt'); if (sv) sv.innerText = 'TA ' + String(CONFIG.TAHUN_ANGGARAN || '2026');
     
     // Atur Pagu: hanya SUPER_ADMIN
@@ -329,9 +392,10 @@ function tarikDataDariServer(ringan = false) {
     const ic = document.getElementById('refresh-icon'); if (ic) ic.classList.add('animate-spin');
     const masterSiap = Array.isArray(window.DATABASE_AKUN) && window.DATABASE_AKUN.length > 0 && referensiData && Object.keys(referensiData).length > 0;
     const modeRingan = (ringan === true) && masterSiap;
+    if (!modeRingan && (!spjData || spjData.length === 0)) tampilkanSkeletonSemua();
     return apiPost({ action: modeRingan ? 'load_transaksi' : 'load' })
         .then(data => {
-            if (data.status !== 'success') { alert("Gagal mengambil data dari server: " + (data.message || '')); return; }
+            if (data.status !== 'success') { showToast("Gagal mengambil data dari server: " + (data.message || ''), 'error'); return; }
             if (!modeRingan) {
                 if (data.user) setSesiUser(data.user);
                 window.DATABASE_AKUN = data.akun || [];
@@ -347,6 +411,7 @@ function tarikDataDariServer(ringan = false) {
                 CONFIG.TAHUN_ANGGARAN = data.tahunAnggaran;
                 const hv = document.getElementById('header-tahun-val'); if (hv) hv.innerText = String(data.tahunAnggaran);
                 const sv = document.getElementById('sidebar-tahun-txt'); if (sv) sv.innerText = 'TA ' + String(data.tahunAnggaran);
+                perbaruiBannerTahun();
             }
             renderTabelSpj(); hitungAnggaran();
             if (!modeRingan) { isiDropdownProgram(); isiDropdownPptkUtama(); }
@@ -362,45 +427,160 @@ function tarikDataDariServer(ringan = false) {
 
 function formatRupiah(amount) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(amount); }
 
-// ================== PAGU: TAHUNAN + 4 TRIWULAN ==================
+// ================== PAGU, GRAFIK REALISASI (CHART.JS) & RINCIAN TRIWULAN ==================
 const TW_NAMA = ['Triwulan I', 'Triwulan II', 'Triwulan III', 'Triwulan IV'];
 const TW_BULAN = ['Jan – Mar', 'Apr – Jun', 'Jul – Sep', 'Okt – Des'];
+let chartRealisasiInst = null;
+
+function formatRingkasRp(v) {
+    const n = Number(v) || 0;
+    const abs = Math.abs(n);
+    if (abs >= 1e9) return 'Rp ' + (n / 1e9).toFixed(1).replace(/\.0$/, '').replace('.', ',') + ' M';
+    if (abs >= 1e6) return 'Rp ' + (n / 1e6).toFixed(1).replace(/\.0$/, '').replace('.', ',') + ' Jt';
+    if (abs >= 1e3) return 'Rp ' + Math.round(n / 1e3) + ' Rb';
+    return 'Rp ' + Math.round(n);
+}
+
+function toggleRincianTriwulan() {
+    const wrap = document.getElementById('wrapKartuTriwulan');
+    const ik = document.getElementById('ikonToggleTriwulan');
+    if (!wrap) return;
+    const buka = wrap.classList.contains('hidden');
+    wrap.classList.toggle('hidden', !buka);
+    if (ik) ik.className = buka ? 'fa-solid fa-chevron-up text-[9px]' : 'fa-solid fa-chevron-down text-[9px]';
+}
+
+function renderGrafikDashboard() {
+    const canvas = document.getElementById('chartRealisasi');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    const ringkas = !!(realisasiPagu && realisasiPagu.ringkasan) || sesiAktif.role === 'PPTK';
+    const judulEl = document.getElementById('judulGrafikDashboard');
+    const subEl = document.getElementById('subGrafikDashboard');
+
+    if (chartRealisasiInst) { chartRealisasiInst.destroy(); chartRealisasiInst = null; }
+
+    if (ringkas) {
+        // Grafik status berkas GU vs LS khusus PPTK
+        if (judulEl) judulEl.innerHTML = `<i class="fa-solid fa-chart-column text-sipd-emerald"></i> <span>Ringkasan Status Berkas SPJ &mdash; TA <span id="labelTahunAnggaran">${escapeHtml(String(CONFIG.TAHUN_ANGGARAN || '2026'))}</span></span>`;
+        if (subEl) subEl.textContent = (filterPemilikSpj === 'MINE') ? 'Perbandingan jumlah berkas GU & LS milik Anda' : 'Perbandingan jumlah berkas GU & LS seluruh PPTK';
+
+        let gu = [0, 0, 0, 0], ls = [0, 0, 0, 0];
+        (spjData || []).forEach(x => {
+            if (sesiAktif.role === 'PPTK' && filterPemilikSpj === 'MINE' && typeof isPemilikSpj === 'function' && !isPemilikSpj(x)) return;
+            const arr = String(x.jenisSurat || 'GU').trim() === 'LS' ? ls : gu;
+            if (x.status === 'BELUM_DIPROSES') arr[0]++;
+            else if (x.status === 'REVISI') arr[1]++;
+            else if (x.status === 'DISETUJUI') arr[2]++;
+            else if (x.status === 'SUDAH DIPINDAHBUKUKAN') arr[3]++;
+        });
+        chartRealisasiInst = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: ['Menunggu', 'Perlu Revisi', 'Disetujui', 'Selesai PB'],
+                datasets: [
+                    { label: 'SPJ GU', data: gu, backgroundColor: '#4f46e5', borderRadius: 4, barPercentage: 0.72 },
+                    { label: 'SPJ LS', data: ls, backgroundColor: '#9333ea', borderRadius: 4, barPercentage: 0.72 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'top', align: 'end', labels: { boxWidth: 10, font: { size: 10, weight: 'bold' } } } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision: 0, font: { size: 10 } }, grid: { color: '#f1f5f9' } },
+                    x: { ticks: { font: { size: 10, weight: '600' } }, grid: { display: false } }
+                }
+            }
+        });
+        return;
+    }
+
+    if (judulEl) judulEl.innerHTML = `<i class="fa-solid fa-chart-column text-sipd-emerald"></i> <span>Realisasi Anggaran Per Triwulan &mdash; TA <span id="labelTahunAnggaran">${escapeHtml(String(CONFIG.TAHUN_ANGGARAN || '2026'))}</span></span>`;
+    if (subEl) subEl.textContent = 'Perbandingan Pagu, Realisasi Cair, dan Pengajuan Dalam Proses';
+
+    const paguTw = CONFIG.PAGU_TW || [0, 0, 0, 0];
+    const cairTw = (realisasiPagu && realisasiPagu.cair) ? realisasiPagu.cair : [0, 0, 0, 0];
+    const prosesTw = (realisasiPagu && realisasiPagu.proses) ? realisasiPagu.proses : [0, 0, 0, 0];
+
+    chartRealisasiInst = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: ['TW I', 'TW II', 'TW III', 'TW IV'],
+            datasets: [
+                { label: 'Pagu', data: paguTw, backgroundColor: '#cbd5e1', borderRadius: 4, barPercentage: 0.8 },
+                { label: 'Cair', data: cairTw, backgroundColor: '#059669', borderRadius: 4, barPercentage: 0.8 },
+                { label: 'Proses', data: prosesTw, backgroundColor: '#f59e0b', borderRadius: 4, barPercentage: 0.8 }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top', align: 'end', labels: { boxWidth: 10, font: { size: 10, weight: 'bold' } } },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => `${ctx.dataset.label}: ${formatRupiah(ctx.raw || 0)}`
+                    }
+                }
+            },
+            scales: {
+                y: { beginAtZero: true, ticks: { font: { size: 10 }, callback: (val) => formatRingkasRp(val) }, grid: { color: '#f1f5f9' } },
+                x: { ticks: { font: { size: 11, weight: 'bold' } }, grid: { display: false } }
+            }
+        }
+    });
+}
 
 // Realisasi dihitung di SERVER (Code.gs): GU = bulan pada nomor NPD (.../P2/4/2026 = bulan 4),
-// LS = tanggal pindahbuku. PPTK hanya menerima ringkasan; VERIFIKATOR/PIMPINAN/SUPER_ADMIN menerima rincian.
+// LS = tanggal pengajuan. PPTK hanya menerima ringkasan; VERIFIKATOR/BENDAHARA/PIMPINAN/SUPER_ADMIN menerima rincian.
 function hitungAnggaran() {
     const real = realisasiPagu || { ringkasan: true, totalCair: 0 };
     const totalCair = Number(real.totalCair) || 0;
+    const paguTh = Number(CONFIG.PAGU_TAHUNAN) || 0;
+    const sisaTh = paguTh - totalCair;
+    const persenSerap = paguTh > 0 ? Math.min(100, Math.max(0, (totalCair / paguTh) * 100)) : 0;
+
     const set = (id, txt) => { const el = document.getElementById(id); if (el) el.innerText = txt; };
-    set('sisaTahunanVal', formatRupiah((CONFIG.PAGU_TAHUNAN || 0) - totalCair));
-    set('paguTahunanInfo', 'dari pagu ' + formatRupiah(CONFIG.PAGU_TAHUNAN || 0));
+    set('sisaTahunanVal', formatRupiah(sisaTh));
+    set('paguTahunanInfo', 'dari pagu ' + formatRupiah(paguTh));
+    set('persenSerapanTahunan', persenSerap.toFixed(1) + '%');
+    const bar = document.getElementById('barSerapanTahunan');
+    if (bar) {
+        bar.style.width = persenSerap.toFixed(1) + '%';
+        bar.className = 'h-full transition-all duration-500 ' + (sisaTh < 0 ? 'bg-red-500' : (persenSerap >= 85 ? 'bg-amber-500' : 'bg-sipd-emerald'));
+    }
     set('totalCairVal', formatRupiah(totalCair));
     set('labelTahunAnggaran', String(CONFIG.TAHUN_ANGGARAN));
 
     const ringkas = !!real.ringkasan || sesiAktif.role === 'PPTK';
-    ['headerTriwulan', 'kartuTriwulan', 'infoPaguCatatan'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ringkas ? 'none' : ''; });
-    if (ringkas) return;
+    const btnToggle = document.getElementById('btnToggleTriwulan');
+    if (btnToggle) btnToggle.style.display = ringkas ? 'none' : '';
+    const wrapTw = document.getElementById('wrapKartuTriwulan');
+    if (ringkas && wrapTw) wrapTw.classList.add('hidden');
 
-    const paguTw = CONFIG.PAGU_TW || [0, 0, 0, 0];
-    const wadah = document.getElementById('kartuTriwulan');
-    if (wadah) {
-        wadah.innerHTML = TW_NAMA.map((nama, i) => {
-            const pagu = Number(paguTw[i]) || 0, cair = Number((real.cair || [])[i]) || 0, proses = Number((real.proses || [])[i]) || 0;
-            const sisa = pagu - cair, persen = pagu > 0 ? Math.min(100, cair / pagu * 100) : 0;
-            const warnaBar = sisa < 0 ? 'bg-red-500' : (persen >= 85 ? 'bg-amber-500' : 'bg-sipd-emerald');
-            return `<div class="bg-white rounded-lg border ${sisa < 0 ? 'border-red-300' : 'border-slate-200'} p-4 shadow-sm">
-                <div class="flex justify-between items-baseline"><h4 class="text-[11px] font-bold uppercase tracking-wider text-slate-500">${nama}</h4><span class="text-[10px] text-slate-400">${TW_BULAN[i]}</span></div>
-                <div class="text-lg font-bold mt-1 ${sisa < 0 ? 'text-red-600' : 'text-sipd-slate'}">${formatRupiah(sisa)}</div>
-                <div class="text-[10px] text-slate-400">sisa dari ${formatRupiah(pagu)}</div>
-                <div class="h-1.5 bg-slate-100 rounded mt-2 overflow-hidden"><div class="h-full ${warnaBar}" style="width:${persen.toFixed(1)}%"></div></div>
-                <div class="flex justify-between text-[10px] mt-1.5 gap-2"><span class="text-slate-500">Cair ${formatRupiah(cair)}</span><span class="text-amber-600">Proses ${formatRupiah(proses)}</span></div>
-            </div>`;
-        }).join('');
+    if (!ringkas) {
+        const paguTw = CONFIG.PAGU_TW || [0, 0, 0, 0];
+        const wadah = document.getElementById('kartuTriwulan');
+        if (wadah) {
+            wadah.innerHTML = TW_NAMA.map((nama, i) => {
+                const pagu = Number(paguTw[i]) || 0, cair = Number((real.cair || [])[i]) || 0, proses = Number((real.proses || [])[i]) || 0;
+                const sisa = pagu - cair, persen = pagu > 0 ? Math.min(100, cair / pagu * 100) : 0;
+                const warnaBar = sisa < 0 ? 'bg-red-500' : (persen >= 85 ? 'bg-amber-500' : 'bg-sipd-emerald');
+                return `<div class="bg-slate-50/70 rounded-lg border ${sisa < 0 ? 'border-red-300' : 'border-slate-200'} p-3">
+                    <div class="flex justify-between items-baseline"><h4 class="text-[10px] font-bold uppercase tracking-wider text-slate-500">${nama}</h4><span class="text-[9px] text-slate-400">${TW_BULAN[i]}</span></div>
+                    <div class="text-sm font-bold font-mono mt-1 ${sisa < 0 ? 'text-red-600' : 'text-sipd-slate'}">${formatRupiah(sisa)}</div>
+                    <div class="text-[9px] text-slate-400">sisa dari ${formatRupiah(pagu)}</div>
+                    <div class="h-1.5 bg-slate-200 rounded mt-1.5 overflow-hidden"><div class="h-full ${warnaBar}" style="width:${persen.toFixed(1)}%"></div></div>
+                    <div class="flex justify-between text-[9px] mt-1 gap-1"><span class="text-slate-600">Cair ${formatRingkasRp(cair)}</span><span class="text-amber-600">Proses ${formatRingkasRp(proses)}</span></div>
+                </div>`;
+            }).join('');
+        }
+        let cat = 'Triwulan ditentukan dari bulan pada nomor NPD (contoh <b>.../P2/<u>4</u>/2026</b> = bulan 4) untuk GU, dan dari tanggal pengajuan untuk LS. “Cair” = GU sudah dipindahbukukan &amp; LS sudah disetujui; “Proses” = diajukan namun belum selesai (ditolak tidak dihitung).';
+        if (real.tanpaPeriode) cat += ` <span class="text-amber-600">${real.tanpaPeriode} pengajuan tidak terhitung karena bulan tidak dapat dibaca.</span>`;
+        if (real.luarTahun) cat += ` <span class="text-slate-500">${real.luarTahun} pengajuan di luar TA ${CONFIG.TAHUN_ANGGARAN} tidak dihitung.</span>`;
+        const elCat = document.getElementById('infoPaguCatatan'); if (elCat) elCat.innerHTML = cat;
     }
-    let cat = 'Triwulan ditentukan dari bulan pada nomor NPD (contoh <b>.../P2/<u>4</u>/2026</b> = bulan 4) untuk GU, dan dari tanggal pengajuan untuk LS. “Cair” = GU sudah dipindahbukukan &amp; LS sudah disetujui; “Proses” = diajukan namun belum selesai (ditolak tidak dihitung).';
-    if (real.tanpaPeriode) cat += ` <span class="text-amber-600">${real.tanpaPeriode} pengajuan tidak terhitung karena bulan tidak dapat dibaca.</span>`;
-    if (real.luarTahun) cat += ` <span class="text-slate-500">${real.luarTahun} pengajuan di luar TA ${CONFIG.TAHUN_ANGGARAN} tidak dihitung.</span>`;
-    const elCat = document.getElementById('infoPaguCatatan'); if (elCat) elCat.innerHTML = cat;
+
+    renderGrafikDashboard();
 }
 
 function hitungSelisihPagu() {
@@ -421,15 +601,15 @@ function bukaModalEditPagu() {
 function simpanPaguBaru() {
     const tahunan = Number(document.getElementById('inputPaguTahunan').value) || 0;
     const tw = [1, 2, 3, 4].map(i => Number(document.getElementById('inputPaguTw' + i).value) || 0);
-    if (tahunan < 0 || tw.some(x => x < 0)) { alert('Nominal tidak boleh minus!'); return; }
+    if (tahunan < 0 || tw.some(x => x < 0)) { showToast('Nominal tidak boleh minus!', 'warning'); return; }
     const btn = document.getElementById('btnSimpanPagu'); if (btn) { btn.disabled = true; btn.innerText = 'Menyimpan...'; }
     apiPost({ action: 'sync_pagu', tahunan, tw })
         .then(res => {
-            if (res.status !== 'success') { alert('Gagal menyimpan pagu: ' + res.message); return; }
+            if (res.status !== 'success') { showToast('Gagal menyimpan pagu: ' + res.message, 'error'); return; }
             CONFIG.PAGU_TAHUNAN = tahunan; CONFIG.PAGU_TW = tw;
             hitungAnggaran(); closeModal('modalEditPagu'); showToast('Pagu tersimpan ke server.');
         })
-        .catch(e => { if (String(e.message) !== 'Sesi berakhir') alert('Koneksi gagal: ' + e.message); })
+        .catch(e => { if (String(e.message) !== 'Sesi berakhir') showToast('Koneksi gagal: ' + e.message, 'error'); })
         .finally(() => { if (btn) { btn.disabled = false; btn.innerText = 'Simpan Pagu'; } });
 }
 
@@ -443,7 +623,7 @@ function bisaEditItem(item) {
 }
 function setJenisTampilan(jenis) {
     if (jenis === 'REKAP_LS' && !bisaRekapPencairanLs()) {
-        alert('Menu Rekap Pencairan LS khusus untuk role BENDAHARA dan SUPER_ADMIN.');
+        showToast('Menu Rekap Pencairan LS khusus untuk role BENDAHARA dan SUPER_ADMIN.', 'warning');
         return;
     }
     tutupMobileSidebar();
@@ -587,27 +767,8 @@ function setJenisTampilan(jenis) {
     // Re-apply hak akses tombol Buat SPJ (karena className berubah di atas)
     if (btnBuat) btnBuat.style.display = bisaBuatSpj() ? '' : 'none';
 
-    const thJenis = document.getElementById('th-jenis');
     const thCv = document.getElementById('th-cv');
-    const thTahap = document.getElementById('th-tahap');
-    const thTglPb = document.getElementById('th-tglpb');
-
-    if (jenis === 'ALL') {
-        if (thJenis) thJenis.style.display = 'table-cell';
-        if (thCv) thCv.style.display = 'table-cell';
-        if (thTahap) thTahap.style.display = 'table-cell';
-        if (thTglPb) thTglPb.style.display = 'table-cell';
-    } else if (jenis === 'GU') {
-        if (thJenis) thJenis.style.display = 'none';
-        if (thCv) thCv.style.display = 'none';
-        if (thTahap) thTahap.style.display = 'none';
-        if (thTglPb) thTglPb.style.display = 'table-cell';
-    } else if (jenis === 'LS') {
-        if (thJenis) thJenis.style.display = 'none';
-        if (thCv) thCv.style.display = 'table-cell';
-        if (thTahap) thTahap.style.display = 'table-cell';
-        if (thTglPb) thTglPb.style.display = 'none';
-    }
+    if (thCv) thCv.style.display = (jenis === 'GU') ? 'none' : 'table-cell';
 
     renderTabelSpj();
 }
@@ -766,10 +927,10 @@ function renderTabelAkunAdmin() {
 function kirimAkunKeServer(payload, pesanSukses) {
     return apiPost(payload)
         .then(res => {
-            if (res.status !== 'success') { alert('Gagal: ' + res.message); return false; }
+            if (res.status !== 'success') { showToast('Gagal: ' + res.message, 'error'); return false; }
             return tarikDataDariServer().then(() => { renderTabelAkunAdmin(); showToast(pesanSukses); return true; });
         })
-        .catch(e => { if (String(e.message) !== 'Sesi berakhir') alert('Koneksi gagal: ' + e.message); return false; });
+        .catch(e => { if (String(e.message) !== 'Sesi berakhir') showToast('Koneksi gagal: ' + e.message, 'error'); return false; });
 }
 
 function simpanDataPptk() {
@@ -777,7 +938,7 @@ function simpanDataPptk() {
     const unitKerja = document.getElementById('pptkUnit') ? document.getElementById('pptkUnit').value : '';
     const email = document.getElementById('pptkEmail') ? document.getElementById('pptkEmail').value.trim() : '';
     const wa = document.getElementById('pptkWa') ? document.getElementById('pptkWa').value.trim() : '';
-    if (!nama) { alert('Nama Lengkap wajib diisi!'); return; }
+    if (!nama) { showToast('Nama Lengkap wajib diisi!', 'warning'); return; }
     const lama = editIndexPptk > -1 ? window.DATABASE_AKUN[editIndexPptk] : null;
     kirimAkunKeServer({
         action: 'akun_simpan', namaLama: lama ? lama.namaLengkap : '', namaLengkap: nama,
@@ -809,9 +970,9 @@ function simpanDataAkun() {
     const email = document.getElementById('akunEmail') ? document.getElementById('akunEmail').value.trim() : '';
     const wa = document.getElementById('akunWa') ? document.getElementById('akunWa').value.trim() : '';
     const lama = editIndexAkun > -1 ? window.DATABASE_AKUN[editIndexAkun] : null;
-    if (!nama || !user) { alert('Nama dan username wajib diisi!'); return; }
-    if (!lama && pass.length < 8) { alert('Password akun baru minimal 8 karakter.'); return; }
-    if (pass && pass.length < 8) { alert('Password minimal 8 karakter.'); return; }
+    if (!nama || !user) { showToast('Nama dan username wajib diisi!', 'warning'); return; }
+    if (!lama && pass.length < 8) { showToast('Password akun baru minimal 8 karakter.', 'warning'); return; }
+    if (pass && pass.length < 8) { showToast('Password minimal 8 karakter.', 'warning'); return; }
     kirimAkunKeServer({
         action: 'akun_simpan', namaLama: lama ? lama.namaLengkap : '', namaLengkap: nama,
         username: user, password: pass, role: role, nip: lama ? lama.nip : '',
@@ -839,40 +1000,140 @@ function resetFormAkun() {
     if (document.getElementById('akunEmail')) document.getElementById('akunEmail').value = "";
     if (document.getElementById('akunWa')) document.getElementById('akunWa').value = "";
 }
-function toggleStatusAkun(index) {
+async function toggleStatusAkun(index) {
     const ak = window.DATABASE_AKUN[index]; if (!ak) return;
     const akanAktif = String(ak.status || 'AKTIF').toUpperCase() === 'NONAKTIF';
-    const pesan = akanAktif
-        ? `Aktifkan kembali akun "${ak.namaLengkap}"?`
-        : `Nonaktifkan akun "${ak.namaLengkap}"?
-
-User tidak dapat login lagi dan sesi aktifnya langsung dicabut, tetapi seluruh riwayat SPJ & BAP tetap utuh.`;
-    if (!confirm(pesan)) return;
+    const ok = await tanyaKonfirmasi({
+        judul: akanAktif ? 'Aktifkan Kembali Akun?' : 'Nonaktifkan Akun?',
+        pesan: akanAktif
+            ? `Akun "${ak.namaLengkap}" akan diaktifkan kembali dan dapat masuk ke sistem.`
+            : `Akun "${ak.namaLengkap}" tidak dapat login lagi dan sesi aktifnya langsung dicabut.`,
+        catatan: akanAktif ? '' : 'Seluruh riwayat SPJ & BAP milik pegawai ini tetap tersimpan utuh.',
+        labelYa: akanAktif ? 'Aktifkan' : 'Nonaktifkan',
+        tipe: akanAktif ? 'primary' : 'warning'
+    });
+    if (!ok) return;
     kirimAkunKeServer({ action: 'akun_toggle_status', namaLengkap: ak.namaLengkap }, akanAktif ? 'Akun diaktifkan kembali.' : 'Akun dinonaktifkan & sesi dicabut.');
 }
-function cabutSesiAkun(index) {
+async function cabutSesiAkun(index) {
     const ak = window.DATABASE_AKUN[index]; if (!ak || !ak.username) return;
-    if (!confirm(`Keluarkan paksa seluruh sesi aktif untuk "${ak.namaLengkap}" (${ak.username})?
-User harus login ulang pada perangkat yang sedang terbuka.`)) return;
+    const ok = await tanyaKonfirmasi({
+        judul: 'Keluarkan Paksa Sesi Aktif?',
+        pesan: `Seluruh sesi aktif untuk "${ak.namaLengkap}" (${ak.username}) akan segera dicabut. User harus login ulang pada perangkat yang sedang terbuka.`,
+        labelYa: 'Cabut Sesi',
+        tipe: 'warning'
+    });
+    if (!ok) return;
     apiPost({ action: 'akun_cabut_sesi', username: ak.username })
         .then(res => {
-            if (res.status !== 'success') { alert('Gagal: ' + res.message); return; }
-            showToast('Sesi ' + ak.username + ' berhasil dicabut.');
+            if (res.status !== 'success') { showToast('Gagal: ' + res.message, 'error'); return; }
+            showToast('Sesi ' + ak.username + ' berhasil dicabut.', 'success');
         })
-        .catch(e => { if (String(e.message) !== 'Sesi berakhir') alert('Koneksi gagal: ' + e.message); });
+        .catch(e => { if (String(e.message) !== 'Sesi berakhir') showToast('Koneksi gagal: ' + e.message, 'error'); });
 }
-function hapusDataAkun(index) {
+async function hapusDataAkun(index) {
     const ak = window.DATABASE_AKUN[index]; if (!ak) return;
-    const pesan = `HAPUS PERMANEN "${ak.namaLengkap}"?
-
-Tip: Bila pegawai hanya mutasi atau pensiun, sebaiknya gunakan tombol Nonaktifkan (ikon daya) agar arsip akun tetap tercatat.
-
-Lanjutkan hapus permanen?`;
-    if (confirm(pesan)) kirimAkunKeServer({ action: 'akun_hapus', namaLengkap: ak.namaLengkap }, 'Berhasil dihapus dari server.');
+    const ok = await tanyaKonfirmasi({
+        judul: 'Hapus Permanen Akun?',
+        pesan: `Anda akan menghapus permanen akun "${ak.namaLengkap}".`,
+        catatan: 'Tip: Bila pegawai hanya mutasi atau pensiun, sebaiknya gunakan tombol Nonaktifkan (ikon daya) agar arsip akun tetap tercatat.',
+        labelYa: 'Ya, Hapus Permanen',
+        tipe: 'danger'
+    });
+    if (ok) kirimAkunKeServer({ action: 'akun_hapus', namaLengkap: ak.namaLengkap }, 'Berhasil dihapus dari server.');
 }
 function bukaModalSuperAdmin() { const profileDd = document.getElementById('profileDropdown'); if(profileDd) profileDd.classList.add('hidden'); renderTabelAkunAdmin(); switchTabAdmin('pptk'); openModal('modalSuperAdmin'); }
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
-function showToast(msg) { const toast = document.getElementById('toast'); document.getElementById('toastMessage').innerText = msg; toast.classList.remove('-translate-y-20', 'opacity-0'); setTimeout(() => toast.classList.add('-translate-y-20', 'opacity-0'), 3500); }
+
+// ================== TOAST MULTI-WARNA & MODAL KONFIRMASI KUSTOM ==================
+let _toastTimer = null;
+function sembunyiToast() {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.classList.add('-translate-y-24', 'opacity-0', 'pointer-events-none');
+    if (_toastTimer) { clearTimeout(_toastTimer); _toastTimer = null; }
+}
+function showToast(msg, tipe = 'success', durasiMs = 4000) {
+    const toast = document.getElementById('toast');
+    const txt = document.getElementById('toastMessage');
+    const ic = document.getElementById('toastIcon');
+    if (!toast || !txt) return;
+    const gaya = {
+        success: { bg: 'bg-sipd-navy', ic: 'fa-solid fa-circle-check text-emerald-400' },
+        error:   { bg: 'bg-red-700',   ic: 'fa-solid fa-circle-xmark text-red-200' },
+        warning: { bg: 'bg-amber-600', ic: 'fa-solid fa-triangle-exclamation text-amber-100' },
+        info:    { bg: 'bg-sky-700',   ic: 'fa-solid fa-circle-info text-sky-200' }
+    }[tipe] || { bg: 'bg-sipd-navy', ic: 'fa-solid fa-circle-check text-emerald-400' };
+
+    toast.className = `fixed top-5 right-5 max-w-md ${gaya.bg} text-white px-4 py-3 rounded-lg shadow-xl transform transition-all duration-300 z-[9999] flex items-start gap-2.5 border border-white/15`;
+    if (ic) ic.className = `${gaya.ic} text-sm mt-0.5 shrink-0`;
+    txt.textContent = String(msg || '');
+    if (_toastTimer) clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(sembunyiToast, tipe === 'error' ? Math.max(durasiMs, 5200) : durasiMs);
+}
+
+let _konfResolver = null;
+function tutupModalKonfirmasi(hasil) {
+    const el = document.getElementById('modalKonfirmasi');
+    if (el) el.classList.add('hidden');
+    if (_konfResolver) { const r = _konfResolver; _konfResolver = null; r(!!hasil); }
+}
+document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && _konfResolver) tutupModalKonfirmasi(false);
+});
+
+function tanyaKonfirmasi(opts) {
+    opts = opts || {};
+    const modal = document.getElementById('modalKonfirmasi');
+    if (!modal) return Promise.resolve(false);
+    const tipe = opts.tipe || 'warning';
+    const tema = {
+        danger:  { wrap: 'bg-red-100 text-red-600',       ik: 'fa-solid fa-trash-can',            btn: 'bg-red-600 hover:bg-red-700 text-white',       cat: 'bg-red-50 border-red-200 text-red-800' },
+        warning: { wrap: 'bg-amber-100 text-amber-600',   ik: 'fa-solid fa-triangle-exclamation', btn: 'bg-amber-600 hover:bg-amber-700 text-white',   cat: 'bg-amber-50 border-amber-200 text-amber-900' },
+        primary: { wrap: 'bg-emerald-100 text-emerald-700', ik: 'fa-solid fa-circle-check',       btn: 'bg-sipd-emerald hover:bg-emerald-700 text-white', cat: 'bg-slate-50 border-slate-200 text-slate-700' },
+        info:    { wrap: 'bg-sky-100 text-sky-700',       ik: 'fa-solid fa-circle-info',          btn: 'bg-sipd-navy hover:bg-slate-800 text-white',   cat: 'bg-sky-50 border-sky-200 text-sky-900' }
+    }[tipe] || { wrap: 'bg-amber-100 text-amber-600', ik: 'fa-solid fa-triangle-exclamation', btn: 'bg-sipd-navy hover:bg-slate-800 text-white', cat: 'bg-amber-50 border-amber-200 text-amber-900' };
+
+    document.getElementById('konfIkonWrap').className = `w-10 h-10 rounded-full ${tema.wrap} flex items-center justify-center text-lg shrink-0 mt-0.5`;
+    document.getElementById('konfIkon').className = tema.ik;
+    document.getElementById('konfJudul').textContent = opts.judul || 'Konfirmasi';
+    document.getElementById('konfPesan').textContent = opts.pesan || '';
+
+    const detEl = document.getElementById('konfDetail');
+    if (Array.isArray(opts.detailList) && opts.detailList.length) {
+        detEl.innerHTML = opts.detailList.map(([k, val]) =>
+            `<div class="flex justify-between gap-3"><span class="text-slate-500 shrink-0">${escapeHtml(k)}</span><span class="font-bold text-slate-800 text-right break-words">${escapeHtml(val)}</span></div>`
+        ).join('');
+        detEl.classList.remove('hidden');
+    } else {
+        detEl.innerHTML = '';
+        detEl.classList.add('hidden');
+    }
+
+    const catEl = document.getElementById('konfCatatan');
+    if (opts.catatan) {
+        catEl.className = `mt-2.5 text-[11px] rounded-lg p-2.5 border leading-relaxed ${tema.cat}`;
+        catEl.textContent = opts.catatan;
+    } else {
+        catEl.textContent = '';
+        catEl.className = 'hidden';
+    }
+
+    const btnBatal = document.getElementById('btnKonfBatal');
+    const btnYa = document.getElementById('btnKonfYa');
+    btnBatal.classList.toggle('hidden', !!opts.hanyaInfo);
+    btnBatal.textContent = opts.labelBatal || 'Batal';
+    btnYa.className = `px-4 py-2 ${tema.btn} font-bold rounded-lg shadow-sm text-xs transition-colors`;
+    btnYa.textContent = opts.labelYa || (opts.hanyaInfo ? 'Mengerti' : 'Ya, Lanjutkan');
+
+    modal.classList.remove('hidden');
+    setTimeout(() => btnYa.focus(), 50);
+    return new Promise((resolve) => { _konfResolver = resolve; });
+}
+
+function tampilPeringatan(judul, pesan, tipe = 'warning') {
+    return tanyaKonfirmasi({ judul, pesan, tipe, hanyaInfo: true, labelYa: 'Mengerti' });
+}
 
 function keluarSistem() {
     const t = sessionStorage.getItem('sesi_token');
@@ -932,13 +1193,13 @@ function simpanProfilMandiri(ev) {
     btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Menyimpan...';
     apiPost({ action: 'akun_update_profil', unitKerja, email, wa })
         .then(res => {
-            if (res.status !== 'success') { alert('Gagal menyimpan profil: ' + res.message); return; }
+            if (res.status !== 'success') { showToast('Gagal menyimpan profil: ' + res.message, 'error'); return; }
             if (res.user) setSesiUser(res.user);
             tarikDataDariServer();
             closeModal('modalAkunSaya');
             showToast('Profil & kontak tersimpan.');
         })
-        .catch(e => { if (String(e.message) !== 'Sesi berakhir') alert('Koneksi gagal: ' + e.message); })
+        .catch(e => { if (String(e.message) !== 'Sesi berakhir') showToast('Koneksi gagal: ' + e.message, 'error'); })
         .finally(() => { btn.disabled = false; btn.textContent = teksAsli; });
 }
 
@@ -1011,7 +1272,7 @@ function auditPasswordAkun() {
                   bermasalah.map(h => '<li><b>' + escapeHtml(h.username) + '</b> (' + escapeHtml(h.namaLengkap) + ') — ' + escapeHtml(h.temuan) + '</li>').join('') + '</ul></div>'
                 : '<div class="p-3 bg-emerald-50 border border-emerald-200 rounded text-[11px] text-emerald-800"><i class="fa-solid fa-circle-check me-1"></i> ' + res.hasil.length + ' akun diperiksa: tidak ada yang memakai password awal/default.</div>';
         })
-        .catch(e => { if (String(e.message) !== 'Sesi berakhir') alert('Koneksi gagal: ' + e.message); })
+        .catch(e => { if (String(e.message) !== 'Sesi berakhir') showToast('Koneksi gagal: ' + e.message, 'error'); })
         .finally(() => { btn.disabled = false; btn.innerHTML = asli; });
 }
 
@@ -1306,6 +1567,10 @@ const REKAP_LS = (function () {
         const q = ($('cariRekapLs') ? $('cariRekapLs').value : '').trim().toLowerCase();
         const fSpm = $('filterSpmRekapLs') ? $('filterSpmRekapLs').value : 'ALL';
 
+        const btnReset = $('btnResetFilterRekapLs');
+        const adaFilter = !!(q || fSpm !== 'ALL');
+        if (btnReset) { btnReset.classList.toggle('hidden', !adaFilter); btnReset.classList.toggle('inline-flex', adaFilter); }
+
         const tampilData = semua.filter(r => {
             const adaSpm = !!(r.spmUm || r.spmTermin);
             const lengkapSpm = (r.nilaiUm === 0 || !!r.spmUm) && (r.nilaiTermin === 0 || !!r.spmTermin);
@@ -1319,7 +1584,10 @@ const REKAP_LS = (function () {
         });
 
         if (tampilData.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="16" class="text-center py-10 text-slate-400 font-medium">Belum ada kontrak SPJ LS berstatus DISETUJUI yang cocok.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="10" class="text-center py-10 text-slate-400 font-medium">
+                <div>${adaFilter ? 'Tidak ada kontrak yang cocok dengan pencarian/filter saat ini.' : 'Belum ada kontrak SPJ LS berstatus DISETUJUI.'}</div>
+                ${adaFilter ? '<button type="button" onclick="REKAP_LS.resetFilter()" class="mt-2.5 px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded text-xs font-bold"><i class="fa-solid fa-rotate-left me-1"></i>Reset Filter</button>' : ''}
+            </td></tr>`;
             if (tfoot) tfoot.innerHTML = '';
             return;
         }
@@ -1332,37 +1600,48 @@ const REKAP_LS = (function () {
             sPpnT += r.ppnTermin; sPphT += r.pphTermin; sBersihT += r.bersihTermin;
 
             const kodeBadge = r.kodeBerkas
-                ? `<span class="px-2 py-0.5 bg-teal-50 text-teal-800 border border-teal-200 rounded font-mono font-bold text-[10px]">${escapeHtml(r.kodeBerkas)}</span>`
-                : `<span class="text-[10px] text-amber-600 italic">Belum ada kode</span>`;
+                ? `<span class="px-1.5 py-0.5 bg-teal-50 text-teal-800 border border-teal-200 rounded font-mono font-bold text-[10px]">${escapeHtml(r.kodeBerkas)}</span>`
+                : `<span class="text-[10px] text-amber-600 italic">Tanpa kode</span>`;
             const spmUmHtml = r.spmUm
-                ? `<span class="font-mono text-[10px] text-slate-700 break-all">${escapeHtml(r.spmUm)}</span>`
-                : (r.nilaiUm > 0 ? `<span class="text-[10px] text-amber-600 italic">Belum diisi</span>` : `<span class="text-slate-300">-</span>`);
+                ? `<div class="font-mono text-[10px] text-slate-500 break-all mt-0.5">${escapeHtml(r.spmUm)}</div>`
+                : (r.nilaiUm > 0 ? `<div class="text-[10px] text-amber-600 italic mt-0.5">SPM UM belum diisi</div>` : '');
             const spmTerminHtml = r.spmTermin
-                ? `<span class="font-mono text-[10px] text-slate-700 break-all">${escapeHtml(r.spmTermin)}</span>`
-                : (r.nilaiTermin > 0 ? `<span class="text-[10px] text-amber-600 italic">Belum diisi</span>` : `<span class="text-slate-300">-</span>`);
+                ? `<div class="font-mono text-[10px] text-slate-500 break-all mt-0.5">${escapeHtml(r.spmTermin)}</div>`
+                : (r.nilaiTermin > 0 ? `<div class="text-[10px] text-amber-600 italic mt-0.5">SPM Termin belum diisi</div>` : '');
+
+            const pajakUmHtml = r.nilaiUm
+                ? `<div class="font-mono text-[10px] text-slate-600">PPN: ${rp(r.ppnUm)}</div><div class="font-mono text-[10px] text-slate-500">PPh: ${rp(r.pphUm)}</div>`
+                : `<span class="text-slate-300">-</span>`;
+            const pajakTerminHtml = r.nilaiTermin
+                ? `<div class="font-mono text-[10px] text-slate-600">PPN: ${rp(r.ppnTermin)}</div><div class="font-mono text-[10px] text-slate-500">PPh: ${rp(r.pphTermin)}</div>`
+                : `<span class="text-slate-300">-</span>`;
+            const selCls = r.selisih < 0 ? 'text-red-600 font-bold' : (r.selisih > 0 ? 'text-amber-700' : 'text-slate-400');
 
             return `<tr class="hover:bg-teal-50/30 transition-colors">
-                <td class="py-3 px-3 text-center text-slate-500 font-medium">${i + 1}</td>
-                <td class="py-3 px-3 align-top max-w-[240px] whitespace-normal">
-                    <div class="mb-1">${kodeBadge}</div>
+                <td class="py-3 px-2.5 text-center text-slate-500 font-medium align-top">${i + 1}</td>
+                <td class="py-3 px-3 align-top max-w-[230px] whitespace-normal">
+                    <div class="flex items-center gap-1.5 flex-wrap mb-0.5">${kodeBadge}<span class="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded font-bold text-[9px] text-slate-600">PPh ${escapeHtml(r.jenisPph)}</span></div>
                     <div class="font-bold text-slate-800 text-[11px] break-words">${escapeHtml(r.noKontrak)}</div>
                     <div class="text-[10px] text-purple-700 font-semibold">${escapeHtml(r.pelaksana)}</div>
-                    <div class="text-[10px] text-slate-400 truncate max-w-[220px]" title="${escapeHtml(r.uraian)}">${escapeHtml(r.uraian)}</div>
+                    <div class="text-[10px] text-slate-400 truncate max-w-[210px]" title="${escapeHtml(r.uraian)}">${escapeHtml(r.uraian)}</div>
                 </td>
-                <td class="py-3 px-3 text-right font-mono font-bold text-slate-800 whitespace-nowrap">${rp(r.nilaiKontrak)}</td>
-                <td class="py-3 px-3 max-w-[170px] whitespace-normal">${spmUmHtml}</td>
-                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${r.nilaiUm ? rp(r.nilaiUm) : '-'}</td>
-                <td class="py-3 px-3 max-w-[170px] whitespace-normal">${spmTerminHtml}</td>
-                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${r.nilaiTermin ? rp(r.nilaiTermin) : '-'}</td>
-                <td class="py-3 px-3 text-right font-mono whitespace-nowrap ${r.selisih < 0 ? 'text-red-600 font-bold' : (r.selisih > 0 ? 'text-amber-700' : 'text-slate-400')}">${rp(r.selisih)}</td>
-                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${r.ppnUm ? rp(r.ppnUm) : '-'}</td>
-                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${r.pphUm ? rp(r.pphUm) : '-'}</td>
-                <td class="py-3 px-3 text-right font-mono font-bold text-emerald-700 bg-emerald-50/40 whitespace-nowrap">${r.nilaiUm ? rp(r.bersihUm) : '-'}</td>
-                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${r.ppnTermin ? rp(r.ppnTermin) : '-'}</td>
-                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${r.pphTermin ? rp(r.pphTermin) : '-'}</td>
-                <td class="py-3 px-3 text-right font-mono font-bold text-emerald-700 bg-emerald-50/40 whitespace-nowrap">${r.nilaiTermin ? rp(r.bersihTermin) : '-'}</td>
-                <td class="py-3 px-3 text-center whitespace-nowrap"><span class="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded font-bold text-[10px] text-slate-700">${escapeHtml(r.jenisPph)}</span></td>
-                <td class="py-3 px-3 text-center whitespace-nowrap sticky right-0 bg-white/95 border-l border-slate-100 z-10">
+                <td class="py-3 px-3 text-right align-top whitespace-nowrap">
+                    <div class="font-mono font-bold text-slate-800">${rp(r.nilaiKontrak)}</div>
+                    <div class="text-[10px] font-mono mt-0.5 ${selCls}">Sisa: ${rp(r.selisih)}</div>
+                </td>
+                <td class="py-3 px-3 align-top max-w-[180px] whitespace-normal">
+                    <div class="font-mono font-bold text-slate-800">${r.nilaiUm ? rp(r.nilaiUm) : '<span class="text-slate-300 font-normal">-</span>'}</div>
+                    ${spmUmHtml}
+                </td>
+                <td class="py-3 px-3 text-right align-top whitespace-nowrap">${pajakUmHtml}</td>
+                <td class="py-3 px-3 text-right font-mono font-bold text-emerald-700 bg-emerald-50/40 align-top whitespace-nowrap">${r.nilaiUm ? rp(r.bersihUm) : '<span class="text-slate-300 font-normal">-</span>'}</td>
+                <td class="py-3 px-3 align-top max-w-[180px] whitespace-normal">
+                    <div class="font-mono font-bold text-slate-800">${r.nilaiTermin ? rp(r.nilaiTermin) : '<span class="text-slate-300 font-normal">-</span>'}</div>
+                    ${spmTerminHtml}
+                </td>
+                <td class="py-3 px-3 text-right align-top whitespace-nowrap">${pajakTerminHtml}</td>
+                <td class="py-3 px-3 text-right font-mono font-bold text-emerald-700 bg-emerald-50/40 align-top whitespace-nowrap">${r.nilaiTermin ? rp(r.bersihTermin) : '<span class="text-slate-300 font-normal">-</span>'}</td>
+                <td class="py-3 px-3 text-center align-top whitespace-nowrap sticky right-0 bg-white/95 border-l border-slate-100 z-10">
                     <button type="button" data-rls-kontrak="${escapeHtml(r.noKontrak)}" onclick="REKAP_LS.bukaModal(this.getAttribute('data-rls-kontrak'))" class="px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded text-[10px] font-bold shadow-sm transition-colors"><i class="fa-solid fa-pen-to-square me-1"></i>Input / Edit</button>
                 </td>
             </tr>`;
@@ -1371,27 +1650,28 @@ const REKAP_LS = (function () {
         if (tfoot) {
             tfoot.innerHTML = `<tr>
                 <td colspan="2" class="py-3 px-3 text-right uppercase tracking-wider text-[10px]">Total (${tampilData.length} Kontrak)</td>
-                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${rp(sKontrak)}</td>
-                <td class="py-3 px-3"></td>
-                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${rp(sUm)}</td>
-                <td class="py-3 px-3"></td>
-                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${rp(sTermin)}</td>
-                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${rp(sSelisih)}</td>
-                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${rp(sPpnUm)}</td>
-                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${rp(sPphUm)}</td>
+                <td class="py-3 px-3 text-right font-mono whitespace-nowrap"><div>${rp(sKontrak)}</div><div class="text-[9px] text-slate-500">Sisa: ${rp(sSelisih)}</div></td>
+                <td class="py-3 px-3 font-mono whitespace-nowrap">${rp(sUm)}</td>
+                <td class="py-3 px-3 text-right font-mono whitespace-nowrap text-[10px]"><div>PPN: ${rp(sPpnUm)}</div><div>PPh: ${rp(sPphUm)}</div></td>
                 <td class="py-3 px-3 text-right font-mono text-emerald-800 bg-emerald-100/60 whitespace-nowrap">${rp(sBersihUm)}</td>
-                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${rp(sPpnT)}</td>
-                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${rp(sPphT)}</td>
+                <td class="py-3 px-3 font-mono whitespace-nowrap">${rp(sTermin)}</td>
+                <td class="py-3 px-3 text-right font-mono whitespace-nowrap text-[10px]"><div>PPN: ${rp(sPpnT)}</div><div>PPh: ${rp(sPphT)}</div></td>
                 <td class="py-3 px-3 text-right font-mono text-emerald-800 bg-emerald-100/60 whitespace-nowrap">${rp(sBersihT)}</td>
-                <td colspan="2" class="py-3 px-3"></td>
+                <td class="py-3 px-3"></td>
             </tr>`;
         }
     }
 
+    function resetFilter() {
+        if ($('cariRekapLs')) $('cariRekapLs').value = '';
+        if ($('filterSpmRekapLs')) $('filterSpmRekapLs').value = 'ALL';
+        render();
+    }
+
     function bukaModal(noKontrak) {
-        if (!bisaRekapPencairanLs()) { alert('Hanya BENDAHARA atau SUPER_ADMIN yang dapat mengubah data ini.'); return; }
+        if (!bisaRekapPencairanLs()) { showToast('Hanya BENDAHARA atau SUPER_ADMIN yang dapat mengubah data ini.', 'warning'); return; }
         const r = cacheBaris.find(x => x.noKontrak === noKontrak);
-        if (!r) { alert('Data kontrak tidak ditemukan. Muat ulang data.'); return; }
+        if (!r) { showToast('Data kontrak tidak ditemukan. Muat ulang data.', 'error'); return; }
         aktifRow = r;
         $('rlsNoKontrak').value = r.noKontrak;
         $('rlsModalSub').textContent = `${r.noKontrak} · Tahap disetujui: ${r.tahapList.join(', ')}`;
@@ -1471,18 +1751,18 @@ const REKAP_LS = (function () {
 
         apiPost(payload)
             .then(res => {
-                if (res.status !== 'success') { alert('Gagal menyimpan: ' + res.message); return; }
+                if (res.status !== 'success') { showToast('Gagal menyimpan: ' + res.message, 'error'); return; }
                 closeModal('modalRekapLs');
                 showToast('Data Rekap Pencairan LS tersimpan.');
                 tarikDataDariServer(true);
             })
-            .catch(e => { if (String(e.message) !== 'Sesi berakhir') alert('Koneksi gagal: ' + e.message); })
+            .catch(e => { if (String(e.message) !== 'Sesi berakhir') showToast('Koneksi gagal: ' + e.message, 'error'); })
             .finally(() => { btn.disabled = false; btn.innerHTML = asli; });
     }
 
     function exportExcel() {
         const data = susunData();
-        if (!data.length) { alert('Belum ada data kontrak LS yang disetujui untuk diekspor.'); return; }
+        if (!data.length) { showToast('Belum ada data kontrak LS yang disetujui untuk diekspor.', 'warning'); return; }
         const ta = String(CONFIG.TAHUN_ANGGARAN || '2026');
         const head = [
             'NO', 'KODE', 'NO KONTRAK', 'PENYEDIA', 'URAIAN PEKERJAAN',
@@ -1527,5 +1807,5 @@ const REKAP_LS = (function () {
         }
     }
 
-    return { render, bukaModal, hitungModal, resetPajakOtomatis, simpan, exportExcel };
+    return { render, resetFilter, bukaModal, hitungModal, resetPajakOtomatis, simpan, exportExcel };
 })();

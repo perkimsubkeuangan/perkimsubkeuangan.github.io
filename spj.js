@@ -42,7 +42,7 @@ function isPemilikSpj(item) {
 }
 
 function bukaFormSpjBaru(jenisDefault) {
-    if (!bisaBuatSpj()) { alert('Peran Anda tidak memiliki hak membuat pengajuan.'); return; }
+    if (!bisaBuatSpj()) { showToast('Peran Anda tidak memiliki hak membuat pengajuan.', 'error'); return; }
     isEditMode = false; editIdTarget = null;
     window._defaultJenisSpjBaru = (jenisDefault === 'GU' || jenisDefault === 'LS') ? jenisDefault : '';
     window._defaultKodeBapBaru = '';
@@ -50,14 +50,14 @@ function bukaFormSpjBaru(jenisDefault) {
 }
 
 function bukaFormSpjDariBap(kodeBap) {
-    if (!bisaBuatSpj()) { alert('Peran Anda tidak memiliki hak membuat pengajuan SPJ.'); return; }
+    if (!bisaBuatSpj()) { showToast('Peran Anda tidak memiliki hak membuat pengajuan SPJ.', 'error'); return; }
     const k = (window.DATABASE_KONTRAK || []).find(x => String(x.kodeSpj) === String(kodeBap));
-    if (!k) { alert('Data BAP tidak ditemukan. Muat ulang halaman.'); return; }
+    if (!k) { showToast('Data BAP tidak ditemukan. Muat ulang halaman.', 'error'); return; }
     if (sesiAktif.role === 'PPTK' && String(k.pptk).trim() !== String(sesiAktif.namaLengkap).trim()) {
-        alert('Anda hanya dapat mengajukan SPJ dari BAP milik Anda sendiri.');
+        showToast('Anda hanya dapat mengajukan SPJ dari BAP milik Anda sendiri.', 'warning');
         return;
     }
-    if (bapSudahDiajukan(k)) { alert('BAP ini sudah pernah diajukan SPJ-nya.'); return; }
+    if (bapSudahDiajukan(k)) { showToast('BAP ini sudah pernah diajukan SPJ-nya.', 'error'); return; }
     isEditMode = false; editIdTarget = null;
     window._defaultJenisSpjBaru = 'LS';
     window._defaultKodeBapBaru = k.kodeSpj;
@@ -178,7 +178,7 @@ function autoFillDariBap() {
 function kirimPengajuanSpjBaru(e) {
     e.preventDefault();
     const cekEm = validasiDaftarEmail(document.getElementById('inputEmail').value, 5);
-    if (!cekEm.ok) { alert(cekEm.pesan); return; }
+    if (!cekEm.ok) { showToast(cekEm.pesan, 'error'); return; }
     document.getElementById('inputEmail').value = cekEm.teks;
     const btn = document.getElementById('btnSubmitNew'); btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Menyimpan...'; btn.disabled = true;
     
@@ -241,9 +241,9 @@ function kirimPengajuanSpjBaru(e) {
                     }
                     document.getElementById('formNewSpj').parentElement.appendChild(divSukses);
                 }
-            } else { alert("GAGAL MENYIMPAN!\n" + (res.message || res.pesan || JSON.stringify(res))); }
+            } else { showToast("GAGAL MENYIMPAN!\n" + (res.message || res.pesan || JSON.stringify(res)), 'error'); }
         })
-        .catch(err => alert("KONEKSI TERPUTUS!\nError: " + err.message))
+        .catch(err => showToast("KONEKSI TERPUTUS!\nError: " + err.message, 'error'))
         .finally(() => { 
             btn.innerHTML = 'Lanjut ke Form Upload <i class="fa-solid fa-arrow-right"></i>'; 
             btn.disabled = false; 
@@ -329,6 +329,109 @@ function getFilteredSpjData() {
     return data;
 }
 
+function saringDariDashboard(st) {
+    filterStatus = st || 'ALL';
+    const sel = document.getElementById('selectStatusSpj');
+    if (sel) sel.value = (filterStatus === 'DISETUJUI_GU') ? 'DISETUJUI' : filterStatus;
+    currentPage = 1;
+    renderTabelSpj();
+    const sec = document.getElementById('sectionTabelSpj');
+    if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function resetFilterSpj() {
+    searchQuery = '';
+    filterStatus = 'ALL';
+    filterPemilikSpj = 'ALL';
+    sortType = 'TGL_DESC';
+    const setV = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+    setV('inputSearchSpj', '');
+    setV('selectStatusSpj', 'ALL');
+    setV('filterPemilikSpj', 'ALL');
+    setV('selectSortSpj', 'TGL_DESC');
+    currentPage = 1;
+    renderTabelSpj();
+}
+
+// Hitung usia berkas (hari) sejak aktivitas terakhir pada riwayatLog (fallback: tanggal pengajuan createdAt)
+function hitungUsiaBerkasHari(item) {
+    if (!item) return 0;
+    let tglRef = null;
+    const logRaw = String(item.riwayatLog || '');
+    const mLog = logRaw.match(/\[(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2}))?\]/);
+    if (mLog) {
+        tglRef = new Date(Number(mLog[3]), Number(mLog[2]) - 1, Number(mLog[1]), Number(mLog[4] || 0), Number(mLog[5] || 0));
+    } else if (item.createdAt) {
+        const s = String(item.createdAt).split('T')[0];
+        const mIso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (mIso) tglRef = new Date(Number(mIso[1]), Number(mIso[2]) - 1, Number(mIso[3]));
+    }
+    if (!tglRef || isNaN(tglRef.getTime())) return 0;
+    return Math.max(0, Math.floor((Date.now() - tglRef.getTime()) / 86400000));
+}
+
+function badgeSlaHtml(item, selaluTampil = false) {
+    const st = String(item.status || '');
+    if (st !== 'BELUM_DIPROSES' && st !== 'REVISI') return '';
+    const hari = hitungUsiaBerkasHari(item);
+    if (hari > 7) {
+        return `<span title="Mengendap ${hari} hari sejak aktivitas terakhir" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-300 text-[9px] font-bold"><i class="fa-regular fa-clock"></i>${hari} hr</span>`;
+    }
+    if (hari > 3) {
+        return `<span title="Mengendap ${hari} hari sejak aktivitas terakhir" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 text-[9px] font-bold"><i class="fa-regular fa-clock"></i>${hari} hr</span>`;
+    }
+    if (selaluTampil) {
+        return `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200 text-[9px] font-semibold">${hari === 0 ? 'Hari ini' : hari + ' hr'}</span>`;
+    }
+    return '';
+}
+
+function renderPrioritasDashboard() {
+    const wadah = document.getElementById('listBerkasPrioritas');
+    if (!wadah) return;
+    const kandidat = (spjData || []).filter(item => {
+        if (sesiAktif.role === 'PPTK' && filterPemilikSpj === 'MINE' && !isPemilikSpj(item)) return false;
+        const jns = String(item.jenisSurat || 'GU').trim();
+        return item.status === 'BELUM_DIPROSES' || item.status === 'REVISI' || (jns === 'GU' && item.status === 'DISETUJUI');
+    }).map(item => ({ item, hari: hitungUsiaBerkasHari(item) }));
+
+    kandidat.sort((a, b) => b.hari - a.hari);
+
+    const lewatSla = kandidat.filter(k => (k.item.status === 'BELUM_DIPROSES' || k.item.status === 'REVISI') && k.hari > 3).length;
+    const badgeWarn = document.getElementById('badgeSlaWarning');
+    if (badgeWarn) {
+        if (lewatSla > 0) {
+            badgeWarn.classList.remove('hidden');
+            badgeWarn.textContent = `${lewatSla} berkas > 3 hari`;
+        } else {
+            badgeWarn.classList.add('hidden');
+        }
+    }
+
+    if (kandidat.length === 0) {
+        wadah.innerHTML = `<div class="text-center py-6 text-slate-400 text-xs"><i class="fa-solid fa-circle-check text-emerald-500 text-xl mb-1.5 block"></i>Semua berkas sudah tertangani!</div>`;
+        return;
+    }
+
+    wadah.innerHTML = kandidat.slice(0, 5).map(({ item, hari }) => {
+        const jns = String(item.jenisSurat || 'GU').trim();
+        const jnsCls = jns === 'LS' ? 'bg-purple-100 text-purple-700' : 'bg-indigo-100 text-indigo-700';
+        const stLabel = item.status === 'BELUM_DIPROSES' ? 'Menunggu' : (item.status === 'REVISI' ? 'Revisi' : 'Siap PB');
+        const stCls = item.status === 'REVISI' ? 'text-amber-700' : (item.status === 'DISETUJUI' ? 'text-emerald-700' : 'text-slate-600');
+        const sla = badgeSlaHtml(item, true) || `<span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-semibold">${hari === 0 ? 'Hari ini' : hari + ' hr'}</span>`;
+        return `<button type="button" onclick="bukaModalVerifikasi('${escapeHtml(item.id)}')" class="w-full text-left p-2 rounded-lg border border-slate-100 hover:border-slate-300 hover:bg-slate-50 transition-all flex items-center justify-between gap-2">
+            <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1.5">
+                    <span class="px-1.5 py-0.5 rounded font-bold text-[9px] ${jnsCls}">${jns}</span>
+                    <span class="text-[11px] font-bold text-slate-800 truncate">${escapeHtml(item.npd || '-')}</span>
+                </div>
+                <div class="text-[10px] text-slate-500 truncate mt-0.5">${escapeHtml(item.pptk || '-')} &middot; <span class="font-semibold ${stCls}">${stLabel}</span> &middot; <span class="font-mono">${formatRupiah(item.nominal)}</span></div>
+            </div>
+            <div class="shrink-0">${sla}</div>
+        </button>`;
+    }).join('');
+}
+
 function setFilterStatus(st) {
     filterStatus = (filterStatus === st && st !== 'ALL') ? 'ALL' : (st || 'ALL');
     const sel = document.getElementById('selectStatusSpj');
@@ -359,7 +462,7 @@ function terapkanFilterDanSort() {
 
 function exportSpjExcel() {
     const data = getFilteredSpjData();
-    if (!data.length) { alert('Tidak ada data SPJ untuk diekspor.'); return; }
+    if (!data.length) { showToast('Tidak ada data SPJ untuk diekspor.', 'warning'); return; }
     const ta = String(CONFIG.TAHUN_ANGGARAN || '2026');
     const head = ['No', 'Tanggal', 'Jenis', 'No. NPD / Kontrak', 'PPTK', 'Unit Kerja', 'Program', 'Kegiatan', 'Sub Kegiatan', 'Penyedia / CV', 'Tahap', 'Uraian', 'Nominal (Rp)', 'Status', 'No. PB', 'Tanggal PB'];
     const rows = data.map((x, i) => [
@@ -415,20 +518,14 @@ function renderTabelSpj() {
 
     const setT = (id, txt) => { const el = document.getElementById(id); if (el) el.innerText = txt; };
 
-    // Dashboard Semua: Total Berkas Pencairan GU & LS
-    const guProses = guMenunggu + guRevisi + guSiapPb;
-    const lsProses = lsMenunggu + lsRevisi;
     setT('totalBerkasGu', String(guTotal));
     setT('totalNominalGu', formatRupiah(guNominal));
     setT('subBerkasGu', `Selesai PB: ${guSelesaiPb} · Siap PB: ${guSiapPb} · Proses: ${guMenunggu + guRevisi}`);
 
     setT('totalBerkasLs', String(lsTotal));
     setT('totalNominalLs', formatRupiah(lsNominal));
-    setT('subBerkasLs', `Disetujui: ${lsDisetujui} · Proses: ${lsProses}${lsDitolak ? ' · Ditolak: ' + lsDitolak : ''}`);
-
-    setT('totalBerkasSemua', String(guTotal + lsTotal));
-    setT('totalNominalSemua', formatRupiah(guNominal + lsNominal));
-    setT('subBerkasSemua', `Selesai: ${guSelesaiPb + lsDisetujui} · Proses: ${guProses + lsProses} · Ditolak: ${guDitolak + lsDitolak}`);
+    setT('subBerkasLs', `Disetujui: ${lsDisetujui} · Proses: ${lsMenunggu + lsRevisi}${lsDitolak ? ' · Ditolak: ' + lsDitolak : ''}`);
+    setT('subBerkasSemua', `Total ${guTotal + lsTotal} berkas`);
 
     // Dashboard Semua: Actionable Counters (Tunggu Transfer PB KHUSUS GU, LS tidak masuk!)
     setT('countMenunggu', String(guMenunggu + lsMenunggu));
@@ -451,70 +548,95 @@ function renderTabelSpj() {
     setT('lsCountDisetujui', String(lsDisetujui));
     setT('lsNominalDisetujui', formatRupiah(lsNominalDisetujui));
 
-    const filteredData = getFilteredSpjData();
+    // Perbarui daftar prioritas & grafik status untuk PPTK
+    renderPrioritasDashboard();
+    if (sesiAktif.role === 'PPTK' && typeof renderGrafikDashboard === 'function') renderGrafikDashboard();
 
+    // Tampilkan tombol Reset Filter bila ada filter / pencarian aktif
+    const adaFilter = !!(searchQuery || (filterStatus && filterStatus !== 'ALL') || (sesiAktif.role === 'PPTK' && filterPemilikSpj !== 'ALL'));
+    const btnReset = document.getElementById('btnResetFilterSpj');
+    if (btnReset) { btnReset.classList.toggle('hidden', !adaFilter); btnReset.classList.toggle('inline-flex', adaFilter); }
+
+    const filteredData = getFilteredSpjData();
     const totalData = filteredData.length; const totalPages = Math.ceil(totalData / rowsPerPage) || 1;
     const startIndex = (currentPage - 1) * rowsPerPage; const endIndex = Math.min(startIndex + rowsPerPage, totalData);
     const infoEl = document.getElementById('infoHalaman'); const btnPrev = document.getElementById('btnPrevPage'); const btnNext = document.getElementById('btnNextPage');
     if (infoEl) infoEl.innerText = `Hal ${currentPage} dari ${totalPages}`;
+    const infoTot = document.getElementById('infoTotalDataSpj');
+    if (infoTot) infoTot.innerText = totalData ? `(${startIndex + 1}–${endIndex} dari ${totalData} data)` : '(0 data)';
     if (btnPrev) btnPrev.disabled = currentPage === 1; if (btnNext) btnNext.disabled = currentPage === totalPages || totalPages === 0;
     const dataHalamanIni = filteredData.slice(startIndex, endIndex);
 
-    let colSpanNum = filterJenis === 'ALL' ? 12 : (filterJenis === 'LS' ? 10 : 9);
-    if (dataHalamanIni.length === 0) { tbody.innerHTML = `<tr><td colspan="${colSpanNum}" class="text-center py-10 text-slate-500 font-medium">Belum ada data SPJ untuk ditampilkan.</td></tr>`; return; }
+    const colSpanNum = (filterJenis === 'GU') ? 8 : 9;
+    if (dataHalamanIni.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${colSpanNum}" class="text-center py-10 text-slate-500 font-medium">
+            <div>${adaFilter ? 'Tidak ada data SPJ yang cocok dengan filter atau pencarian saat ini.' : 'Belum ada data SPJ untuk ditampilkan.'}</div>
+            ${adaFilter ? '<button type="button" onclick="resetFilterSpj()" class="mt-2.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded text-xs font-bold"><i class="fa-solid fa-rotate-left me-1"></i>Reset Filter</button>' : ''}
+        </td></tr>`;
+        return;
+    }
 
     dataHalamanIni.forEach(item => {
-        let jenisSurat = String(item.jenisSurat || 'GU');
-        let badge = `<span class="px-2.5 py-1 rounded-full border border-slate-200 font-bold text-slate-600 bg-slate-100 text-[10px] tracking-wide">MENUNGGU</span>`;
+        const jenisSurat = String(item.jenisSurat || 'GU');
+        let badge = `<span class="px-2.5 py-0.5 rounded-full border border-slate-200 font-bold text-slate-600 bg-slate-100 text-[10px] tracking-wide">MENUNGGU</span>`;
         if (item.status === 'DISETUJUI') {
             badge = jenisSurat === 'LS'
-                ? `<span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-300 text-[10px] tracking-wide"><i class="fa-solid fa-circle-check me-1"></i>DISETUJUI</span>`
-                : `<span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200 text-[10px] tracking-wide">DISETUJUI</span>`;
+                ? `<span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-300 text-[10px] tracking-wide"><i class="fa-solid fa-circle-check me-1"></i>DISETUJUI</span>`
+                : `<span class="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200 text-[10px] tracking-wide">DISETUJUI</span>`;
         }
-        if (item.status === 'REVISI') badge = `<span class="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-bold border border-amber-200 text-[10px] tracking-wide">REVISI</span>`;
-        if (item.status === 'DITOLAK') badge = `<span class="px-2.5 py-1 rounded-full bg-red-50 text-red-700 font-bold border border-red-200 text-[10px] tracking-wide">DITOLAK</span>`;
-        if (item.status === 'SUDAH DIPINDAHBUKUKAN') badge = `<span class="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-200 text-[10px] tracking-wide">SELESAI PB</span>`;
+        if (item.status === 'REVISI') badge = `<span class="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 font-bold border border-amber-200 text-[10px] tracking-wide">REVISI</span>`;
+        if (item.status === 'DITOLAK') badge = `<span class="px-2.5 py-0.5 rounded-full bg-red-50 text-red-700 font-bold border border-red-200 text-[10px] tracking-wide">DITOLAK</span>`;
+        if (item.status === 'SUDAH DIPINDAHBUKUKAN') badge = `<span class="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-200 text-[10px] tracking-wide">SELESAI PB</span>`;
 
         const bacaSaja = (sesiAktif.role === 'PPTK' || sesiAktif.role === 'PIMPINAN');
-        let actionBtnText = bacaSaja ? '<i class="fa-solid fa-folder-open"></i> DETAIL' : '<i class="fa-solid fa-clipboard-check"></i> VERIFIKASI';
-        let actionBtnColor = bacaSaja
+        const actionBtnText = bacaSaja ? '<i class="fa-solid fa-folder-open"></i> DETAIL' : '<i class="fa-solid fa-clipboard-check"></i> VERIFIKASI';
+        const actionBtnColor = bacaSaja
             ? 'bg-slate-700 hover:bg-slate-800'
             : (filterJenis === 'GU' ? 'bg-indigo-600 hover:bg-indigo-700' : (filterJenis === 'LS' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-sipd-navy hover:bg-slate-800'));
 
-        let jenisBadge = jenisSurat === 'LS' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200';
-        let tdJenisHtml = filterJenis === 'ALL' ? `<td class="py-4 px-4 text-xs align-top text-center whitespace-nowrap"><span class="px-2 py-1 rounded-md border font-bold text-[10px] ${jenisBadge}">${jenisSurat}</span></td>` : ``;
+        const jenisBadge = jenisSurat === 'LS' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200';
+        const metaNpd = [];
+        if (filterJenis === 'ALL') metaNpd.push(`<span class="px-1.5 py-0.5 rounded border font-bold text-[9px] ${jenisBadge}">${jenisSurat}</span>`);
+        if (jenisSurat === 'LS' && item.tahap) metaNpd.push(`<span class="px-1.5 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded font-bold text-[9px]">${escapeHtml(item.tahap)}</span>`);
+        if (jenisSurat === 'LS' && item.noAntreanLs) metaNpd.push(`<span class="px-1.5 py-0.5 bg-slate-100 text-slate-600 border border-slate-200 rounded font-mono font-bold text-[9px]">${escapeHtml(item.noAntreanLs)}</span>`);
 
-        let cvText = jenisSurat === 'LS' && item.namaCv ? escapeHtml(item.namaCv) : '-';
-        let tahapText = jenisSurat === 'LS' && item.tahap ? escapeHtml(item.tahap) : '-';
-        let tglPbText = jenisSurat === 'LS' ? '<span class="text-slate-300">-</span>' : (item.tglPb ? formatTanggalIndo(String(item.tglPb)) : '-');
-        let uraianPekerjaan = escapeHtml(item.uraian || '-');
-        let npdColor = filterJenis === 'GU' ? 'text-indigo-900' : (filterJenis === 'LS' ? 'text-purple-900' : 'text-slate-800');
-        let rowHover = filterJenis === 'GU' ? 'hover:bg-indigo-50/40' : (filterJenis === 'LS' ? 'hover:bg-purple-50/40' : 'hover:bg-slate-50/50');
+        const cvText = jenisSurat === 'LS' && item.namaCv ? escapeHtml(item.namaCv) : '<span class="text-slate-300 font-normal">-</span>';
+        const uraianPekerjaan = escapeHtml(item.uraian || '-');
+        const npdColor = filterJenis === 'GU' ? 'text-indigo-900' : (filterJenis === 'LS' ? 'text-purple-900' : 'text-slate-800');
+        const rowHover = filterJenis === 'GU' ? 'hover:bg-indigo-50/40' : (filterJenis === 'LS' ? 'hover:bg-purple-50/40' : 'hover:bg-slate-50/50');
+        const tdCvHtml = (filterJenis === 'GU') ? '' : `<td class="py-3.5 px-3.5 text-xs align-top font-bold text-purple-700 max-w-[160px] whitespace-normal break-words">${cvText}</td>`;
 
-        let tdCvHtml = (filterJenis === 'ALL' || filterJenis === 'LS') ? `<td class="py-4 px-4 text-xs align-top font-bold text-purple-700">${cvText}</td>` : ``;
-        let tdTahapHtml = (filterJenis === 'ALL' || filterJenis === 'LS') ? `<td class="py-4 px-4 text-xs align-top text-center"><span class="${jenisSurat === 'LS' ? 'px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded font-bold text-[10px]' : ''}">${tahapText}</span></td>` : ``;
-        let tdTglPbHtml = (filterJenis === 'ALL' || filterJenis === 'GU') ? `<td class="py-4 px-4 text-xs align-top font-bold text-blue-600">${tglPbText}</td>` : ``;
+        const slaBadge = badgeSlaHtml(item, false);
+        const pbTglBadge = (jenisSurat === 'GU' && item.status === 'SUDAH DIPINDAHBUKUKAN' && item.tglPb)
+            ? `<div class="mt-1 text-[9px] font-bold text-blue-600">PB: ${formatTanggalIndo(String(item.tglPb))}</div>` : '';
+        const belumUploadBadge = (!item.linkKeuangan || item.linkKeuangan === '-') && (!item.linkSpj || item.linkSpj === '-')
+            ? '<div class="mt-1"><span class="px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 border border-rose-200 text-[9px] font-bold">Belum Upload</span></div>' : '';
 
         tbody.innerHTML += `
             <tr class="${rowHover} border-b border-slate-100 transition-colors">
-                <td class="py-4 px-4 text-xs align-top whitespace-nowrap text-slate-500 font-medium">${formatTanggalIndo(item.createdAt)}</td>
-                <td class="py-4 px-4 text-xs align-top font-bold ${npdColor} max-w-[160px] whitespace-normal break-words">${escapeHtml(item.npd || '-')}</td>
-                ${tdJenisHtml}
-                <td class="py-4 px-4 text-xs align-top whitespace-nowrap">${escapeHtml(item.pptk || '-')}${sesiAktif.role === 'PPTK' && isPemilikSpj(item) ? ' <span class="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[9px] font-bold">Milik Saya</span>' : ''}<br><span class="text-[10px] text-slate-500">${escapeHtml(item.unitKerja || '-')}</span></td>
-                <td class="py-4 px-4 text-xs align-top leading-relaxed min-w-[200px] whitespace-normal break-words">
-                    <span class="font-bold text-slate-800">${escapeHtml(item.program || '-')}</span><br>
-                    <span class="text-slate-500">${escapeHtml(item.kegiatan || '-')}</span><br>
-                    <span class="text-[10px] text-slate-400">${escapeHtml(item.subKegiatan || '-')}</span>
+                <td class="py-3.5 px-3.5 text-xs align-top whitespace-nowrap text-slate-500 font-medium">${formatTanggalIndo(item.createdAt)}</td>
+                <td class="py-3.5 px-3.5 text-xs align-top max-w-[180px] whitespace-normal break-words">
+                    <div class="font-bold ${npdColor}">${escapeHtml(item.npd || '-')}</div>
+                    ${metaNpd.length ? `<div class="flex flex-wrap gap-1 mt-1">${metaNpd.join('')}</div>` : ''}
+                </td>
+                <td class="py-3.5 px-3.5 text-xs align-top whitespace-nowrap">${escapeHtml(item.pptk || '-')}${sesiAktif.role === 'PPTK' && isPemilikSpj(item) ? ' <span class="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[9px] font-bold">Milik Saya</span>' : ''}<br><span class="text-[10px] text-slate-500">${escapeHtml(item.unitKerja || '-')}</span></td>
+                <td class="py-3.5 px-3.5 text-xs align-top leading-snug max-w-[230px] whitespace-normal break-words" title="${escapeHtml((item.program || '') + ' / ' + (item.kegiatan || '') + ' / ' + (item.subKegiatan || ''))}">
+                    <div class="font-bold text-slate-800 line-clamp-1">${escapeHtml(item.program || '-')}</div>
+                    <div class="text-slate-500 line-clamp-1">${escapeHtml(item.kegiatan || '-')}</div>
+                    <div class="text-[10px] text-slate-400 line-clamp-1">${escapeHtml(item.subKegiatan || '-')}</div>
                 </td>
                 ${tdCvHtml}
-                ${tdTahapHtml}
-                ${tdTglPbHtml}
-                <td class="py-4 px-4 text-xs align-top text-slate-600 max-w-[220px] whitespace-normal break-words">${uraianPekerjaan}</td>
-                <td class="py-4 px-4 text-xs text-right font-bold align-top whitespace-nowrap text-slate-800">${formatRupiah(item.nominal)}</td>
-                <td class="py-4 px-4 text-center align-top whitespace-nowrap">${badge}${(!item.linkKeuangan || item.linkKeuangan === '-') && (!item.linkSpj || item.linkSpj === '-') ? '<div class="mt-1"><span class="px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 border border-rose-200 text-[9px] font-bold">Belum Upload Berkas</span></div>' : ''}</td>
-                <td class="py-4 px-4 text-center align-top whitespace-nowrap sticky right-0 bg-white/90 backdrop-blur-sm shadow-[-8px_0_15px_rgba(0,0,0,0.02)] z-10 border-l border-slate-100">
-                    <button onclick="bukaModalVerifikasi('${escapeHtml(item.id)}')" class="px-4 py-1.5 ${actionBtnColor} text-white rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer">${actionBtnText}</button>
-                    ${sesiAktif.role === 'SUPER_ADMIN' ? `<button type="button" data-hapus-id="${escapeHtml(item.id)}" onclick="hapusPengajuan(this.getAttribute('data-hapus-id'), this)" class="ml-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer" title="Hapus pengajuan (khusus Super Admin)"><i class="fa-solid fa-trash"></i> Hapus</button>` : ''}
+                <td class="py-3.5 px-3.5 text-xs align-top text-slate-600 max-w-[210px] whitespace-normal break-words"><div class="line-clamp-2" title="${uraianPekerjaan}">${uraianPekerjaan}</div></td>
+                <td class="py-3.5 px-3.5 text-xs text-right font-bold font-mono align-top whitespace-nowrap text-slate-800">${formatRupiah(item.nominal)}</td>
+                <td class="py-3.5 px-3.5 text-center align-top whitespace-nowrap">
+                    <div>${badge}</div>
+                    ${slaBadge ? `<div class="mt-1">${slaBadge}</div>` : ''}
+                    ${pbTglBadge}
+                    ${belumUploadBadge}
+                </td>
+                <td class="py-3.5 px-3.5 text-center align-top whitespace-nowrap sticky right-0 bg-white/95 backdrop-blur-sm shadow-[-8px_0_15px_rgba(0,0,0,0.02)] z-10 border-l border-slate-100">
+                    <button onclick="bukaModalVerifikasi('${escapeHtml(item.id)}')" class="px-3.5 py-1.5 ${actionBtnColor} text-white rounded-lg text-[11px] font-semibold shadow-sm transition-all cursor-pointer">${actionBtnText}</button>
+                    ${sesiAktif.role === 'SUPER_ADMIN' ? `<button type="button" data-hapus-id="${escapeHtml(item.id)}" onclick="hapusPengajuan(this.getAttribute('data-hapus-id'), this)" class="ml-1 px-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[11px] font-semibold shadow-sm transition-all cursor-pointer" title="Hapus pengajuan (khusus Super Admin)"><i class="fa-solid fa-trash"></i></button>` : ''}
                 </td>
             </tr>
         `;
@@ -587,24 +709,31 @@ function renderListRevisi(textRaw, idItem, boleh) {
     return htmlResult + '</div>';
 }
 
-function hapusSatuBerkas(btn) {
+async function hapusSatuBerkas(btn) {
     if (!btn) return;
     const id = btn.getAttribute('data-del-id');
     const slot = btn.getAttribute('data-del-slot');
     const url = btn.getAttribute('data-del-url');
     const nama = btn.getAttribute('data-del-nama') || 'berkas ini';
     if (!id || !slot || !url) return;
-    if (!confirm(`Hapus lampiran "${nama}"?\n\nTautan akan dicabut dari pengajuan ini dan file di Google Drive dipindahkan ke Trash (masih dapat dipulihkan dalam 30 hari).`)) return;
+    const ok = await tanyaKonfirmasi({
+        judul: 'Hapus File Lampiran?',
+        pesan: `Lampiran "${nama}" akan dicabut dari pengajuan ini.`,
+        catatan: 'File di Google Drive dipindahkan ke Trash (masih dapat dipulihkan dalam 30 hari) dan aksinya tercatat di Riwayat Status.',
+        labelYa: 'Ya, Hapus Lampiran',
+        tipe: 'danger'
+    });
+    if (!ok) return;
     const awal = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
     apiPost({ action: 'hapus_berkas', id, slot, url, nama })
         .then(res => {
-            if (res.status !== 'success') { alert('Gagal menghapus lampiran: ' + (res.message || '')); btn.disabled = false; btn.innerHTML = awal; return; }
+            if (res.status !== 'success') { showToast('Gagal menghapus lampiran: ' + (res.message || ''), 'error'); btn.disabled = false; btn.innerHTML = awal; return; }
             showToast('Lampiran "' + (res.nama || nama) + '" berhasil dihapus.');
             return tarikDataDariServer(true).then(() => { if (String(activeSelectedId) === String(id)) bukaModalVerifikasi(id); });
         })
         .catch(err => {
-            if (String(err.message) !== 'Sesi berakhir') alert('Koneksi terputus: ' + err.message);
+            if (String(err.message) !== 'Sesi berakhir') showToast('Koneksi terputus: ' + err.message, 'error');
             btn.disabled = false; btn.innerHTML = awal;
         });
 }
@@ -838,7 +967,7 @@ function bukaModalVerifikasi(id) {
 
 function bukaFormEdit() {
     const item = spjData.find(i => String(i.id) === String(activeSelectedId)); if(!item) return;
-    if (!bisaEditItem(item)) { alert('Anda tidak memiliki hak mengubah pengajuan ini.'); return; }
+    if (!bisaEditItem(item)) { showToast('Anda tidak memiliki hak mengubah pengajuan ini.', 'error'); return; }
     isEditMode = true; editIdTarget = item.id;
     const existingSukses = document.getElementById('pesanSuksesDiv'); if(existingSukses) existingSukses.remove();
     document.getElementById('formNewSpj').classList.remove('hidden');
@@ -888,17 +1017,17 @@ function toggleActionForm(type) {
 
 function prosesUpdateStatusAksi() {
     let payload = { action: 'update_status', id: activeSelectedId, status: pendingStatusChange, noPb: '', tglPb: '', catatanRevisi: '', buktiPb: '' };
-    if (pendingStatusChange === 'REVISI' || pendingStatusChange === 'DITOLAK') { payload.catatanRevisi = document.getElementById('catatanRevisiInput').value; if(!payload.catatanRevisi) { alert('Catatan wajib diisi!'); return; } } 
-    else if (pendingStatusChange === 'SUDAH DIPINDAHBUKUKAN') { payload.noPb = document.getElementById('noPbInput').value; payload.tglPb = document.getElementById('tglPbInput').value; payload.buktiPb = document.getElementById('buktiPbInput').value; if(!payload.noPb || !payload.tglPb) { alert('No PB & Tgl wajib diisi!'); return; } }
+    if (pendingStatusChange === 'REVISI' || pendingStatusChange === 'DITOLAK') { payload.catatanRevisi = document.getElementById('catatanRevisiInput').value; if(!payload.catatanRevisi) { showToast('Catatan wajib diisi!', 'warning'); return; } } 
+    else if (pendingStatusChange === 'SUDAH DIPINDAHBUKUKAN') { payload.noPb = document.getElementById('noPbInput').value; payload.tglPb = document.getElementById('tglPbInput').value; payload.buktiPb = document.getElementById('buktiPbInput').value; if(!payload.noPb || !payload.tglPb) { showToast('No PB & Tgl wajib diisi!', 'warning'); return; } }
     
     const btn = document.getElementById('btnConfirmAction'); if (btn) { btn.innerText = 'MEMPROSES...'; btn.disabled = true; }
     
     apiPost(payload)
     .then(res => {
         if(res.status === 'success') { showToast(`Sukses memperbarui status.`); document.getElementById('confirmActionContainer').classList.add('hidden'); tarikDataDariServer(true).then(() => { bukaModalVerifikasi(activeSelectedId); }); } 
-        else { alert("GAGAL UPDATE:\n" + res.message); }
+        else { showToast("GAGAL UPDATE:\n" + res.message, 'error'); }
     })
-    .catch(err => { alert("KONEKSI TERPUTUS:\n" + err.message); })
+    .catch(err => { showToast("KONEKSI TERPUTUS:\n" + err.message, 'error'); })
     .finally(() => { if (btn) { btn.innerText = 'Simpan'; btn.disabled = false; } });
 }
 
@@ -910,9 +1039,9 @@ function kirimEmailManual() {
     apiPost({ action: 'resend_email', id: activeSelectedId })
     .then(res => {
         if(res.status === 'success') { showToast("Email Notifikasi Berhasil Terkirim!"); }
-        else { alert("Gagal kirim email: " + (res.message || "Email PPTK tidak valid")); }
+        else { showToast("Gagal kirim email: " + (res.message || "Email PPTK tidak valid"), 'error'); }
     })
-    .catch(err => alert("Koneksi gagal saat mengirim email."))
+    .catch(err => showToast("Koneksi gagal saat mengirim email.", 'error'))
     .finally(() => { if(btn) { btn.innerHTML = '<i class="fa-solid fa-envelope"></i> KIRIM NOTIFIKASI EMAIL KE PPTK'; btn.disabled = false; } });
 }
 
@@ -1013,7 +1142,7 @@ function pilihBerkas(idSpj, slot) {
     inp.onchange = async () => {
         const semua = Array.from(inp.files || []); if (!semua.length) return;
         const besar = semua.filter(f => f.size > MAKS_BYTE_UNGGAH), layak = semua.filter(f => f.size <= MAKS_BYTE_UNGGAH);
-        if (besar.length) alert(pesanFileBesar(besar.map(f => f.name)));
+        if (besar.length) await tampilPeringatan('Ukuran File Melebihi 10 MB', pesanFileBesar(besar.map(f => f.name)), 'warning');
         if (!layak.length) return;
 
         ovMulai();
@@ -1026,7 +1155,7 @@ function pilihBerkas(idSpj, slot) {
         ovTahap('Memperbarui daftar berkas...');
         await tarikDataDariServer(true);
         await ovSelesai(ok, gagal.length);
-        if (gagal.length) alert('Sebagian berkas gagal:\n' + gagal.join('\n'));
+        if (gagal.length) await tampilPeringatan('Sebagian Berkas Gagal Diunggah', gagal.join('\n'), 'danger');
         if (ok) showToast(ok + ' berkas berhasil diunggah.');
         if (String(activeSelectedId) === String(idSpj)) bukaModalVerifikasi(idSpj);
     };
@@ -1066,7 +1195,7 @@ async function unggahDariPanel(idSpj) {
             else { baris.className = 'text-slate-500'; baris.textContent = '• ' + f.name + ' (menunggu)'; antrean.push({ slot, f, baris }); }
         });
     }
-    if (!antrean.length) { alert('Pilih minimal satu berkas (maks. 10 MB per berkas) terlebih dahulu.'); return; }
+    if (!antrean.length) { showToast('Pilih minimal satu berkas (maks. 10 MB per berkas) terlebih dahulu.', 'warning'); return; }
 
     btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Mengunggah...';
     ovMulai();
@@ -1087,26 +1216,32 @@ async function unggahDariPanel(idSpj) {
 
 // ================== HAPUS PENGAJUAN SPJ GU / LS (SUPER_ADMIN saja) ==================
 // Tombol hanya dirender untuk SUPER_ADMIN (renderTabelSpj); server memvalidasi ulang role sebelum menghapus.
-function hapusPengajuan(id, btn) {
+async function hapusPengajuan(id, btn) {
     if (sesiAktif.role !== 'SUPER_ADMIN') return;
     const item = spjData.find(x => String(x.id) === String(id));
-    if (!item) { alert('Data pengajuan tidak ditemukan. Muat ulang halaman.'); return; }
+    if (!item) { showToast('Data pengajuan tidak ditemukan. Muat ulang halaman.', 'error'); return; }
     const jenis = String(item.jenisSurat || 'GU');
-    const pesan = 'HAPUS PERMANEN pengajuan SPJ ' + jenis + ' ini?\n\n' +
-        (jenis === 'LS' ? 'No. Kontrak / ID : ' : 'No. NPD / ID     : ') + (item.npd || '-') + '  [' + item.id + ']\n' +
-        'Sub Kegiatan    : ' + (item.subKegiatan || '-') + '\n' +
-        'Uraian          : ' + String(item.uraian || '-').slice(0, 120) + '\n' +
-        'Nominal         : ' + formatRupiah(item.nominal) + '\n' +
-        'Nama Penyedia   : ' + (jenis === 'LS' && item.namaCv ? item.namaCv : '-') + '\n' +
-        'PPTK / Status   : ' + (item.pptk || '-') + ' / ' + (item.status || '-') + '\n\n' +
-        (item.status === 'SUDAH DIPINDAHBUKUKAN' ? 'PERHATIAN: pengajuan ini sudah dipindahbukukan; realisasi pagu akan berkurang.\n' : '') +
-        'Baris di Spreadsheet ikut terhapus dan tidak dapat dikembalikan. Berkas yang sudah diunggah ke Drive tidak ikut terhapus.';
-    if (!confirm(pesan)) return;
+    const detailList = [
+        [jenis === 'LS' ? 'No. Kontrak' : 'No. NPD', `${item.npd || '-'} [${item.id}]`],
+        ['PPTK / Status', `${item.pptk || '-'} (${item.status || '-'})`],
+        ['Nominal', formatRupiah(item.nominal)],
+        ['Uraian', String(item.uraian || '-').slice(0, 100)]
+    ];
+    if (jenis === 'LS' && item.namaCv) detailList.splice(2, 0, ['Penyedia', item.namaCv]);
+    const ok = await tanyaKonfirmasi({
+        judul: `Hapus Permanen SPJ ${jenis}?`,
+        pesan: 'Baris pengajuan pada Spreadsheet akan dihapus permanen dan tidak dapat dikembalikan.',
+        detailList,
+        catatan: (item.status === 'SUDAH DIPINDAHBUKUKAN' ? 'PERHATIAN: Pengajuan ini sudah dipindahbukukan; realisasi pagu akan berkurang. ' : '') + 'Berkas yang sudah diunggah di Google Drive tidak ikut terhapus.',
+        labelYa: 'Ya, Hapus Permanen',
+        tipe: 'danger'
+    });
+    if (!ok) return;
     const awal = btn ? btn.innerHTML : '';
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
     apiPost({ action: 'delete_pengajuan', id: item.id })
         .then(res => {
-            if (res.status !== 'success') { alert('Gagal menghapus: ' + res.message); if (btn) { btn.disabled = false; btn.innerHTML = awal; } return; }
+            if (res.status !== 'success') { showToast('Gagal menghapus: ' + res.message, 'error'); if (btn) { btn.disabled = false; btn.innerHTML = awal; } return; }
             spjData = spjData.filter(x => String(x.id) !== String(item.id));      // buang dari cache memori
             if (res.realisasi) realisasiPagu = res.realisasi;                       // realisasi terbaru dari server
             koreksiHalamanSpj();
@@ -1115,7 +1250,7 @@ function hapusPengajuan(id, btn) {
             showToast('Pengajuan dihapus.');
             tarikDataDariServer(true);                                              // muat ulang transaksi: tidak ada data sisa
         })
-        .catch(err => { if (String(err.message) !== 'Sesi berakhir') alert('Koneksi terputus: ' + err.message); if (btn) { btn.disabled = false; btn.innerHTML = awal; } });
+        .catch(err => { if (String(err.message) !== 'Sesi berakhir') showToast('Koneksi terputus: ' + err.message, 'error'); if (btn) { btn.disabled = false; btn.innerHTML = awal; } });
 }
 // Bila halaman aktif menjadi kosong setelah penghapusan, mundur satu halaman
 function koreksiHalamanSpj() {

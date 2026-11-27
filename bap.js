@@ -145,8 +145,14 @@ const BAP = (function () {
             if (fPem === 'MINE' && String(k.pptk || '').trim() !== String(sesiAktif.namaLengkap || '').trim()) return false;
             return `${k.pelaksana} ${k.noKontrak} ${k.kodeBerkas || ''} ${k.pptk || ''} ${k.uraian} ${k.tahapBayar} ${k.noBap}`.toLowerCase().includes(q);
         });
+        const adaFilter = !!(q || fPem !== 'ALL');
+        const btnReset = $('btnResetFilterBap');
+        if (btnReset) { btnReset.classList.toggle('hidden', !adaFilter); btnReset.classList.toggle('inline-flex', adaFilter); }
         if (data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400 font-medium">Belum ada riwayat BAP.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400 font-medium">
+                <div>${adaFilter ? 'Tidak ada data BAP yang cocok dengan pencarian/filter saat ini.' : 'Belum ada riwayat BAP.'}</div>
+                ${adaFilter ? '<button type="button" onclick="BAP.resetFilter()" class="mt-2.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded text-xs font-bold"><i class="fa-solid fa-rotate-left me-1"></i>Reset Filter</button>' : ''}
+            </td></tr>`;
             return;
         }
         const tb = 'px-2.5 py-1 rounded font-bold text-[10px] shadow-sm text-white inline-flex items-center gap-1 whitespace-nowrap';
@@ -181,6 +187,12 @@ const BAP = (function () {
         }).join('');
     }
 
+    function resetFilter() {
+        if ($('cariBap')) $('cariBap').value = '';
+        if ($('filterPemilikBap')) $('filterPemilikBap').value = 'ALL';
+        renderTabel();
+    }
+
     // ========================================================================
     // FORM INPUT / EDIT
     // ========================================================================
@@ -208,7 +220,7 @@ const BAP = (function () {
 
     // Tambah BAP baru: modal form dibuka kosong (sama seperti modal pengajuan SPJ)
     function bukaForm() {
-        if (!bolehInput()) { alert('Peran Anda tidak memiliki hak menambah data BAP.'); return; }
+        if (!bolehInput()) { showToast('Peran Anda tidak memiliki hak menambah data BAP.', 'error'); return; }
         resetForm();
         openModal('modalFormBap');
         $('modalFormBap').scrollTop = 0;
@@ -451,9 +463,9 @@ const BAP = (function () {
     // ---------- Mode edit ----------
     function mulaiEdit(kode) {
         const k = cariKontrak(kode);
-        if (!k) { alert('Data BAP tidak ditemukan. Muat ulang halaman.'); return; }
-        if (!bolehEdit(k)) { alert('Anda tidak memiliki hak mengedit BAP ini.'); return; }
-        if (!KONFIG_TAHAP[k.tahapBayar]) { alert('Tahap "' + k.tahapBayar + '" tidak dikenali, BAP tidak dapat diedit.'); return; }
+        if (!k) { showToast('Data BAP tidak ditemukan. Muat ulang halaman.', 'error'); return; }
+        if (!bolehEdit(k)) { showToast('Anda tidak memiliki hak mengedit BAP ini.', 'error'); return; }
+        if (!KONFIG_TAHAP[k.tahapBayar]) { showToast('Tahap "' + k.tahapBayar + '" tidak dikenali, BAP tidak dapat diedit.', 'error'); return; }
         tampilkanTab(true); if (typeof setJenisTampilan === 'function') setJenisTampilan('BAP');
         tutupPreview();
         $('formBap').reset();
@@ -491,36 +503,50 @@ const BAP = (function () {
     }
 
     // ---------- Simpan (baru / perubahan) ----------
-    function simpan(ev) {
+    async function simpan(ev) {
         ev.preventDefault();
-        if (!bolehInput()) { alert('Peran Anda tidak memiliki hak menyimpan BAP.'); return; }
+        if (!bolehInput()) { showToast('Peran Anda tidak memiliki hak menyimpan BAP.', 'error'); return; }
         const c = konteksForm();
-        if (!c) { alert('Pilih tahap pembayaran terlebih dahulu.'); return; }
+        if (!c) { showToast('Pilih tahap pembayaran terlebih dahulu.', 'warning'); return; }
         const { t, hit } = c;
         const namaCv = namaCvTerpilih();
-        if (!namaCv) { alert('Pilih penyedia / CV, atau isi nama penyedia baru.'); return; }
+        if (!namaCv) { showToast('Pilih penyedia / CV, atau isi nama penyedia baru.', 'warning'); return; }
         const nilaiKontrak = Number(v('bapNilaiKontrak'));
-        if (!(nilaiKontrak > 0)) { alert('Nilai kontrak harus lebih dari 0.'); return; }
-        if (t.persenBebas && !(c.persen > 0 && c.persen < 100)) { alert('Persentase uang muka harus lebih dari 0 dan kurang dari 100%.'); return; }
-        if (c.tahap === 'I (100)' && !c.rowUm) { alert('Tahap I (100) mensyaratkan BAP tahap UM pada kontrak yang sama.\nInput BAP UM dulu, atau pilih tahap 100 bila tanpa uang muka.'); return; }
-        if (c.tahap === '100' && c.kr.lain.some(x => String(x.tahapBayar).trim() === 'UM')) { alert('Kontrak ini sudah mengambil Uang Muka. Gunakan tahap I (100).'); return; }
-        if (!(hit.bayarIni > 0)) { alert('Pembayaran BAP ini nol atau negatif. Periksa isian.'); return; }
+        if (!(nilaiKontrak > 0)) { showToast('Nilai kontrak harus lebih dari 0.', 'error'); return; }
+        if (t.persenBebas && !(c.persen > 0 && c.persen < 100)) { showToast('Persentase uang muka harus lebih dari 0 dan kurang dari 100%.', 'error'); return; }
+        if (c.tahap === 'I (100)' && !c.rowUm) { showToast('Tahap I (100) mensyaratkan BAP tahap UM pada kontrak yang sama.\nInput BAP UM dulu, atau pilih tahap 100 bila tanpa uang muka.', 'warning'); return; }
+        if (c.tahap === '100' && c.kr.lain.some(x => String(x.tahapBayar).trim() === 'UM')) { showToast('Kontrak ini sudah mengambil Uang Muka. Gunakan tahap I (100).', 'error'); return; }
+        if (!(hit.bayarIni > 0)) { showToast('Pembayaran BAP ini nol atau negatif. Periksa isian.', 'error'); return; }
         const totalKontrak = c.sebelum + hit.bayarIni + c.sesudah;
-        if (totalKontrak > c.aktif) { alert('Total pembayaran kontrak (' + rpTeks(totalKontrak) + ') melebihi nilai kontrak (' + rpTeks(c.aktif) + ').'); return; }
-        if (c.dak > hit.bayarIni) { alert('Sumber dana DAK tidak boleh melebihi pembayaran BAP ini.'); return; }
-        if (!/^[0-9]{5,30}$/.test(v('bapNoRek'))) { alert('No. rekening harus berupa angka (5-30 digit).'); return; }
+        if (totalKontrak > c.aktif) { showToast('Total pembayaran kontrak (' + rpTeks(totalKontrak) + ') melebihi nilai kontrak (' + rpTeks(c.aktif) + ').', 'error'); return; }
+        if (c.dak > hit.bayarIni) { showToast('Sumber dana DAK tidak boleh melebihi pembayaran BAP ini.', 'warning'); return; }
+        if (!/^[0-9]{5,30}$/.test(v('bapNoRek'))) { showToast('No. rekening harus berupa angka (5-30 digit).', 'error'); return; }
 
         const addIsi = [v('bapAddNo'), v('bapAddTgl'), Number(v('bapAddNilai')) > 0 ? '1' : ''];
-        if (addIsi.some(Boolean) && !addIsi.every(Boolean)) { alert('Data addendum harus lengkap (nomor, tanggal, nilai) atau dikosongkan semua.'); return; }
+        if (addIsi.some(Boolean) && !addIsi.every(Boolean)) { showToast('Data addendum harus lengkap (nomor, tanggal, nilai) atau dikosongkan semua.', 'error'); return; }
 
         const jamIsi = ['bapJamPenjamin', 'bapJamNo', 'bapJamTgl', 'bapJamBerlakuMulai', 'bapJamBerlakuAkhir'].map(v).concat([Number(v('bapJamNilai')) > 0 ? '1' : '']);
         const jamWajib = t.jaminan === 'WAJIB' || (t.jaminan === 'SKEMA' && c.skema === 'JAMINAN');
         const jamPakai = jamWajib || t.jaminan === 'OPSIONAL';
-        if (jamPakai && (jamWajib || jamIsi.some(Boolean)) && !jamIsi.every(Boolean)) { alert('Data ' + t.labelJaminan + ' harus lengkap (penjamin, nomor, tanggal, nilai, berlaku mulai, berlaku sampai).'); return; }
-        if (jamPakai && v('bapJamBerlakuMulai') && v('bapJamBerlakuAkhir') && v('bapJamBerlakuAkhir') < v('bapJamBerlakuMulai')) { alert('Tanggal "Berlaku Sampai" tidak boleh lebih awal dari "Berlaku Mulai".'); return; }
+        if (jamPakai && (jamWajib || jamIsi.some(Boolean)) && !jamIsi.every(Boolean)) { showToast('Data ' + t.labelJaminan + ' harus lengkap (penjamin, nomor, tanggal, nilai, berlaku mulai, berlaku sampai).', 'error'); return; }
+        if (jamPakai && v('bapJamBerlakuMulai') && v('bapJamBerlakuAkhir') && v('bapJamBerlakuAkhir') < v('bapJamBerlakuMulai')) { showToast('Tanggal "Berlaku Sampai" tidak boleh lebih awal dari "Berlaku Mulai".', 'warning'); return; }
 
         const edit = !!editKode;
-        if (!confirm(`${edit ? 'Simpan PERUBAHAN BAP' : 'Simpan BAP'} ${c.tahap}?\n\nBruto: ${rpTeks(hit.bruto)}\nPotongan: ${rpTeks(hit.potongan)}\nPembayaran BAP ini: ${rpTeks(hit.bayarIni)}\nNilai bersih transfer: ${rpTeks(hit.bersih)}`)) return;
+        const ok = await tanyaKonfirmasi({
+            judul: `${edit ? 'Simpan Perubahan BAP' : 'Simpan BAP Baru'} (${c.tahap})?`,
+            pesan: 'Periksa ringkasan hitungan sebelum menyimpan ke database:',
+            detailList: [
+                ['No. Kontrak', v('bapNoKontrak')],
+                ['Penyedia', namaCv],
+                ['Jumlah Bruto', rpTeks(hit.bruto)],
+                ['Total Potongan', rpTeks(hit.potongan)],
+                ['Pembayaran BAP Ini', rpTeks(hit.bayarIni)],
+                ['Nilai Bersih Transfer', rpTeks(hit.bersih)]
+            ],
+            labelYa: edit ? 'Simpan Perubahan' : 'Simpan & Generate BAP',
+            tipe: 'primary'
+        });
+        if (!ok) return;
 
         const btn = $('btnSubmitBap'), labelAwal = btn.innerHTML;
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Menyimpan...'; btn.disabled = true;
@@ -546,14 +572,14 @@ const BAP = (function () {
 
         apiPost(payload)
             .then(res => {
-                if (res.status !== 'success') { alert('Gagal Menyimpan: ' + res.message); return; }
+                if (res.status !== 'success') { showToast('Gagal Menyimpan: ' + res.message, 'error'); return; }
                 terapkanHasil(res);            // tabel riwayat langsung menampilkan data terbaru
                 closeModal('modalFormBap');    // modal tertutup otomatis
                 resetForm();
                 showToast(res.mode === 'update' ? 'Perubahan BAP tersimpan.' : 'BAP tersimpan: ' + res.noBap);
                 tarikDataDariServer(true);     // selaraskan data transaksi (penyedia baru sudah masuk lokal via terapkanHasil)
             })
-            .catch(err => { if (String(err.message) !== 'Sesi berakhir') alert('Koneksi Terputus: ' + err.message + '\nPeriksa tabel Riwayat sebelum mencoba lagi agar tidak terjadi data ganda.'); })
+            .catch(err => { if (String(err.message) !== 'Sesi berakhir') showToast('Koneksi Terputus: ' + err.message + '\nPeriksa tabel Riwayat sebelum mencoba lagi agar tidak terjadi data ganda.', 'error'); })
             .finally(() => { btn.disabled = false; if (btn.innerHTML.indexOf('fa-spinner') > -1) btn.innerHTML = labelAwal; });
     }
 
@@ -575,24 +601,29 @@ const BAP = (function () {
     }
 
     // ---------- Hapus (khusus SUPER_ADMIN; server memvalidasi ulang) ----------
-    function hapus(kode, btn) {
+    async function hapus(kode, btn) {
         if (!adalahAdmin()) return;   // tombol memang tidak dirender untuk peran lain
         const k = cariKontrak(kode);
-        if (!k) { alert('Data BAP tidak ditemukan. Muat ulang halaman.'); return; }
-        const pesan = 'HAPUS PERMANEN data BAP ini?\n\n' +
-            'No. BAP        : ' + (k.noBap || '-') + '\n' +
-            'No. Kontrak    : ' + (k.noKontrak || '-') + '  (tahap ' + (k.tahapBayar || '-') + ')\n' +
-            'Penyedia       : ' + (k.pelaksana || '-') + '\n' +
-            'Uraian         : ' + String(k.uraian || '-').slice(0, 120) + '\n' +
-            'Sub Kegiatan   : ' + (k.subKegiatan || '-') + '\n' +
-            'Pembayaran     : ' + rpTeks(k.pembayaranBapIni) + '\n\n' +
-            'Baris di Spreadsheet ikut terhapus dan tidak dapat dikembalikan.';
-        if (!confirm(pesan)) return;
+        if (!k) { showToast('Data BAP tidak ditemukan. Muat ulang halaman.', 'error'); return; }
+        const ok = await tanyaKonfirmasi({
+            judul: 'Hapus Permanen Data BAP?',
+            pesan: 'Baris BAP pada Spreadsheet akan dihapus permanen dan tidak dapat dikembalikan.',
+            detailList: [
+                ['No. BAP', k.noBap || '-'],
+                ['No. Kontrak', `${k.noKontrak || '-'} (${k.tahapBayar || '-'})`],
+                ['Penyedia', k.pelaksana || '-'],
+                ['Pembayaran BAP Ini', rpTeks(k.pembayaranBapIni)],
+                ['Uraian', String(k.uraian || '-').slice(0, 100)]
+            ],
+            labelYa: 'Ya, Hapus Permanen',
+            tipe: 'danger'
+        });
+        if (!ok) return;
         const awal = btn ? btn.innerHTML : '';
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
         apiPost({ action: 'delete_bap', kodeSpj: k.kodeSpj, noBap: k.noBap })
             .then(res => {
-                if (res.status !== 'success') { alert('Gagal menghapus: ' + res.message); if (btn) { btn.disabled = false; btn.innerHTML = awal; } return; }
+                if (res.status !== 'success') { showToast('Gagal menghapus: ' + res.message, 'error'); if (btn) { btn.disabled = false; btn.innerHTML = awal; } return; }
                 window.DATABASE_KONTRAK = daftar().filter(x => x.kodeSpj !== k.kodeSpj);   // buang dari cache memori
                 hapusCachePdf(k.kodeSpj);
                 if (editKode === k.kodeSpj) resetForm();
@@ -600,7 +631,7 @@ const BAP = (function () {
                 showToast('BAP ' + k.noBap + ' dihapus.');
                 tarikDataDariServer(true);                                                // muat ulang transaksi: tidak ada data sisa
             })
-            .catch(err => { if (String(err.message) !== 'Sesi berakhir') alert('Koneksi terputus: ' + err.message); if (btn) { btn.disabled = false; btn.innerHTML = awal; } });
+            .catch(err => { if (String(err.message) !== 'Sesi berakhir') showToast('Koneksi terputus: ' + err.message, 'error'); if (btn) { btn.disabled = false; btn.innerHTML = awal; } });
     }
 
    // ========================================================================
@@ -650,8 +681,8 @@ const BAP = (function () {
 
     function preview(kode) {
         const k = cariKontrak(kode);
-        if (!k) { alert('Data BAP tidak ditemukan. Muat ulang halaman.'); return; }
-        if (!KONFIG_TAHAP[k.tahapBayar]) { alert('Tahap pembayaran "' + k.tahapBayar + '" belum memiliki tab template.'); return; }
+        if (!k) { showToast('Data BAP tidak ditemukan. Muat ulang halaman.', 'error'); return; }
+        if (!KONFIG_TAHAP[k.tahapBayar]) { showToast('Tahap pembayaran "' + k.tahapBayar + '" belum memiliki tab template.', 'error'); return; }
         previewKode = k.kodeSpj;
         const urut = ++seqPreview;
         bersihkanPdf();
@@ -705,7 +736,7 @@ const BAP = (function () {
     }
 
     return {
-        init, setelahLoad, tampilkanTab, renderTabel,
+        init, setelahLoad, tampilkanTab, renderTabel, resetFilter,
         bukaForm, tutupForm, aturBagianForm, updateKegiatan, updateSubkegiatan, pilihCvBerubah, generateNomor, simpan,
         preview, ulangiPreview, tutupPreview, editDariPreview, unduhPdf, cetakLangsung, mulaiEdit, hapus,
         _uji: { hitungInti }   // dipakai pengujian

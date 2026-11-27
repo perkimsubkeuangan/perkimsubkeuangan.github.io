@@ -8,6 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Montserrat:wght@700;800&display=swap" rel="stylesheet">
     <script>
         tailwind.config = { 
@@ -181,7 +182,19 @@
             </header>
 
             <main class="flex-1 overflow-y-auto px-4 sm:px-6 pb-8 pt-4">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 border-b border-slate-200 pb-4">
+                <!-- BANNER TAHUN ARSIP / UJI COBA -->
+                <div id="bannerTahunStatus" class="hidden mb-4 rounded-lg border px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs shadow-sm">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <i id="bannerTahunIkon" class="fa-solid fa-box-archive text-base shrink-0"></i>
+                        <div class="min-w-0">
+                            <span id="bannerTahunJudul" class="font-bold"></span>
+                            <span id="bannerTahunTeks" class="ml-1 opacity-90"></span>
+                        </div>
+                    </div>
+                    <button type="button" onclick="gantiTahunDariBanner()" class="shrink-0 px-3 py-1 bg-white/80 hover:bg-white border border-current/20 rounded text-[11px] font-bold transition-colors whitespace-nowrap"><i class="fa-solid fa-repeat me-1"></i>Ganti Tahun</button>
+                </div>
+
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5 border-b border-slate-200 pb-4">
                     <div>
                         <h1 class="text-xl font-bold text-sipd-slate mb-0.5 tracking-tight" id="page-title">Dashboard Utama</h1>
                         <p class="text-[11px] text-slate-500" id="page-subtitle">Ringkasan pagu, berkas pencairan GU &amp; LS, serta antrean verifikasi</p>
@@ -193,94 +206,122 @@
                 </div>
 
                 <div id="viewSpj">
-                <!-- ================= PANEL KHUSUS DASHBOARD SEMUA (ALL) ================= -->
-                <div id="panelDashboardSemua">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5" id="dashboard-cards">
-                        <div class="bg-white rounded-lg border border-slate-200 p-5 shadow-sm relative overflow-hidden flex flex-col">
-                            <div class="flex justify-between items-start mb-4">
-                                <div class="w-10 h-10 bg-emerald-50 text-sipd-emerald rounded flex items-center justify-center text-lg"><i class="fa-solid fa-vault"></i></div>
+                <!-- ================= PANEL KHUSUS DASHBOARD SEMUA (ALL — EKSEKUTIF) ================= -->
+                <div id="panelDashboardSemua" class="space-y-4 mb-5">
+                    <!-- 4 KPI UTAMA -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4" id="dashboard-cards">
+                        <div class="bg-white rounded-lg border border-slate-200 border-t-4 border-t-sipd-emerald p-4 shadow-sm flex flex-col justify-between">
+                            <div class="flex items-start justify-between gap-2">
+                                <div>
+                                    <h3 class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Sisa Pagu Tahunan</h3>
+                                    <div class="text-lg font-extrabold text-sipd-slate tracking-tight font-mono mt-1" id="sisaTahunanVal">Rp 0</div>
+                                </div>
+                                <div class="w-9 h-9 bg-emerald-50 text-sipd-emerald rounded-lg flex items-center justify-center text-base shrink-0"><i class="fa-solid fa-vault"></i></div>
                             </div>
-                            <h3 class="text-[11px] text-slate-400 font-bold mb-1 uppercase tracking-wider">Sisa Pagu Tahunan</h3>
-                            <div class="text-xl font-bold text-sipd-slate tracking-tight" id="sisaTahunanVal">Rp 0</div>
-                            <div class="text-[10px] text-slate-400 mt-1" id="paguTahunanInfo"></div>
+                            <div class="mt-2.5">
+                                <div class="flex justify-between text-[10px] text-slate-400 mb-1">
+                                    <span id="paguTahunanInfo">dari pagu Rp 0</span>
+                                    <span id="persenSerapanTahunan" class="font-bold text-sipd-emerald">0%</span>
+                                </div>
+                                <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden"><div id="barSerapanTahunan" class="h-full bg-sipd-emerald transition-all duration-500" style="width:0%"></div></div>
+                            </div>
                         </div>
-                        <div class="bg-white rounded-lg border border-slate-200 p-5 shadow-sm relative overflow-hidden flex flex-col">
-                            <div class="flex justify-between items-start mb-4"><div class="w-10 h-10 bg-amber-50 text-amber-500 rounded flex items-center justify-center text-lg"><i class="fa-solid fa-money-bill-trend-up"></i></div></div>
-                            <h3 class="text-[11px] text-slate-400 font-bold mb-1 uppercase tracking-wider">Total Cair (Realisasi)</h3>
-                            <div class="text-xl font-bold text-sipd-slate tracking-tight" id="totalCairVal">Rp 0</div>
-                            <div class="text-[10px] text-slate-400 mt-1">GU selesai PB &amp; LS disetujui</div>
+
+                        <div class="bg-white rounded-lg border border-slate-200 border-t-4 border-t-amber-500 p-4 shadow-sm flex flex-col justify-between">
+                            <div class="flex items-start justify-between gap-2">
+                                <div>
+                                    <h3 class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total Cair (Realisasi)</h3>
+                                    <div class="text-lg font-extrabold text-sipd-slate tracking-tight font-mono mt-1" id="totalCairVal">Rp 0</div>
+                                </div>
+                                <div class="w-9 h-9 bg-amber-50 text-amber-500 rounded-lg flex items-center justify-center text-base shrink-0"><i class="fa-solid fa-money-bill-trend-up"></i></div>
+                            </div>
+                            <div class="mt-2.5 flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-100 pt-2">
+                                <span>GU selesai PB &amp; LS disetujui</span>
+                                <span id="subBerkasSemua" class="font-bold text-slate-600">0 berkas</span>
+                            </div>
+                        </div>
+
+                        <div onclick="setJenisTampilan('GU')" title="Buka menu Data SPJ GU" class="cursor-pointer bg-white rounded-lg border border-indigo-200 border-t-4 border-t-indigo-600 p-4 shadow-sm hover:shadow transition-all flex flex-col justify-between group">
+                            <div class="flex items-start justify-between gap-2">
+                                <div>
+                                    <h3 class="text-[10px] text-indigo-600 font-bold uppercase tracking-wider group-hover:underline">Berkas Pencairan GU</h3>
+                                    <div class="text-xl font-black text-sipd-slate mt-0.5"><span id="totalBerkasGu">0</span> <span class="text-xs font-semibold text-slate-400">Berkas</span></div>
+                                </div>
+                                <div class="w-9 h-9 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center text-base shrink-0"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+                            </div>
+                            <div class="mt-2 border-t border-slate-100 pt-2">
+                                <div class="text-xs font-bold text-indigo-700 font-mono" id="totalNominalGu">Rp 0</div>
+                                <div class="text-[10px] text-slate-500 mt-0.5 truncate" id="subBerkasGu">Selesai PB: 0 &middot; Proses: 0</div>
+                            </div>
+                        </div>
+
+                        <div onclick="setJenisTampilan('LS')" title="Buka menu Data SPJ LS" class="cursor-pointer bg-white rounded-lg border border-purple-200 border-t-4 border-t-purple-600 p-4 shadow-sm hover:shadow transition-all flex flex-col justify-between group">
+                            <div class="flex items-start justify-between gap-2">
+                                <div>
+                                    <h3 class="text-[10px] text-purple-600 font-bold uppercase tracking-wider group-hover:underline">Berkas Pencairan LS</h3>
+                                    <div class="text-xl font-black text-sipd-slate mt-0.5"><span id="totalBerkasLs">0</span> <span class="text-xs font-semibold text-slate-400">Berkas</span></div>
+                                </div>
+                                <div class="w-9 h-9 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center text-base shrink-0"><i class="fa-solid fa-file-signature"></i></div>
+                            </div>
+                            <div class="mt-2 border-t border-slate-100 pt-2">
+                                <div class="text-xs font-bold text-purple-700 font-mono" id="totalNominalLs">Rp 0</div>
+                                <div class="text-[10px] text-slate-500 mt-0.5 truncate" id="subBerkasLs">Disetujui: 0 &middot; Proses: 0</div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="flex items-center justify-between mb-2" id="headerTriwulan">
-                        <h3 class="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Pagu Per Triwulan &mdash; TA <span id="labelTahunAnggaran"></span></h3>
-                        <button onclick="bukaModalEditPagu()" class="hidden btn-edit-pagu text-[10px] bg-slate-50 hover:bg-slate-100 text-slate-600 px-2.5 py-1 rounded font-bold border border-slate-200"><i class="fa-solid fa-pen"></i> Atur Pagu</button>
-                    </div>
-                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-2" id="kartuTriwulan"></div>
-                    <p class="text-[10px] text-slate-400 mb-5 leading-relaxed" id="infoPaguCatatan"></p>
+                    <!-- BARIS EKSEKUTIF: GRAFIK REALISASI + ANTREAN PRIORITAS -->
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                        <!-- Grafik & Pagu Triwulan (Collapsible) -->
+                        <div class="lg:col-span-7 bg-white rounded-lg border border-slate-200 p-4 shadow-sm flex flex-col">
+                            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                                <div>
+                                    <h3 class="text-xs font-bold text-sipd-slate flex items-center gap-1.5" id="judulGrafikDashboard"><i class="fa-solid fa-chart-column text-sipd-emerald"></i> <span>Realisasi Anggaran Per Triwulan &mdash; TA <span id="labelTahunAnggaran">2026</span></span></h3>
+                                    <p class="text-[10px] text-slate-400 mt-0.5" id="subGrafikDashboard">Perbandingan Pagu, Realisasi Cair, dan Sedang Diproses</p>
+                                </div>
+                                <div class="flex items-center gap-1.5" id="headerTriwulan">
+                                    <button type="button" id="btnToggleTriwulan" onclick="toggleRincianTriwulan()" class="text-[10px] bg-slate-50 hover:bg-slate-100 text-slate-600 px-2.5 py-1 rounded font-bold border border-slate-200 transition-colors flex items-center gap-1"><i id="ikonToggleTriwulan" class="fa-solid fa-chevron-down text-[9px]"></i> Rincian Triwulan</button>
+                                    <button type="button" onclick="bukaModalEditPagu()" class="hidden btn-edit-pagu text-[10px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded font-bold border border-emerald-200 transition-colors"><i class="fa-solid fa-pen me-1"></i>Atur Pagu</button>
+                                </div>
+                            </div>
+                            <div class="relative h-52 w-full">
+                                <canvas id="chartRealisasi"></canvas>
+                            </div>
+                            <!-- Rincian 4 Kartu Triwulan (Terlipat secara default agar halaman ringkas) -->
+                            <div id="wrapKartuTriwulan" class="hidden mt-4 pt-3 border-t border-slate-100">
+                                <div class="grid grid-cols-2 gap-3 mb-2" id="kartuTriwulan"></div>
+                                <p class="text-[10px] text-slate-400 leading-relaxed" id="infoPaguCatatan"></p>
+                            </div>
+                        </div>
 
-                    <!-- TOTAL BERKAS PENCAIRAN GU & LS (DASHBOARD SEMUA) -->
-                    <div class="mb-5">
-                        <h3 class="text-[11px] text-slate-500 font-bold uppercase tracking-wider mb-2">Total Berkas Pencairan (GU &amp; LS)</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div onclick="setJenisTampilan('GU')" class="cursor-pointer bg-white rounded-lg border border-indigo-200 border-l-4 border-l-indigo-600 p-4 shadow-sm hover:shadow transition-all">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-600">Berkas Pencairan GU</span>
-                                        <div class="text-2xl font-black text-sipd-slate mt-0.5"><span id="totalBerkasGu">0</span> <span class="text-xs font-semibold text-slate-400">Berkas</span></div>
-                                    </div>
-                                    <div class="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg"><i class="fa-solid fa-file-invoice-dollar"></i></div>
-                                </div>
-                                <div class="text-xs font-bold text-indigo-700 font-mono mt-2" id="totalNominalGu">Rp 0</div>
-                                <div class="text-[10px] text-slate-500 mt-1" id="subBerkasGu">Selesai PB: 0 &middot; Proses: 0</div>
+                        <!-- Panel Tindakan Segera & Daftar Prioritas SLA -->
+                        <div class="lg:col-span-5 bg-white rounded-lg border border-slate-200 p-4 shadow-sm flex flex-col">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="text-xs font-bold text-sipd-slate flex items-center gap-1.5"><i class="fa-solid fa-bolt text-amber-500"></i> Perlu Tindakan Segera</h3>
+                                <span id="badgeSlaWarning" class="hidden px-2 py-0.5 bg-red-50 text-red-700 border border-red-200 rounded-full text-[9px] font-bold"></span>
                             </div>
-                            <div onclick="setJenisTampilan('LS')" class="cursor-pointer bg-white rounded-lg border border-purple-200 border-l-4 border-l-purple-600 p-4 shadow-sm hover:shadow transition-all">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <span class="text-[10px] font-bold uppercase tracking-wider text-purple-600">Berkas Pencairan LS</span>
-                                        <div class="text-2xl font-black text-sipd-slate mt-0.5"><span id="totalBerkasLs">0</span> <span class="text-xs font-semibold text-slate-400">Berkas</span></div>
-                                    </div>
-                                    <div class="w-10 h-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center text-lg"><i class="fa-solid fa-file-signature"></i></div>
-                                </div>
-                                <div class="text-xs font-bold text-purple-700 font-mono mt-2" id="totalNominalLs">Rp 0</div>
-                                <div class="text-[10px] text-slate-500 mt-1" id="subBerkasLs">Disetujui: 0 &middot; Proses: 0</div>
-                            </div>
-                            <div class="bg-white rounded-lg border border-slate-200 border-l-4 border-l-sipd-navy p-4 shadow-sm">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Total Semua Berkas</span>
-                                        <div class="text-2xl font-black text-sipd-slate mt-0.5"><span id="totalBerkasSemua">0</span> <span class="text-xs font-semibold text-slate-400">Berkas</span></div>
-                                    </div>
-                                    <div class="w-10 h-10 rounded-lg bg-slate-100 text-sipd-navy flex items-center justify-center text-lg"><i class="fa-solid fa-folder-tree"></i></div>
-                                </div>
-                                <div class="text-xs font-bold text-sipd-slate font-mono mt-2" id="totalNominalSemua">Rp 0</div>
-                                <div class="text-[10px] text-slate-500 mt-1" id="subBerkasSemua">Selesai: 0 &middot; Proses: 0 &middot; Ditolak: 0</div>
-                            </div>
-                        </div>
-                    </div>
 
-                    <!-- ACTIONABLE COUNTERS (DASHBOARD SEMUA) -->
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                        <div onclick="setFilterStatus('BELUM_DIPROSES')" title="Klik untuk saring: Perlu Verifikasi" class="cursor-pointer bg-slate-50 rounded-lg border border-slate-200 p-4 shadow-sm flex items-center justify-between transition-colors hover:bg-slate-100">
-                            <div>
-                                <h3 class="text-[10px] text-slate-500 font-bold mb-0.5 uppercase tracking-wider">Antrean Baru (GU &amp; LS)</h3>
-                                <div class="text-sm font-bold text-slate-700">Perlu Verifikasi</div>
+                            <!-- 3 Counter Aksi Cepat -->
+                            <div class="grid grid-cols-3 gap-2 mb-3">
+                                <button type="button" onclick="saringDariDashboard('BELUM_DIPROSES')" title="Saring: Menunggu Verifikasi" class="text-left bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg p-2.5 transition-colors">
+                                    <div class="text-[9px] font-bold uppercase text-slate-500 truncate">Verifikasi</div>
+                                    <div class="text-lg font-black text-slate-800 leading-tight mt-0.5" id="countMenunggu">0</div>
+                                </button>
+                                <button type="button" onclick="saringDariDashboard('REVISI')" title="Saring: Perlu Revisi" class="text-left bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg p-2.5 transition-colors">
+                                    <div class="text-[9px] font-bold uppercase text-amber-700 truncate">Perlu Revisi</div>
+                                    <div class="text-lg font-black text-amber-800 leading-tight mt-0.5" id="countRevisi">0</div>
+                                </button>
+                                <button type="button" onclick="saringDariDashboard('DISETUJUI_GU')" title="Saring: Siap Cair GU (Tunggu PB)" class="text-left bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg p-2.5 transition-colors">
+                                    <div class="text-[9px] font-bold uppercase text-emerald-700 truncate">Siap PB (GU)</div>
+                                    <div class="text-lg font-black text-emerald-800 leading-tight mt-0.5" id="countSiapPb">0</div>
+                                </button>
                             </div>
-                            <div class="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center text-slate-700 font-black text-lg border border-slate-300" id="countMenunggu">0</div>
-                        </div>
-                        <div onclick="setFilterStatus('REVISI')" title="Klik untuk saring: Perlu Revisi" class="cursor-pointer bg-amber-50 rounded-lg border border-amber-200 p-4 shadow-sm flex items-center justify-between transition-colors hover:bg-amber-100">
-                            <div>
-                                <h3 class="text-[10px] text-amber-600 font-bold mb-0.5 uppercase tracking-wider">Dikembalikan (GU &amp; LS)</h3>
-                                <div class="text-sm font-bold text-amber-800">Perlu Revisi</div>
+
+                            <!-- Daftar 5 Berkas Terlama yang Belum Selesai -->
+                            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Berkas Prioritas Terlama</div>
+                            <div id="listBerkasPrioritas" class="flex-1 space-y-1.5 overflow-y-auto max-h-48 pr-1 table-scroll">
+                                <div class="animate-pulse space-y-2 py-2"><div class="h-9 bg-slate-100 rounded"></div><div class="h-9 bg-slate-100 rounded"></div><div class="h-9 bg-slate-100 rounded"></div></div>
                             </div>
-                            <div class="w-10 h-10 bg-amber-200 rounded-full flex items-center justify-center text-amber-800 font-black text-lg border border-amber-300" id="countRevisi">0</div>
-                        </div>
-                        <div onclick="setFilterStatus('DISETUJUI_GU')" title="Klik untuk saring: Tunggu Transfer PB (GU)" class="cursor-pointer bg-emerald-50 rounded-lg border border-emerald-200 p-4 shadow-sm flex items-center justify-between transition-colors hover:bg-emerald-100">
-                            <div>
-                                <h3 class="text-[10px] text-emerald-600 font-bold mb-0.5 uppercase tracking-wider">Siap Cair &middot; Khusus GU</h3>
-                                <div class="text-sm font-bold text-emerald-800">Tunggu Transfer PB</div>
-                            </div>
-                            <div class="w-10 h-10 bg-emerald-200 rounded-full flex items-center justify-center text-emerald-800 font-black text-lg border border-emerald-300" id="countSiapPb">0</div>
                         </div>
                     </div>
                 </div>
@@ -357,7 +398,7 @@
 
                 <section id="sectionTabelSpj" class="bg-white rounded-lg shadow-sm border border-slate-200 p-4 relative z-0 transition-colors">
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 px-1 gap-3">
-                        <h2 class="text-sm font-bold text-sipd-slate"><i id="ikonTabelSpj" class="fa-solid fa-list-check text-sipd-emerald me-2"></i> Daftar Pengajuan SPJ <span id="tabel-judul-jenis">GU & LS</span></h2>
+                        <h2 class="text-sm font-bold text-sipd-slate"><i id="ikonTabelSpj" class="fa-solid fa-list-check text-sipd-emerald me-2"></i> Daftar Pengajuan SPJ <span id="tabel-judul-jenis">GU &amp; LS</span></h2>
                         <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                             <div class="relative flex-1 sm:flex-none sm:w-56">
                                 <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
@@ -381,29 +422,29 @@
                                 <option value="NOMINAL_DESC">Nominal Tertinggi</option>
                                 <option value="NOMINAL_ASC">Nominal Terendah</option>
                             </select>
+                            <button type="button" id="btnResetFilterSpj" onclick="resetFilterSpj()" class="hidden px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded text-xs font-bold transition-colors items-center gap-1 whitespace-nowrap" title="Hapus pencarian &amp; filter aktif"><i class="fa-solid fa-rotate-left text-[10px]"></i> Reset</button>
                             <button type="button" onclick="exportSpjExcel()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap" title="Export data tabel saat ini ke Excel"><i class="fa-solid fa-file-excel"></i> Export</button>
                         </div>
                     </div>
 
                     <div class="overflow-x-auto overflow-y-auto max-h-[60vh] table-scroll rounded border border-slate-200 pb-2 relative">
-                        <table class="w-full text-left border-collapse text-sm min-w-[1200px]">
+                        <table class="w-full text-left border-collapse text-sm min-w-[960px]">
                             <thead id="spjTableHead" class="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px] sticky top-0 z-20 shadow-sm border-b border-slate-200">
                                 <tr>
-                                    <th class="py-3.5 px-4 border-b border-slate-200">Tanggal</th>
-                                    <th class="py-3.5 px-4 border-b border-slate-200" id="th-npd-kontrak">No. NPD / Kontrak</th>
-                                    <th class="py-3.5 px-4 border-b border-slate-200 text-center" id="th-jenis">Jenis</th>
-                                    <th class="py-3.5 px-4 border-b border-slate-200">PPTK & Unit Kerja</th>
-                                    <th class="py-3.5 px-4 border-b border-slate-200 leading-relaxed">Program / Kegiatan / Sub Kegiatan</th>
-                                    <th class="py-3.5 px-4 border-b border-slate-200" id="th-cv">Penyedia / CV</th>
-                                    <th class="py-3.5 px-4 border-b border-slate-200 text-center" id="th-tahap">Tahap</th>
-                                    <th class="py-3.5 px-4 border-b border-slate-200" id="th-tglpb">Tanggal PB</th>
-                                    <th class="py-3.5 px-4 border-b border-slate-200" id="th-uraian">Nama Pekerjaan / Uraian</th>
-                                    <th class="py-3.5 px-4 border-b border-slate-200 text-right">Nominal (Rp)</th>
-                                    <th class="py-3.5 px-4 border-b border-slate-200 text-center">Status</th>
-                                    <th id="th-aksi" class="py-3.5 px-4 border-b border-slate-200 text-center sticky right-0 bg-slate-50 shadow-[-4px_0_10px_rgba(0,0,0,0.02)] z-20 border-l border-slate-200">Aksi</th>
+                                    <th class="py-3 px-3.5 border-b border-slate-200 w-24">Tanggal</th>
+                                    <th class="py-3 px-3.5 border-b border-slate-200" id="th-npd-kontrak">No. NPD / Kontrak</th>
+                                    <th class="py-3 px-3.5 border-b border-slate-200">PPTK &amp; Unit</th>
+                                    <th class="py-3 px-3.5 border-b border-slate-200 leading-relaxed">Program / Kegiatan / Sub</th>
+                                    <th class="py-3 px-3.5 border-b border-slate-200" id="th-cv">Penyedia / CV</th>
+                                    <th class="py-3 px-3.5 border-b border-slate-200" id="th-uraian">Nama Pekerjaan / Uraian</th>
+                                    <th class="py-3 px-3.5 border-b border-slate-200 text-right">Nominal (Rp)</th>
+                                    <th class="py-3 px-3.5 border-b border-slate-200 text-center">Status &amp; SLA</th>
+                                    <th id="th-aksi" class="py-3 px-3.5 border-b border-slate-200 text-center sticky right-0 bg-slate-50 shadow-[-4px_0_10px_rgba(0,0,0,0.02)] z-20 border-l border-slate-200">Aksi</th>
                                 </tr>
                             </thead>
-                            <tbody id="spjTableBody" class="divide-y divide-slate-100 bg-white text-slate-600"><tr id="rowLoading"><td colspan="9" class="text-center py-12 text-slate-400 font-medium"><i class="fa-solid fa-spinner fa-spin me-2 text-sipd-emerald"></i> Memuat data dari server...</td></tr></tbody>
+                            <tbody id="spjTableBody" class="divide-y divide-slate-100 bg-white text-slate-600">
+                                <tr class="animate-pulse"><td colspan="9" class="p-4 space-y-2.5"><div class="h-4 bg-slate-100 rounded w-full"></div><div class="h-4 bg-slate-100 rounded w-11/12"></div><div class="h-4 bg-slate-100 rounded w-10/12"></div><div class="h-4 bg-slate-100 rounded w-9/12"></div></td></tr>
+                            </tbody>
                         </table>
                     </div>
                     
@@ -411,6 +452,7 @@
                         <div class="flex items-center gap-2 mb-3 sm:mb-0 text-slate-500">
                             <span>Tampilkan:</span>
                             <select id="selectPageSize" onchange="gantiPageSize()" class="border border-slate-200 rounded px-2 py-1 outline-none bg-white cursor-pointer focus:border-sipd-emerald"><option value="10" selected>10</option><option value="25">25</option><option value="50">50</option></select>
+                            <span id="infoTotalDataSpj" class="text-[11px] text-slate-400 ml-1"></span>
                         </div>
                         <div class="flex items-center gap-4">
                             <span id="infoHalaman" class="text-slate-500 font-medium">Hal 1 dari 1</span>
@@ -442,6 +484,7 @@
                         <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
                         <input type="text" id="cariBap" placeholder="Cari kontrak, CV, uraian..." class="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-sipd-emerald outline-none bg-white">
                     </div>
+                    <button id="btnResetFilterBap" type="button" onclick="BAP.resetFilter()" class="hidden px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded text-xs font-bold transition-colors items-center gap-1 whitespace-nowrap"><i class="fa-solid fa-rotate-left text-[10px]"></i> Reset</button>
                     <button id="btnBukaFormBap" type="button" onclick="BAP.bukaForm()" class="hidden px-4 py-2 bg-sipd-emerald hover:bg-emerald-700 text-white font-bold rounded shadow-sm transition-colors text-xs items-center justify-center gap-2 whitespace-nowrap"><i class="fa-solid fa-plus"></i> Buat BAP Baru</button>
                 </div>
             </div>
@@ -457,7 +500,7 @@
                         </tr>
                     </thead>
                     <tbody id="tabelBapBody" class="divide-y divide-slate-100">
-                        <tr><td colspan="5" class="text-center py-8 text-slate-400 font-medium">Memuat data...</td></tr>
+                        <tr class="animate-pulse"><td colspan="5" class="p-4 space-y-2.5"><div class="h-4 bg-slate-100 rounded w-full"></div><div class="h-4 bg-slate-100 rounded w-10/12"></div><div class="h-4 bg-slate-100 rounded w-8/12"></div></td></tr>
                     </tbody>
                 </table>
             </div>
@@ -522,38 +565,33 @@
                                     <option value="BELUM_SPM">Belum Ada No. SPM</option>
                                     <option value="SUDAH_SPM">Sudah Ada No. SPM</option>
                                 </select>
+                                <button type="button" id="btnResetFilterRekapLs" onclick="REKAP_LS.resetFilter()" class="hidden px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded text-xs font-bold transition-colors items-center gap-1 whitespace-nowrap"><i class="fa-solid fa-rotate-left text-[10px]"></i> Reset</button>
                             </div>
                         </div>
 
                         <div class="overflow-x-auto overflow-y-auto max-h-[62vh] table-scroll rounded border border-slate-200">
-                            <table class="w-full text-left border-collapse text-xs min-w-[1650px]">
+                            <table class="w-full text-left border-collapse text-xs min-w-[1120px]">
                                 <thead class="bg-teal-50 text-teal-950 font-bold uppercase tracking-wider text-[10px] sticky top-0 z-20 shadow-sm border-b border-teal-200">
                                     <tr>
-                                        <th class="py-3 px-3 border-b border-teal-200 text-center w-10">No</th>
+                                        <th class="py-3 px-2.5 border-b border-teal-200 text-center w-9">No</th>
                                         <th class="py-3 px-3 border-b border-teal-200">Kode &amp; Kontrak</th>
-                                        <th class="py-3 px-3 border-b border-teal-200 text-right">Nilai Kontrak</th>
-                                        <th class="py-3 px-3 border-b border-teal-200">SPM UM</th>
-                                        <th class="py-3 px-3 border-b border-teal-200 text-right">Nilai UM</th>
-                                        <th class="py-3 px-3 border-b border-teal-200">SPM Termin</th>
-                                        <th class="py-3 px-3 border-b border-teal-200 text-right">Nilai Termin</th>
-                                        <th class="py-3 px-3 border-b border-teal-200 text-right">Selisih</th>
-                                        <th class="py-3 px-3 border-b border-teal-200 text-right">PPN UM</th>
-                                        <th class="py-3 px-3 border-b border-teal-200 text-right">PPh UM</th>
-                                        <th class="py-3 px-3 border-b border-teal-200 text-right bg-emerald-50/70">Nilai Bersih UM</th>
-                                        <th class="py-3 px-3 border-b border-teal-200 text-right">PPN Termin</th>
-                                        <th class="py-3 px-3 border-b border-teal-200 text-right">PPh Termin</th>
-                                        <th class="py-3 px-3 border-b border-teal-200 text-right bg-emerald-50/70">Nilai Bersih Termin</th>
-                                        <th class="py-3 px-3 border-b border-teal-200 text-center">PPh</th>
+                                        <th class="py-3 px-3 border-b border-teal-200 text-right">Kontrak &amp; Selisih</th>
+                                        <th class="py-3 px-3 border-b border-teal-200">Uang Muka (SPM &amp; Nilai)</th>
+                                        <th class="py-3 px-3 border-b border-teal-200 text-right">Pajak UM</th>
+                                        <th class="py-3 px-3 border-b border-teal-200 text-right bg-emerald-50/70">Bersih UM</th>
+                                        <th class="py-3 px-3 border-b border-teal-200">Termin (SPM &amp; Nilai)</th>
+                                        <th class="py-3 px-3 border-b border-teal-200 text-right">Pajak Termin</th>
+                                        <th class="py-3 px-3 border-b border-teal-200 text-right bg-emerald-50/70">Bersih Termin</th>
                                         <th class="py-3 px-3 border-b border-teal-200 text-center sticky right-0 bg-teal-50 border-l border-teal-200 z-20">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tabelRekapLsBody" class="divide-y divide-slate-100 bg-white text-slate-700">
-                                    <tr><td colspan="16" class="text-center py-10 text-slate-400">Memuat data rekap pencairan LS...</td></tr>
+                                    <tr class="animate-pulse"><td colspan="10" class="p-4 space-y-2.5"><div class="h-4 bg-slate-100 rounded w-full"></div><div class="h-4 bg-slate-100 rounded w-11/12"></div><div class="h-4 bg-slate-100 rounded w-9/12"></div></td></tr>
                                 </tbody>
                                 <tfoot id="tabelRekapLsFoot" class="bg-slate-100 font-bold text-slate-800 border-t-2 border-slate-300 text-[11px]"></tfoot>
                             </table>
                         </div>
-                        <p class="text-[10px] text-slate-400 mt-2">Kolom <b>KODE</b> diambil otomatis dari isian <b>Kode Berkas</b> di Modul BAP LS (dapat pula dilengkapi lewat tombol Input / Edit). Nilai PPN &amp; PPh dihitung otomatis dari BAP dan dapat dikoreksi manual oleh Bendahara bila ada pengecualian pajak.</p>
+                        <p class="text-[10px] text-slate-400 mt-2">Kolom <b>KODE</b> diambil otomatis dari isian <b>Kode Berkas</b> di Modul BAP LS (dapat dilengkapi lewat tombol Input / Edit). File <b>Export Excel (.xlsx)</b> tetap mengekspor seluruh 19 kolom terpisah siap cetak/olah.</p>
                     </section>
                 </div>
             </main>
@@ -1198,12 +1236,38 @@
         </div>
     </div>
 
-    <div id="toast" class="fixed top-5 right-5 bg-sipd-navy text-white px-5 py-2.5 rounded shadow-lg transform -translate-y-20 opacity-0 transition-all duration-300 z-[9999] flex items-center gap-2"><i class="fa-solid fa-circle-check text-sipd-emerald"></i><span id="toastMessage" class="text-xs font-bold tracking-wide">Sukses!</span></div>
+    <!-- MODAL KONFIRMASI & INFORMASI KUSTOM (pengganti confirm() / alert() bawaan browser) -->
+    <div id="modalKonfirmasi" onclick="if(event.target===this) tutupModalKonfirmasi(false)" class="fixed inset-0 bg-sipd-navy/65 backdrop-blur-sm z-[9500] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full border border-slate-200 overflow-hidden">
+            <div class="p-5 flex items-start gap-3.5">
+                <div id="konfIkonWrap" class="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-lg shrink-0 mt-0.5">
+                    <i id="konfIkon" class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <h3 id="konfJudul" class="text-sm font-bold text-sipd-slate leading-snug">Konfirmasi</h3>
+                    <div id="konfPesan" class="text-xs text-slate-600 mt-1.5 leading-relaxed whitespace-pre-line break-words"></div>
+                    <div id="konfDetail" class="hidden mt-3 bg-slate-50 border border-slate-200 rounded-lg p-3 text-[11px] space-y-1"></div>
+                    <div id="konfCatatan" class="hidden mt-2.5 text-[11px] rounded-lg p-2.5 border leading-relaxed"></div>
+                </div>
+            </div>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+                <button type="button" id="btnKonfBatal" onclick="tutupModalKonfirmasi(false)" class="px-4 py-2 bg-white hover:bg-slate-100 text-slate-600 border border-slate-300 font-bold rounded-lg text-xs transition-colors">Batal</button>
+                <button type="button" id="btnKonfYa" onclick="tutupModalKonfirmasi(true)" class="px-4 py-2 bg-sipd-navy hover:bg-slate-800 text-white font-bold rounded-lg shadow-sm text-xs transition-colors">Ya, Lanjutkan</button>
+            </div>
+        </div>
+    </div>
 
-    <script src="config.js?v=75"></script>
-    <script src="app.js?v=76"></script>
-    <script src="spj.js?v=76"></script>
-    <script src="bap.js?v=76"></script>
+    <!-- TOAST NOTIFIKASI MULTI-WARNA -->
+    <div id="toast" class="fixed top-5 right-5 max-w-md bg-sipd-navy text-white px-4 py-3 rounded-lg shadow-xl transform -translate-y-24 opacity-0 pointer-events-none transition-all duration-300 z-[9999] flex items-start gap-2.5 border border-white/10">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-sm mt-0.5 shrink-0"></i>
+        <span id="toastMessage" class="text-xs font-semibold leading-snug break-words flex-1">Sukses!</span>
+        <button type="button" onclick="sembunyiToast()" class="text-white/60 hover:text-white text-xs ml-1 shrink-0"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <script src="config.js?v=76"></script>
+    <script src="app.js?v=77"></script>
+    <script src="spj.js?v=77"></script>
+    <script src="bap.js?v=77"></script>
     
     <script>
         const catatanRevisiArea = document.getElementById('catatanRevisiInput');
