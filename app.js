@@ -323,17 +323,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-function tarikDataDariServer() {
+// ringan = true (Smart Reload): hanya menarik data transaksi (Data_SPJ, DB_KONTRAK_LS, DB_PENCAIRAN_LS)
+// ringan = false (default: Login, Refresh manual, Panel Admin): muat penuh langsung dari semua Spreadsheet tanpa cache
+function tarikDataDariServer(ringan = false) {
     const ic = document.getElementById('refresh-icon'); if (ic) ic.classList.add('animate-spin');
-    return apiPost({ action: 'load' })
+    const masterSiap = Array.isArray(window.DATABASE_AKUN) && window.DATABASE_AKUN.length > 0 && referensiData && Object.keys(referensiData).length > 0;
+    const modeRingan = (ringan === true) && masterSiap;
+    return apiPost({ action: modeRingan ? 'load_transaksi' : 'load' })
         .then(data => {
             if (data.status !== 'success') { alert("Gagal mengambil data dari server: " + (data.message || '')); return; }
-            if (data.user) setSesiUser(data.user);
-            window.DATABASE_AKUN = data.akun || [];
+            if (!modeRingan) {
+                if (data.user) setSesiUser(data.user);
+                window.DATABASE_AKUN = data.akun || [];
+                window.DATABASE_PENYEDIA = data.penyediaCV || [];
+                if (data.pagu) { CONFIG.PAGU_TAHUNAN = data.pagu.tahunan || 0; CONFIG.PAGU_TW = data.pagu.tw || [0, 0, 0, 0]; }
+                referensiData = data.referensi || {};
+            }
             window.DATABASE_KONTRAK = data.kontrakLS || [];
-            window.DATABASE_PENYEDIA = data.penyediaCV || [];
             window.DATABASE_REKAP_LS = data.rekapPencairanLs || [];
-            if (data.pagu) { CONFIG.PAGU_TAHUNAN = data.pagu.tahunan || 0; CONFIG.PAGU_TW = data.pagu.tw || [0, 0, 0, 0]; }
             spjData = (data.spj || []).reverse();
             realisasiPagu = data.realisasi || null;
             if (data.tahunAnggaran) {
@@ -341,11 +348,13 @@ function tarikDataDariServer() {
                 const hv = document.getElementById('header-tahun-val'); if (hv) hv.innerText = String(data.tahunAnggaran);
                 const sv = document.getElementById('sidebar-tahun-txt'); if (sv) sv.innerText = 'TA ' + String(data.tahunAnggaran);
             }
-            referensiData = data.referensi || {};
-            renderTabelSpj(); hitungAnggaran(); isiDropdownProgram(); isiDropdownPptkUtama();
+            renderTabelSpj(); hitungAnggaran();
+            if (!modeRingan) { isiDropdownProgram(); isiDropdownPptkUtama(); }
             if (typeof BAP !== 'undefined') BAP.setelahLoad();
             if (typeof REKAP_LS !== 'undefined') REKAP_LS.render();
-            const tbAkun = document.getElementById('tabelAkunBody'); if (tbAkun && tbAkun.innerHTML !== '') renderTabelAkunAdmin();
+            if (!modeRingan) {
+                const tbAkun = document.getElementById('tabelAkunBody'); if (tbAkun && tbAkun.innerHTML !== '') renderTabelAkunAdmin();
+            }
         })
         .catch(e => console.error(e))
         .finally(() => { if (ic) ic.classList.remove('animate-spin'); });
@@ -487,7 +496,6 @@ function setJenisTampilan(jenis) {
 
     const title = document.getElementById('page-title');
     const sub = document.getElementById('page-subtitle');
-    const breadcrumb = document.getElementById('breadcrumb-text');
     const tbTitle = document.getElementById('tabel-judul-jenis');
 
     const vRekap = document.getElementById('viewRekapLs');
@@ -499,7 +507,6 @@ function setJenisTampilan(jenis) {
         const hAksi = document.getElementById('headerAksiSpj'); if (hAksi) hAksi.classList.add('hidden');
         if (title) title.innerText = 'Rekap Pencairan LS';
         if (sub) sub.innerText = 'Monitoring SPM UM, SPM Termin, potongan pajak, dan nilai bersih kontrak LS disetujui';
-        if (breadcrumb) breadcrumb.innerText = 'Rekap Pencairan LS';
         if (typeof REKAP_LS !== 'undefined') REKAP_LS.render();
         return;
     }
@@ -508,7 +515,6 @@ function setJenisTampilan(jenis) {
     if (modeBap) {
         if (title) title.innerText = 'Modul BAP LS';
         if (sub) sub.innerText = 'Input, edit, riwayat, dan cetak dokumen PDF A4 Berita Acara Pembayaran LS';
-        if (breadcrumb) breadcrumb.innerText = 'Modul BAP LS';
         return;
     }
 
@@ -540,7 +546,6 @@ function setJenisTampilan(jenis) {
     if (jenis === 'ALL') {
         if (title) title.innerText = 'Dashboard Utama';
         if (sub) sub.innerText = 'Ringkasan pagu, total berkas pencairan GU & LS, serta antrean verifikasi';
-        if (breadcrumb) breadcrumb.innerText = 'Dashboard Semua';
         if (tbTitle) tbTitle.innerText = 'GU & LS';
         if (lblBuat) lblBuat.innerText = 'Buat SPJ Baru';
         if (btnBuat) btnBuat.className = 'btn-buat-spj px-4 py-2 bg-sipd-navy hover:bg-slate-800 border border-transparent rounded text-xs font-bold text-white shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap';
@@ -554,7 +559,6 @@ function setJenisTampilan(jenis) {
     } else if (jenis === 'GU') {
         if (title) title.innerText = 'Data SPJ Ganti Uang (GU)';
         if (sub) sub.innerText = 'Daftar pengajuan GU berbasis Nomor NPD hingga tahap Transfer PB';
-        if (breadcrumb) breadcrumb.innerText = 'Data SPJ GU';
         if (tbTitle) tbTitle.innerText = 'Ganti Uang (GU)';
         if (lblBuat) lblBuat.innerText = 'Buat SPJ GU';
         if (btnBuat) btnBuat.className = 'btn-buat-spj px-4 py-2 bg-indigo-600 hover:bg-indigo-700 border border-transparent rounded text-xs font-bold text-white shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap';
@@ -568,7 +572,6 @@ function setJenisTampilan(jenis) {
     } else if (jenis === 'LS') {
         if (title) title.innerText = 'Data SPJ Langsung (LS)';
         if (sub) sub.innerText = 'Daftar pengajuan LS berbasis BAP & Kontrak (berakhir pada status Disetujui)';
-        if (breadcrumb) breadcrumb.innerText = 'Data SPJ LS';
         if (tbTitle) tbTitle.innerText = 'Langsung (LS)';
         if (lblBuat) lblBuat.innerText = 'Buat SPJ LS';
         if (btnBuat) btnBuat.className = 'btn-buat-spj px-4 py-2 bg-purple-600 hover:bg-purple-700 border border-transparent rounded text-xs font-bold text-white shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap';
@@ -1471,7 +1474,7 @@ const REKAP_LS = (function () {
                 if (res.status !== 'success') { alert('Gagal menyimpan: ' + res.message); return; }
                 closeModal('modalRekapLs');
                 showToast('Data Rekap Pencairan LS tersimpan.');
-                tarikDataDariServer();
+                tarikDataDariServer(true);
             })
             .catch(e => { if (String(e.message) !== 'Sesi berakhir') alert('Koneksi gagal: ' + e.message); })
             .finally(() => { btn.disabled = false; btn.innerHTML = asli; });

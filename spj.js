@@ -211,7 +211,7 @@ function kirimPengajuanSpjBaru(e) {
         .then(res => {
             if(res.status === 'success') {
                 document.getElementById('formNewSpj').classList.add('hidden'); 
-                tarikDataDariServer(); 
+                tarikDataDariServer(true); 
                 
                 // ... [LANJUTAN KODE DIV SUKSES SEPERTI SEMULA] ... 
 
@@ -601,7 +601,7 @@ function hapusSatuBerkas(btn) {
         .then(res => {
             if (res.status !== 'success') { alert('Gagal menghapus lampiran: ' + (res.message || '')); btn.disabled = false; btn.innerHTML = awal; return; }
             showToast('Lampiran "' + (res.nama || nama) + '" berhasil dihapus.');
-            return tarikDataDariServer().then(() => { if (String(activeSelectedId) === String(id)) bukaModalVerifikasi(id); });
+            return tarikDataDariServer(true).then(() => { if (String(activeSelectedId) === String(id)) bukaModalVerifikasi(id); });
         })
         .catch(err => {
             if (String(err.message) !== 'Sesi berakhir') alert('Koneksi terputus: ' + err.message);
@@ -895,7 +895,7 @@ function prosesUpdateStatusAksi() {
     
     apiPost(payload)
     .then(res => {
-        if(res.status === 'success') { showToast(`Sukses memperbarui status.`); document.getElementById('confirmActionContainer').classList.add('hidden'); tarikDataDariServer().then(() => { bukaModalVerifikasi(activeSelectedId); }); } 
+        if(res.status === 'success') { showToast(`Sukses memperbarui status.`); document.getElementById('confirmActionContainer').classList.add('hidden'); tarikDataDariServer(true).then(() => { bukaModalVerifikasi(activeSelectedId); }); } 
         else { alert("GAGAL UPDATE:\n" + res.message); }
     })
     .catch(err => { alert("KONEKSI TERPUTUS:\n" + err.message); })
@@ -1024,7 +1024,7 @@ function pilihBerkas(idSpj, slot) {
             catch (e) { if (String(e.message) === 'Sesi berakhir') { ovTutup(); return; } gagal.push(e.message); }
         }
         ovTahap('Memperbarui daftar berkas...');
-        await tarikDataDariServer();
+        await tarikDataDariServer(true);
         await ovSelesai(ok, gagal.length);
         if (gagal.length) alert('Sebagian berkas gagal:\n' + gagal.join('\n'));
         if (ok) showToast(ok + ' berkas berhasil diunggah.');
@@ -1079,7 +1079,7 @@ async function unggahDariPanel(idSpj) {
         catch (e) { if (String(e.message) === 'Sesi berakhir') { ovTutup(); return; } baris.className = 'text-red-600'; baris.textContent = '✖ ' + e.message; gagal++; }
     }
     ovTahap('Memperbarui data...');
-    await tarikDataDariServer();
+    await tarikDataDariServer(true);
     await ovSelesai(ok, gagal);
     btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up me-2"></i> Unggah Berkas';
     if (ok) showToast(ok + ' berkas tersimpan di Drive' + (gagal ? ' (' + gagal + ' gagal)' : '.'));
@@ -1113,7 +1113,7 @@ function hapusPengajuan(id, btn) {
             renderTabelSpj(); hitungAnggaran();                                     // tabel + kartu ringkasan & realisasi pagu
             if (typeof BAP !== 'undefined') BAP.renderTabel();
             showToast('Pengajuan dihapus.');
-            tarikDataDariServer();                                                  // muat ulang penuh: tidak ada data sisa
+            tarikDataDariServer(true);                                              // muat ulang transaksi: tidak ada data sisa
         })
         .catch(err => { if (String(err.message) !== 'Sesi berakhir') alert('Koneksi terputus: ' + err.message); if (btn) { btn.disabled = false; btn.innerHTML = awal; } });
 }

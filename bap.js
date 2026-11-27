@@ -551,7 +551,7 @@ const BAP = (function () {
                 closeModal('modalFormBap');    // modal tertutup otomatis
                 resetForm();
                 showToast(res.mode === 'update' ? 'Perubahan BAP tersimpan.' : 'BAP tersimpan: ' + res.noBap);
-                tarikDataDariServer();         // selaraskan seluruh state dengan server
+                tarikDataDariServer(true);     // selaraskan data transaksi (penyedia baru sudah masuk lokal via terapkanHasil)
             })
             .catch(err => { if (String(err.message) !== 'Sesi berakhir') alert('Koneksi Terputus: ' + err.message + '\nPeriksa tabel Riwayat sebelum mencoba lagi agar tidak terjadi data ganda.'); })
             .finally(() => { btn.disabled = false; if (btn.innerHTML.indexOf('fa-spinner') > -1) btn.innerHTML = labelAwal; });
@@ -598,7 +598,7 @@ const BAP = (function () {
                 if (editKode === k.kodeSpj) resetForm();
                 renderTabel();
                 showToast('BAP ' + k.noBap + ' dihapus.');
-                tarikDataDariServer();                                                    // muat ulang: tidak ada data sisa
+                tarikDataDariServer(true);                                                // muat ulang transaksi: tidak ada data sisa
             })
             .catch(err => { if (String(err.message) !== 'Sesi berakhir') alert('Koneksi terputus: ' + err.message); if (btn) { btn.disabled = false; btn.innerHTML = awal; } });
     }

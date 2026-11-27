@@ -22,7 +22,6 @@ const CONFIG = {
 // Nilai di bawah HARUS sama dengan BAP_PPN, BAP_RETENSI, dan TAHAP_BAP di Code.gs (server yang menjadi acuan saat menyimpan).
 // ==========================================
 const BAP_CONFIG = {
-    tahunAnggaran: 2026,
     ppn: 0.11,             // PPN efektif (12% x 11/12): DPP = pembayaran / 1,11
     retensiPersen: 0.05,   // potongan retensi 5% (tahap I (100) & 100) bila tidak memakai Jaminan Pemeliharaan
     pph: {
