@@ -133,10 +133,17 @@
                     <li><button onclick="tutupMobileSidebar(); bukaFormSpjBaru();" class="btn-buat-spj w-full flex items-center justify-between px-3 py-2.5 text-slate-600 hover:bg-sipd-navy hover:text-white rounded text-sm font-medium transition-colors border border-transparent group"><div class="flex items-center gap-3"><i class="fa-solid fa-file-circle-plus w-5 text-center text-sipd-emerald group-hover:text-emerald-400"></i> Buat SPJ Baru</div></button></li>
                 </ul>
 
+                <div id="sidebarMasterPenyedia" class="hidden flex-col">
+                    <div class="px-2 mb-2 text-[10px] font-bold text-purple-600 uppercase tracking-widest border-t border-slate-100 pt-6">Data Master</div>
+                    <ul class="space-y-2">
+                        <li><button onclick="tutupMobileSidebar(); bukaModalSuperAdmin('penyedia');" class="w-full flex items-center justify-between px-3 py-2.5 text-slate-700 bg-purple-50 hover:bg-purple-100 hover:text-purple-800 rounded text-sm font-bold transition-colors border border-purple-200/60"><div class="flex items-center gap-3"><i class="fa-solid fa-building w-5 text-center text-purple-600"></i> Master Penyedia / CV</div></button></li>
+                    </ul>
+                </div>
+
                 <div id="sidebarSuperAdmin" class="hidden flex-col">
                     <div class="px-2 mb-2 text-[10px] font-bold text-amber-500 uppercase tracking-widest border-t border-slate-100 pt-6">Khusus Admin</div>
                     <ul class="space-y-2">
-                        <li><button onclick="tutupMobileSidebar(); bukaModalSuperAdmin();" class="w-full flex items-center justify-between px-3 py-2.5 text-slate-700 bg-amber-50 hover:bg-amber-100 hover:text-amber-800 rounded text-sm font-bold transition-colors border border-amber-200/50"><div class="flex items-center gap-3"><i class="fa-solid fa-gears w-5 text-center text-amber-500"></i> Pengaturan Master</div></button></li>
+                        <li><button onclick="tutupMobileSidebar(); bukaModalSuperAdmin('pptk');" class="w-full flex items-center justify-between px-3 py-2.5 text-slate-700 bg-amber-50 hover:bg-amber-100 hover:text-amber-800 rounded text-sm font-bold transition-colors border border-amber-200/50"><div class="flex items-center gap-3"><i class="fa-solid fa-gears w-5 text-center text-amber-500"></i> Pengaturan Master</div></button></li>
                     </ul>
                 </div>
             </div>
@@ -950,35 +957,42 @@
         </div>
     </div>
 
-    <!-- MODAL SUPER ADMIN -->
-    <div id="modalSuperAdmin" class="fixed inset-0 bg-sipd-navy/70 backdrop-blur-sm z-[300] flex items-start justify-center hidden p-4 overflow-y-auto">
-        <div class="bg-white rounded-lg shadow-xl max-w-5xl w-full flex overflow-hidden h-[80vh] my-4 border border-slate-200">
-            <div class="w-52 bg-slate-50 flex-shrink-0 flex flex-col border-r border-slate-200">
-                <div class="p-4 border-b border-slate-200"><h3 class="text-sm font-bold text-sipd-slate flex items-center gap-2"><i class="fa-solid fa-gears"></i> Pengaturan</h3></div>
-                <div class="p-2 space-y-1">
-                    <button onclick="switchTabAdmin('pptk')" id="tab-btn-pptk" class="admin-tab-btn w-full text-left px-3 py-2 bg-sipd-navy text-white font-bold rounded text-xs flex items-center gap-2 transition-colors"><i class="fa-solid fa-user-tie w-4"></i> Data PPTK</button>
-                    <button onclick="switchTabAdmin('akun')" id="tab-btn-akun" class="admin-tab-btn w-full text-left px-3 py-2 hover:bg-slate-100 text-slate-600 rounded text-xs font-medium flex items-center gap-2 transition-colors"><i class="fa-solid fa-users w-4"></i> Data Akun</button>
+    <!-- MODAL PENGATURAN MASTER (SUPER_ADMIN: 5 tab | VERIFIKATOR & BENDAHARA: tab Master Penyedia) -->
+    <div id="modalSuperAdmin" class="fixed inset-0 bg-sipd-navy/70 backdrop-blur-sm z-[300] flex items-start justify-center hidden p-3 sm:p-4 overflow-y-auto">
+        <div class="bg-white rounded-lg shadow-xl max-w-6xl w-full flex flex-col md:flex-row overflow-hidden h-[86vh] my-3 border border-slate-200">
+            <div class="w-full md:w-56 bg-slate-50 flex-shrink-0 flex flex-col border-b md:border-b-0 md:border-r border-slate-200">
+                <div class="p-3.5 md:p-4 border-b border-slate-200 flex items-center justify-between">
+                    <h3 id="judulModalMaster" class="text-sm font-bold text-sipd-slate flex items-center gap-2"><i class="fa-solid fa-gears text-amber-500"></i> Pengaturan Master</h3>
+                    <button type="button" onclick="closeModal('modalSuperAdmin')" class="md:hidden w-7 h-7 rounded bg-white border border-slate-200 text-slate-500 hover:text-red-500 flex items-center justify-center"><i class="fa-solid fa-xmark text-xs"></i></button>
                 </div>
-                <div class="mt-auto p-3 border-t border-slate-200"><button onclick="closeModal('modalSuperAdmin')" class="w-full py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded font-bold text-xs transition-colors">Tutup</button></div>
+                <div class="p-2 flex md:flex-col gap-1 overflow-x-auto md:overflow-x-visible">
+                    <button type="button" onclick="switchTabAdmin('pptk')" id="tab-btn-pptk" class="admin-tab-btn admin-only-tab shrink-0 md:w-full text-left px-3 py-2 bg-sipd-navy text-white font-bold rounded text-xs flex items-center gap-2 transition-colors whitespace-nowrap"><i class="fa-solid fa-user-tie w-4 text-center"></i> Data PPTK</button>
+                    <button type="button" onclick="switchTabAdmin('akun')" id="tab-btn-akun" class="admin-tab-btn admin-only-tab shrink-0 md:w-full text-left px-3 py-2 hover:bg-slate-100 text-slate-600 rounded text-xs font-medium flex items-center gap-2 transition-colors whitespace-nowrap"><i class="fa-solid fa-users w-4 text-center"></i> Data Akun</button>
+                    <button type="button" onclick="switchTabAdmin('penyedia')" id="tab-btn-penyedia" class="admin-tab-btn shrink-0 md:w-full text-left px-3 py-2 hover:bg-slate-100 text-slate-600 rounded text-xs font-medium flex items-center gap-2 transition-colors whitespace-nowrap"><i class="fa-solid fa-building w-4 text-center"></i> Master Penyedia</button>
+                    <button type="button" onclick="switchTabAdmin('referensi')" id="tab-btn-referensi" class="admin-tab-btn admin-only-tab shrink-0 md:w-full text-left px-3 py-2 hover:bg-slate-100 text-slate-600 rounded text-xs font-medium flex items-center gap-2 transition-colors whitespace-nowrap"><i class="fa-solid fa-sitemap w-4 text-center"></i> Program &amp; Subkeg.</button>
+                    <button type="button" onclick="switchTabAdmin('log')" id="tab-btn-log" class="admin-tab-btn admin-only-tab shrink-0 md:w-full text-left px-3 py-2 hover:bg-slate-100 text-slate-600 rounded text-xs font-medium flex items-center gap-2 transition-colors whitespace-nowrap"><i class="fa-solid fa-shield-halved w-4 text-center"></i> Log Aktivitas</button>
+                </div>
+                <div class="hidden md:block mt-auto p-3 border-t border-slate-200"><button type="button" onclick="closeModal('modalSuperAdmin')" class="w-full py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded font-bold text-xs transition-colors">Tutup</button></div>
             </div>
             
-            <div class="flex-1 flex flex-col bg-white overflow-hidden">
-                <div id="tab-content-pptk" class="admin-tab-content flex-col h-full flex relative">
-                    <div class="p-5 flex-1 overflow-y-auto relative">
+            <div class="flex-1 flex flex-col bg-white overflow-hidden min-h-0">
+                <!-- TAB 1: DATA PPTK -->
+                <div id="tab-content-pptk" class="admin-tab-content flex-col h-full flex relative min-h-0">
+                    <div class="p-4 sm:p-5 flex-1 overflow-y-auto relative table-scroll">
                         <div class="bg-slate-50 border border-slate-200 p-3 rounded mb-4 sticky top-0 z-30 shadow-sm">
                             <div class="flex justify-between items-center mb-2">
                                 <h3 class="font-bold text-xs text-sipd-slate" id="titleFormPptk"><i class="fa-solid fa-plus"></i> Form PPTK</h3>
                                 <div class="flex gap-1.5">
-                                    <button onclick="simpanDataPptk()" class="px-3 py-1 bg-sipd-emerald text-white font-bold rounded text-[10px]">Simpan</button>
-                                    <button onclick="resetFormPptk()" class="px-3 py-1 bg-white border border-slate-300 text-slate-600 font-bold rounded text-[10px]">Batal</button>
+                                    <button type="button" onclick="simpanDataPptk()" class="px-3 py-1 bg-sipd-emerald hover:bg-emerald-700 text-white font-bold rounded text-[10px]">Simpan</button>
+                                    <button type="button" onclick="resetFormPptk()" class="px-3 py-1 bg-white border border-slate-300 text-slate-600 font-bold rounded text-[10px]">Batal</button>
                                 </div>
                             </div>
-                            <div class="grid grid-cols-3 gap-2 mb-2">
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">
                                 <div><label class="block text-[9px] font-bold text-slate-600 mb-1">Nama Lengkap</label><input type="text" id="pptkNama" class="w-full px-2 py-1 border border-slate-300 rounded text-xs outline-none focus:border-sipd-emerald"></div>
                                 <div><label class="block text-[9px] font-bold text-slate-600 mb-1">NIP</label><input type="text" id="pptkNip" class="w-full px-2 py-1 border border-slate-300 rounded text-xs outline-none focus:border-sipd-emerald font-mono"></div>
                                 <div><label class="block text-[9px] font-bold text-slate-600 mb-1">Unit Kerja</label><select id="pptkUnit" class="w-full px-2 py-1 border border-slate-300 rounded text-[11px] bg-white outline-none focus:border-sipd-emerald"><option value="">-- Opsional --</option><option value="Sekretariat">Sekretariat</option><option value="Bidang Perumahan">Bidang Perumahan</option><option value="Bidang Permukiman">Bidang Permukiman</option><option value="Bidang Pertanahan">Bidang Pertanahan</option><option value="Bidang PSU">Bidang PSU</option></select></div>
                             </div>
-                            <div class="grid grid-cols-2 gap-2">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 <div><label class="block text-[9px] font-bold text-slate-600 mb-1">Email (auto-fill SPJ)</label><input type="text" id="pptkEmail" maxlength="300" placeholder="pisah koma jika >1 email" class="w-full px-2 py-1 border border-slate-300 rounded text-xs outline-none focus:border-sipd-emerald"></div>
                                 <div><label class="block text-[9px] font-bold text-slate-600 mb-1">No. WA (auto-fill SPJ)</label><input type="text" id="pptkWa" placeholder="0812..." class="w-full px-2 py-1 border border-slate-300 rounded text-xs outline-none focus:border-sipd-emerald font-mono"></div>
                             </div>
@@ -991,29 +1005,30 @@
                     </div>
                 </div>
 
-                <div id="tab-content-akun" class="admin-tab-content flex-col h-full hidden relative">
-                    <div class="p-5 flex-1 overflow-y-auto relative">
+                <!-- TAB 2: DATA AKUN -->
+                <div id="tab-content-akun" class="admin-tab-content flex-col h-full hidden relative min-h-0">
+                    <div class="p-4 sm:p-5 flex-1 overflow-y-auto relative table-scroll">
                         <div class="bg-slate-50 border border-slate-200 p-3 rounded mb-4 sticky top-0 z-30 shadow-sm">
                             <div class="flex justify-between items-center mb-2">
                                 <h3 class="font-bold text-xs text-sipd-slate" id="titleFormAkun"><i class="fa-solid fa-plus"></i> Form Akun</h3>
                                 <div class="flex gap-1.5">
-                                    <button onclick="simpanDataAkun()" class="px-3 py-1 bg-sipd-navy text-white font-bold rounded text-[10px]">Simpan</button>
-                                    <button onclick="resetFormAkun()" class="px-3 py-1 bg-white border border-slate-300 text-slate-600 font-bold rounded text-[10px]">Batal</button>
+                                    <button type="button" onclick="simpanDataAkun()" class="px-3 py-1 bg-sipd-navy hover:bg-slate-800 text-white font-bold rounded text-[10px]">Simpan</button>
+                                    <button type="button" onclick="resetFormAkun()" class="px-3 py-1 bg-white border border-slate-300 text-slate-600 font-bold rounded text-[10px]">Batal</button>
                                 </div>
                             </div>
-                            <div class="grid grid-cols-4 gap-2 mb-2">
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
                                 <div><label class="block text-[9px] font-bold text-slate-600 mb-1">Nama Lengkap</label><input type="text" id="akunNama" class="w-full px-2 py-1 border border-slate-300 rounded text-xs outline-none focus:border-sipd-navy"></div>
                                 <div><label class="block text-[9px] font-bold text-slate-600 mb-1">Role</label><select id="akunRole" class="w-full px-2 py-1 border border-slate-300 rounded text-[11px] bg-white outline-none focus:border-sipd-navy">
-    <option value="PPTK">PPTK</option>
-    <option value="VERIFIKATOR">VERIFIKATOR</option>
-    <option value="BENDAHARA">BENDAHARA</option>
-    <option value="PIMPINAN">PIMPINAN</option>
-    <option value="SUPER_ADMIN">SUPER_ADMIN</option>
-</select></div>
+                                    <option value="PPTK">PPTK</option>
+                                    <option value="VERIFIKATOR">VERIFIKATOR</option>
+                                    <option value="BENDAHARA">BENDAHARA</option>
+                                    <option value="PIMPINAN">PIMPINAN</option>
+                                    <option value="SUPER_ADMIN">SUPER_ADMIN</option>
+                                </select></div>
                                 <div><label class="block text-[9px] font-bold text-slate-600 mb-1">Username (NIP)</label><input type="text" id="akunUsername" class="w-full px-2 py-1 border border-slate-300 rounded text-xs outline-none font-mono focus:border-sipd-navy"></div>
                                 <div><label class="block text-[9px] font-bold text-slate-600 mb-1">Password</label><input type="password" id="akunPassword" autocomplete="new-password" placeholder="Min. 8 karakter" class="w-full px-2 py-1 border border-slate-300 rounded text-xs outline-none font-mono focus:border-sipd-navy"></div>
                             </div>
-                            <div class="grid grid-cols-4 gap-2">
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                 <div><label class="block text-[9px] font-bold text-slate-600 mb-1">Status Akun</label><select id="akunStatus" class="w-full px-2 py-1 border border-slate-300 rounded text-[11px] bg-white outline-none focus:border-sipd-navy"><option value="AKTIF">AKTIF</option><option value="NONAKTIF">NONAKTIF</option></select></div>
                                 <div><label class="block text-[9px] font-bold text-slate-600 mb-1">Unit Kerja</label><select id="akunUnit" class="w-full px-2 py-1 border border-slate-300 rounded text-[11px] bg-white outline-none focus:border-sipd-navy"><option value="">-- Opsional --</option><option value="Sekretariat">Sekretariat</option><option value="Bidang Perumahan">Bidang Perumahan</option><option value="Bidang Permukiman">Bidang Permukiman</option><option value="Bidang Pertanahan">Bidang Pertanahan</option><option value="Bidang PSU">Bidang PSU</option></select></div>
                                 <div><label class="block text-[9px] font-bold text-slate-600 mb-1">Email</label><input type="text" id="akunEmail" maxlength="300" placeholder="pisah koma jika >1 email" class="w-full px-2 py-1 border border-slate-300 rounded text-xs outline-none focus:border-sipd-navy"></div>
@@ -1023,13 +1038,175 @@
 
                         <div class="flex items-center justify-between gap-3 mb-2">
                             <p class="text-[10px] text-slate-500 leading-relaxed">Gunakan tombol <b>Nonaktifkan</b> (ikon daya) untuk pegawai mutasi/pensiun agar riwayat tetap utuh &amp; sesi otomatis dicabut. Password disimpan sebagai <b>hash satu arah</b>.</p>
-                            <button id="btnAuditPassword" onclick="auditPasswordAkun()" class="shrink-0 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded text-[10px] font-bold whitespace-nowrap"><i class="fa-solid fa-shield-halved me-1"></i> Audit Password</button>
+                            <button type="button" id="btnAuditPassword" onclick="auditPasswordAkun()" class="shrink-0 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded text-[10px] font-bold whitespace-nowrap"><i class="fa-solid fa-shield-halved me-1"></i> Audit Password</button>
                         </div>
                         <div id="hasilAuditPassword" class="mb-3 hidden"></div>
                         <table class="w-full border-collapse border border-slate-200 text-xs">
                             <thead class="bg-slate-50 text-slate-500 uppercase text-[9px]"><tr><th class="p-2 border border-slate-200 text-left">Nama &amp; Unit</th><th class="p-2 border border-slate-200 text-left">Login &amp; Status</th><th class="p-2 border border-slate-200 text-left">Role</th><th class="p-2 border border-slate-200 text-left">Keamanan Password</th><th class="p-2 border border-slate-200 text-center w-36">Aksi</th></tr></thead>
                             <tbody id="tabelAkunBody" class="text-slate-600 divide-y divide-slate-100"></tbody>
                         </table>
+                    </div>
+                </div>
+
+                <!-- TAB 3: MASTER PENYEDIA / CV (DB_PENYEDIA) -->
+                <div id="tab-content-penyedia" class="admin-tab-content flex-col h-full hidden relative min-h-0">
+                    <div class="p-4 sm:p-5 flex-1 overflow-y-auto relative table-scroll">
+                        <div class="bg-purple-50/60 border border-purple-200 p-3 rounded mb-4 sticky top-0 z-30 shadow-sm">
+                            <div class="flex justify-between items-center mb-2">
+                                <h3 class="font-bold text-xs text-purple-950" id="titleFormPenyedia"><i class="fa-solid fa-plus-circle text-purple-600 me-1"></i> Tambah / Edit Penyedia (CV / PT)</h3>
+                                <div class="flex gap-1.5">
+                                    <button type="button" id="btnSimpanPenyedia" onclick="simpanDataPenyedia()" class="px-3 py-1 bg-purple-700 hover:bg-purple-800 text-white font-bold rounded text-[10px]">Simpan</button>
+                                    <button type="button" onclick="resetFormPenyedia()" class="px-3 py-1 bg-white border border-slate-300 text-slate-600 font-bold rounded text-[10px]">Batal</button>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">
+                                <div><label class="block text-[9px] font-bold text-slate-600 mb-1">Nama Penyedia / CV <span class="text-red-500">*</span></label><input type="text" id="penPelaksana" maxlength="150" placeholder="Sesuai buku rekening, Cth: CV. MAJU JAYA" class="w-full px-2 py-1 border border-slate-300 bg-white rounded text-xs font-bold outline-none focus:border-purple-600"></div>
+                                <div><label class="block text-[9px] font-bold text-slate-600 mb-1">Nama Direktur / Pimpinan <span class="text-red-500">*</span></label><input type="text" id="penDirektur" maxlength="120" class="w-full px-2 py-1 border border-slate-300 bg-white rounded text-xs outline-none focus:border-purple-600"></div>
+                                <div><label class="block text-[9px] font-bold text-slate-600 mb-1">Jabatan <span class="text-red-500">*</span></label><input type="text" id="penJabatan" maxlength="80" value="Direktur" class="w-full px-2 py-1 border border-slate-300 bg-white rounded text-xs outline-none focus:border-purple-600"></div>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">
+                                <div><label class="block text-[9px] font-bold text-slate-600 mb-1">NPWP <span class="text-red-500">*</span></label><input type="text" id="penNpwp" maxlength="30" placeholder="00.000.000.0-000.000" class="w-full px-2 py-1 border border-slate-300 bg-white rounded text-xs font-mono outline-none focus:border-purple-600"></div>
+                                <div><label class="block text-[9px] font-bold text-slate-600 mb-1">Nama Bank <span class="text-red-500">*</span></label><input type="text" id="penBank" maxlength="80" placeholder="Cth: Bank Jatim" class="w-full px-2 py-1 border border-slate-300 bg-white rounded text-xs outline-none focus:border-purple-600"></div>
+                                <div><label class="block text-[9px] font-bold text-slate-600 mb-1">No. Rekening <span class="text-red-500">*</span></label><input type="text" id="penNoRek" maxlength="30" inputmode="numeric" placeholder="Angka 5-30 digit" class="w-full px-2 py-1 border border-slate-300 bg-white rounded text-xs font-mono outline-none focus:border-purple-600"></div>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                                <div class="sm:col-span-2"><label class="block text-[9px] font-bold text-slate-600 mb-1">Alamat Lengkap <span class="text-red-500">*</span></label><input type="text" id="penAlamat" maxlength="300" class="w-full px-2 py-1 border border-slate-300 bg-white rounded text-xs outline-none focus:border-purple-600"></div>
+                                <div><label class="block text-[9px] font-bold text-slate-600 mb-1">No. Akta (Opsional)</label><input type="text" id="penAktaNo" maxlength="80" class="w-full px-2 py-1 border border-slate-300 bg-white rounded text-xs font-mono outline-none focus:border-purple-600"></div>
+                                <div><label class="block text-[9px] font-bold text-slate-600 mb-1">Tgl. Akta (Opsional)</label><input type="date" id="penAktaTgl" class="w-full px-2 py-1 border border-slate-300 bg-white rounded text-xs outline-none focus:border-purple-600"></div>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                            <p class="text-[10px] text-slate-500 leading-relaxed">Mengubah <b>Nama Penyedia/CV</b> otomatis menyelaraskan nama pada BAP &amp; SPJ tahun aktif. Seluruh perubahan rekening dicatat di <b>LOG_SISTEM</b>.</p>
+                            <div class="flex items-center gap-2 shrink-0">
+                                <span id="countMasterPenyedia" class="px-2 py-1 bg-purple-50 text-purple-700 border border-purple-200 rounded text-[10px] font-bold">0 Penyedia</span>
+                                <div class="relative w-52">
+                                    <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-400 text-[10px]"></i>
+                                    <input type="text" id="cariMasterPenyedia" oninput="renderTabelPenyediaAdmin()" placeholder="Cari CV, direktur, bank..." class="w-full pl-7 pr-2.5 py-1 border border-slate-200 rounded text-xs outline-none focus:border-purple-600">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto border border-slate-200 rounded">
+                            <table class="w-full border-collapse text-xs">
+                                <thead class="bg-slate-50 text-slate-500 uppercase text-[9px]">
+                                    <tr>
+                                        <th class="p-2 border-b border-slate-200 text-left">Penyedia / Direktur</th>
+                                        <th class="p-2 border-b border-slate-200 text-left">NPWP &amp; Alamat</th>
+                                        <th class="p-2 border-b border-slate-200 text-left">Bank &amp; No. Rekening</th>
+                                        <th class="p-2 border-b border-slate-200 text-center w-28">Dipakai</th>
+                                        <th class="p-2 border-b border-slate-200 text-center w-24">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabelPenyediaBody" class="text-slate-600 divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 4: MASTER PROGRAM / KEGIATAN / SUB KEGIATAN (DB_CONTROL J:L) -->
+                <div id="tab-content-referensi" class="admin-tab-content flex-col h-full hidden relative min-h-0">
+                    <div class="p-4 sm:p-5 flex-1 overflow-y-auto relative table-scroll">
+                        <div class="bg-emerald-50/60 border border-emerald-200 p-3 rounded mb-4 sticky top-0 z-30 shadow-sm">
+                            <div class="flex justify-between items-center mb-2">
+                                <h3 class="font-bold text-xs text-emerald-950" id="titleFormReferensi"><i class="fa-solid fa-plus-circle text-emerald-600 me-1"></i> Tambah / Edit Program, Kegiatan &amp; Sub Kegiatan</h3>
+                                <div class="flex gap-1.5">
+                                    <button type="button" id="btnSimpanReferensi" onclick="simpanDataReferensi()" class="px-3 py-1 bg-sipd-emerald hover:bg-emerald-700 text-white font-bold rounded text-[10px]">Simpan</button>
+                                    <button type="button" onclick="resetFormReferensi()" class="px-3 py-1 bg-white border border-slate-300 text-slate-600 font-bold rounded text-[10px]">Batal</button>
+                                </div>
+                            </div>
+                            <div class="space-y-2">
+                                <div>
+                                    <label class="block text-[9px] font-bold text-slate-600 mb-1">Program <span class="text-red-500">*</span></label>
+                                    <input type="text" id="refProgram" list="datalistRefProgram" maxlength="255" placeholder="Pilih Program yang ada atau ketik baru..." class="w-full px-2 py-1 border border-slate-300 bg-white rounded text-xs outline-none focus:border-sipd-emerald">
+                                    <datalist id="datalistRefProgram"></datalist>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-slate-600 mb-1">Kegiatan <span class="text-red-500">*</span></label>
+                                        <input type="text" id="refKegiatan" list="datalistRefKegiatan" maxlength="255" placeholder="Pilih Kegiatan yang ada atau ketik baru..." class="w-full px-2 py-1 border border-slate-300 bg-white rounded text-xs outline-none focus:border-sipd-emerald">
+                                        <datalist id="datalistRefKegiatan"></datalist>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-slate-600 mb-1">Sub Kegiatan <span class="text-red-500">*</span></label>
+                                        <input type="text" id="refSubKegiatan" maxlength="255" placeholder="Nama Sub Kegiatan sesuai DPA..." class="w-full px-2 py-1 border border-slate-300 bg-white rounded text-xs outline-none focus:border-sipd-emerald">
+                                    </div>
+                                </div>
+                                <label id="wrapRefSinkron" class="hidden inline-flex items-center gap-2 text-[10px] text-emerald-900 font-medium cursor-pointer select-none pt-0.5">
+                                    <input type="checkbox" id="chkRefSinkron" checked> Ikut selaraskan perubahan nomenklatur ini ke baris SPJ &amp; BAP pada Tahun Anggaran aktif
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                            <p class="text-[10px] text-slate-500 leading-relaxed">Disimpan ke tab <b>DB_CONTROL</b> (kolom J:L) pada <code>ERP_MASTER</code> tanpa mengganggu data Pagu maupun Akun.</p>
+                            <div class="flex items-center gap-2 shrink-0">
+                                <span id="countMasterReferensi" class="px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10px] font-bold">0 Sub Kegiatan</span>
+                                <div class="relative w-52">
+                                    <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-400 text-[10px]"></i>
+                                    <input type="text" id="cariMasterReferensi" oninput="renderTabelReferensiAdmin()" placeholder="Cari program, kegiatan..." class="w-full pl-7 pr-2.5 py-1 border border-slate-200 rounded text-xs outline-none focus:border-sipd-emerald">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto border border-slate-200 rounded">
+                            <table class="w-full border-collapse text-xs">
+                                <thead class="bg-slate-50 text-slate-500 uppercase text-[9px]">
+                                    <tr>
+                                        <th class="p-2 border-b border-slate-200 text-left">Program</th>
+                                        <th class="p-2 border-b border-slate-200 text-left">Kegiatan</th>
+                                        <th class="p-2 border-b border-slate-200 text-left">Sub Kegiatan</th>
+                                        <th class="p-2 border-b border-slate-200 text-center w-24">Dipakai</th>
+                                        <th class="p-2 border-b border-slate-200 text-center w-20">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabelReferensiBody" class="text-slate-600 divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 5: LOG AKTIVITAS & AUDIT (LOG_SISTEM — MUAT ON-DEMAND) -->
+                <div id="tab-content-log" class="admin-tab-content flex-col h-full hidden relative min-h-0">
+                    <div class="p-4 sm:p-5 flex-1 flex flex-col overflow-hidden min-h-0">
+                        <div class="bg-slate-50 border border-slate-200 p-3 rounded mb-3 flex flex-wrap items-center justify-between gap-2 shrink-0">
+                            <div class="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+                                <div class="relative flex-1 min-w-[160px] max-w-xs">
+                                    <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-400 text-[10px]"></i>
+                                    <input type="text" id="cariLogSistem" oninput="renderTabelLogAdmin()" placeholder="Cari pelaku, detail, waktu..." class="w-full pl-7 pr-2.5 py-1.5 border border-slate-300 bg-white rounded text-xs outline-none focus:border-sipd-navy">
+                                </div>
+                                <select id="filterJenisLog" onchange="renderTabelLogAdmin()" class="border border-slate-300 bg-white rounded px-2 py-1.5 text-xs outline-none focus:border-sipd-navy cursor-pointer">
+                                    <option value="ALL">Semua Aktivitas</option>
+                                    <option value="__RISIKO__">⚠ Hanya Risiko &amp; Hapus</option>
+                                </select>
+                                <select id="limitLogSistem" onchange="muatLogSistemAdmin()" class="border border-slate-300 bg-white rounded px-2 py-1.5 text-xs outline-none focus:border-sipd-navy cursor-pointer" title="Jumlah baris terbaru yang dimuat dari server">
+                                    <option value="100">100 terbaru</option>
+                                    <option value="250" selected>250 terbaru</option>
+                                    <option value="500">500 terbaru</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                <button type="button" id="btnMuatLog" onclick="muatLogSistemAdmin()" class="px-3 py-1.5 bg-sipd-navy hover:bg-slate-800 text-white rounded text-[11px] font-bold flex items-center gap-1.5"><i id="ikonRefreshLog" class="fa-solid fa-rotate"></i> Muat Ulang</button>
+                                <button type="button" onclick="exportLogSistemExcel()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-bold flex items-center gap-1.5"><i class="fa-solid fa-file-excel"></i> Export</button>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between text-[10px] text-slate-500 mb-2 shrink-0">
+                            <span id="infoLogSistem">Klik Muat Ulang untuk menarik jejak audit terbaru dari LOG_SISTEM.</span>
+                            <span class="text-slate-400">Hanya baca (audit trail tidak dapat diubah dari aplikasi)</span>
+                        </div>
+                        <div class="flex-1 overflow-auto border border-slate-200 rounded table-scroll min-h-0">
+                            <table class="w-full border-collapse text-xs">
+                                <thead class="bg-slate-100 text-slate-600 uppercase text-[9px] sticky top-0 z-10">
+                                    <tr>
+                                        <th class="p-2 border-b border-slate-200 text-left w-32">Waktu</th>
+                                        <th class="p-2 border-b border-slate-200 text-left w-36">Jenis</th>
+                                        <th class="p-2 border-b border-slate-200 text-left w-48">Pelaku</th>
+                                        <th class="p-2 border-b border-slate-200 text-left">Detail Aktivitas</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabelLogBody" class="text-slate-600 divide-y divide-slate-100 bg-white">
+                                    <tr><td colspan="4" class="text-center py-10 text-slate-400">Membuka tab akan memuat catatan terbaru...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1265,7 +1442,7 @@
     </div>
 
     <script src="config.js?v=76"></script>
-    <script src="app.js?v=77"></script>
+    <script src="app.js?v=78"></script>
     <script src="spj.js?v=77"></script>
     <script src="bap.js?v=77"></script>
     

@@ -333,10 +333,17 @@ function masukSistem() {
     updateSapaanWaktu();
 
     const sidebarSuperAdmin = document.getElementById('sidebarSuperAdmin');
+    const sidebarMasterPenyedia = document.getElementById('sidebarMasterPenyedia');
     if (sesiAktif.role === 'SUPER_ADMIN') {
-        if(sidebarSuperAdmin) { sidebarSuperAdmin.classList.remove('hidden'); sidebarSuperAdmin.classList.add('flex'); }
+        if (sidebarSuperAdmin) { sidebarSuperAdmin.classList.remove('hidden'); sidebarSuperAdmin.classList.add('flex'); }
+        if (sidebarMasterPenyedia) { sidebarMasterPenyedia.classList.add('hidden'); sidebarMasterPenyedia.classList.remove('flex'); }
     } else {
-        if(sidebarSuperAdmin) { sidebarSuperAdmin.classList.add('hidden'); sidebarSuperAdmin.classList.remove('flex'); }
+        if (sidebarSuperAdmin) { sidebarSuperAdmin.classList.add('hidden'); sidebarSuperAdmin.classList.remove('flex'); }
+        const bolehKelolaCv = (sesiAktif.role === 'VERIFIKATOR' || sesiAktif.role === 'BENDAHARA');
+        if (sidebarMasterPenyedia) {
+            sidebarMasterPenyedia.classList.toggle('hidden', !bolehKelolaCv);
+            sidebarMasterPenyedia.classList.toggle('flex', bolehKelolaCv);
+        }
     }
     const liRekapLs = document.getElementById('li-menu-rekap-ls');
     if (liRekapLs) liRekapLs.classList.toggle('hidden', !bisaRekapPencairanLs());
@@ -419,6 +426,8 @@ function tarikDataDariServer(ringan = false) {
             if (typeof REKAP_LS !== 'undefined') REKAP_LS.render();
             if (!modeRingan) {
                 const tbAkun = document.getElementById('tabelAkunBody'); if (tbAkun && tbAkun.innerHTML !== '') renderTabelAkunAdmin();
+                const tbPen = document.getElementById('tabelPenyediaBody'); if (tbPen && tbPen.innerHTML !== '') renderTabelPenyediaAdmin();
+                const tbRef = document.getElementById('tabelReferensiBody'); if (tbRef && tbRef.innerHTML !== '') renderTabelReferensiAdmin();
             }
         })
         .catch(e => console.error(e))
@@ -843,7 +852,13 @@ function openModal(id) {
     document.getElementById(id).classList.remove('hidden'); 
 }
 
+function bisaKelolaMasterPenyedia() {
+    return sesiAktif.role === 'SUPER_ADMIN' || sesiAktif.role === 'VERIFIKATOR' || sesiAktif.role === 'BENDAHARA';
+}
+
 function switchTabAdmin(tabName) {
+    const isAdmin = sesiAktif.role === 'SUPER_ADMIN';
+    if (!isAdmin && tabName !== 'penyedia') tabName = 'penyedia';
     document.querySelectorAll('.admin-tab-content').forEach(el => { el.classList.add('hidden'); el.classList.remove('flex'); });
     document.querySelectorAll('.admin-tab-btn').forEach(el => {
         el.classList.remove('bg-sipd-navy', 'text-white', 'font-bold');
@@ -855,6 +870,9 @@ function switchTabAdmin(tabName) {
         activeBtn.classList.remove('text-slate-600', 'hover:bg-slate-100', 'font-medium');
         activeBtn.classList.add('bg-sipd-navy', 'text-white', 'font-bold');
     }
+    if (tabName === 'penyedia') renderTabelPenyediaAdmin();
+    else if (tabName === 'referensi') renderTabelReferensiAdmin();
+    else if (tabName === 'log') muatLogSistemAdmin();
 }
 
 function infoPasswordAkun(akun) {
@@ -1042,7 +1060,522 @@ async function hapusDataAkun(index) {
     });
     if (ok) kirimAkunKeServer({ action: 'akun_hapus', namaLengkap: ak.namaLengkap }, 'Berhasil dihapus dari server.');
 }
-function bukaModalSuperAdmin() { const profileDd = document.getElementById('profileDropdown'); if(profileDd) profileDd.classList.add('hidden'); renderTabelAkunAdmin(); switchTabAdmin('pptk'); openModal('modalSuperAdmin'); }
+function bukaModalSuperAdmin(tabAwal) {
+    const isAdmin = sesiAktif.role === 'SUPER_ADMIN';
+    if (!isAdmin && !bisaKelolaMasterPenyedia()) {
+        showToast('Anda tidak memiliki hak membuka Pengaturan Master.', 'warning');
+        return;
+    }
+    const profileDd = document.getElementById('profileDropdown');
+    if (profileDd) profileDd.classList.add('hidden');
+
+    // Sembunyikan tab khusus SUPER_ADMIN bila dibuka oleh VERIFIKATOR / BENDAHARA
+    document.querySelectorAll('.admin-only-tab').forEach(el => el.classList.toggle('hidden', !isAdmin));
+    const jdl = document.getElementById('judulModalMaster');
+    if (jdl) {
+        jdl.innerHTML = isAdmin
+            ? '<i class="fa-solid fa-gears text-amber-500"></i> Pengaturan Master'
+            : '<i class="fa-solid fa-building text-purple-600"></i> Master Penyedia';
+    }
+    if (isAdmin) renderTabelAkunAdmin();
+    renderTabelPenyediaAdmin();
+    if (isAdmin) renderTabelReferensiAdmin();
+    switchTabAdmin(isAdmin ? (tabAwal || 'pptk') : 'penyedia');
+    openModal('modalSuperAdmin');
+}
+
+// ============================================================================
+// TAB 3: MASTER PENYEDIA / CV (DB_PENYEDIA)
+// ============================================================================
+let editPelaksanaLama = '';
+
+function hitungPakaiPenyediaLokal(namaCv) {
+    const key = String(namaCv || '').trim().toUpperCase();
+    if (!key) return { bap: 0, spj: 0 };
+    const bap = (window.DATABASE_KONTRAK || []).filter(k => String(k.pelaksana || '').trim().toUpperCase() === key).length;
+    const spj = (spjData || []).filter(s => String(s.namaCv || '').trim().toUpperCase() === key).length;
+    return { bap, spj };
+}
+
+function renderTabelPenyediaAdmin() {
+    const tbody = document.getElementById('tabelPenyediaBody');
+    if (!tbody) return;
+    const q = (document.getElementById('cariMasterPenyedia') ? document.getElementById('cariMasterPenyedia').value : '').trim().toLowerCase();
+    const semua = [...(window.DATABASE_PENYEDIA || [])].sort((a, b) => String(a.pelaksana || '').localeCompare(String(b.pelaksana || ''), 'id'));
+    const countEl = document.getElementById('countMasterPenyedia');
+    if (countEl) countEl.textContent = `${semua.length} Penyedia`;
+
+    const tampil = semua.filter(c => {
+        if (!q) return true;
+        return `${c.pelaksana} ${c.direktur} ${c.jabatan} ${c.npwp} ${c.alamat} ${c.bank} ${c.noRek} ${c.aktaNo}`.toLowerCase().includes(q);
+    });
+
+    if (tampil.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400 font-medium">${q ? 'Tidak ada penyedia yang cocok dengan pencarian.' : 'Belum ada data penyedia.'}</td></tr>`;
+        return;
+    }
+
+    const isAdmin = sesiAktif.role === 'SUPER_ADMIN';
+    tbody.innerHTML = tampil.map(c => {
+        const pakai = hitungPakaiPenyediaLokal(c.pelaksana);
+        const terpakai = (pakai.bap > 0 || pakai.spj > 0);
+        const badgePakai = terpakai
+            ? `<span class="px-1.5 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded text-[9px] font-bold">${pakai.bap} BAP &middot; ${pakai.spj} SPJ</span>`
+            : `<span class="text-[10px] text-slate-400">Belum dipakai</span>`;
+        const aktaInfo = (c.aktaNo || c.aktaTgl)
+            ? `<div class="text-[10px] text-slate-400 mt-0.5">Akta: ${escapeHtml(c.aktaNo || '-')}${c.aktaTgl ? ' (' + formatTanggalIndo(c.aktaTgl) + ')' : ''}</div>` : '';
+        const btnHapus = isAdmin
+            ? `<button type="button" data-cv="${escapeHtml(c.pelaksana)}" onclick="hapusDataPenyedia(this.getAttribute('data-cv'))" title="${terpakai ? 'Tidak bisa dihapus karena masih dipakai transaksi' : 'Hapus penyedia'}" class="px-2 py-1 ${terpakai ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'} border rounded text-[10px] font-bold ml-1"><i class="fa-solid fa-trash"></i></button>`
+            : '';
+        return `<tr class="hover:bg-purple-50/30 transition-colors">
+            <td class="p-2.5 align-top">
+                <div class="font-bold text-purple-800">${escapeHtml(c.pelaksana)}</div>
+                <div class="text-[10px] text-slate-500 mt-0.5">${escapeHtml(c.direktur || '-')} <span class="text-slate-400">(${escapeHtml(c.jabatan || 'Direktur')})</span></div>
+                ${aktaInfo}
+            </td>
+            <td class="p-2.5 align-top max-w-[230px] whitespace-normal">
+                <div class="font-mono text-[11px] text-slate-700">${escapeHtml(c.npwp || '-')}</div>
+                <div class="text-[10px] text-slate-500 mt-0.5 leading-snug">${escapeHtml(c.alamat || '-')}</div>
+            </td>
+            <td class="p-2.5 align-top whitespace-nowrap">
+                <div class="font-bold text-slate-700">${escapeHtml(c.bank || '-')}</div>
+                <div class="font-mono text-[11px] text-blue-700 font-bold mt-0.5">${escapeHtml(c.noRek || '-')}</div>
+            </td>
+            <td class="p-2.5 text-center align-top whitespace-nowrap">${badgePakai}</td>
+            <td class="p-2.5 text-center align-top whitespace-nowrap">
+                <button type="button" data-cv="${escapeHtml(c.pelaksana)}" onclick="editDataPenyedia(this.getAttribute('data-cv'))" title="Edit penyedia" class="px-2 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded text-[10px] font-bold hover:bg-amber-100"><i class="fa-solid fa-pen"></i></button>${btnHapus}
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function editDataPenyedia(namaPelaksana) {
+    const cv = (window.DATABASE_PENYEDIA || []).find(c => String(c.pelaksana).trim().toUpperCase() === String(namaPelaksana || '').trim().toUpperCase());
+    if (!cv) { showToast('Data penyedia tidak ditemukan.', 'error'); return; }
+    editPelaksanaLama = cv.pelaksana;
+    const jdl = document.getElementById('titleFormPenyedia');
+    if (jdl) jdl.innerHTML = `<i class="fa-solid fa-pen text-amber-600 me-1"></i> Edit Penyedia: <span class="text-purple-700">${escapeHtml(cv.pelaksana)}</span>`;
+    document.getElementById('penPelaksana').value = cv.pelaksana || '';
+    document.getElementById('penDirektur').value = cv.direktur || '';
+    document.getElementById('penJabatan').value = cv.jabatan || 'Direktur';
+    document.getElementById('penNpwp').value = cv.npwp || '';
+    document.getElementById('penBank').value = cv.bank || '';
+    document.getElementById('penNoRek').value = cv.noRek || '';
+    document.getElementById('penAlamat').value = (cv.alamat && cv.alamat !== '-') ? cv.alamat : '';
+    document.getElementById('penAktaNo').value = cv.aktaNo || '';
+    document.getElementById('penAktaTgl').value = cv.aktaTgl ? String(cv.aktaTgl).split('T')[0] : '';
+    const tabScroll = document.querySelector('#tab-content-penyedia .overflow-y-auto');
+    if (tabScroll) tabScroll.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resetFormPenyedia() {
+    editPelaksanaLama = '';
+    const jdl = document.getElementById('titleFormPenyedia');
+    if (jdl) jdl.innerHTML = '<i class="fa-solid fa-plus-circle text-purple-600 me-1"></i> Tambah / Edit Penyedia (CV / PT)';
+    ['penPelaksana', 'penDirektur', 'penNpwp', 'penBank', 'penNoRek', 'penAlamat', 'penAktaNo', 'penAktaTgl'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.value = '';
+    });
+    const jb = document.getElementById('penJabatan'); if (jb) jb.value = 'Direktur';
+}
+
+async function simpanDataPenyedia() {
+    if (!bisaKelolaMasterPenyedia()) { showToast('Anda tidak memiliki hak mengubah Master Penyedia.', 'error'); return; }
+    const pelaksana = (document.getElementById('penPelaksana').value || '').trim();
+    const direktur = (document.getElementById('penDirektur').value || '').trim();
+    const jabatan = (document.getElementById('penJabatan').value || '').trim() || 'Direktur';
+    const npwp = (document.getElementById('penNpwp').value || '').trim();
+    const bank = (document.getElementById('penBank').value || '').trim();
+    const noRek = (document.getElementById('penNoRek').value || '').replace(/\s+/g, '');
+    const alamat = (document.getElementById('penAlamat').value || '').trim();
+    const aktaNo = (document.getElementById('penAktaNo').value || '').trim();
+    const aktaTgl = (document.getElementById('penAktaTgl').value || '').trim();
+
+    if (!pelaksana || !direktur || !npwp || !bank || !noRek || !alamat) {
+        showToast('Nama Penyedia, Direktur, NPWP, Bank, No. Rekening, dan Alamat wajib diisi!', 'warning');
+        return;
+    }
+    if (!/^[0-9]{5,30}$/.test(noRek)) {
+        showToast('No. Rekening harus berupa angka 5-30 digit.', 'warning');
+        return;
+    }
+
+    // Jika mengedit dan Nama CV berubah, tampilkan konfirmasi jumlah BAP & SPJ yang akan ikut diubah
+    if (editPelaksanaLama && editPelaksanaLama.trim() !== pelaksana) {
+        const pakai = hitungPakaiPenyediaLokal(editPelaksanaLama);
+        const ok = await tanyaKonfirmasi({
+            judul: 'Ubah Nama Penyedia & Selaraskan Transaksi?',
+            pesan: 'Perubahan nama CV akan otomatis memperbarui seluruh riwayat BAP & SPJ terkait pada Tahun Anggaran aktif.',
+            detailList: [
+                ['Nama Lama', editPelaksanaLama],
+                ['Nama Baru', pelaksana],
+                ['Data Ikut Diubah', `${pakai.bap} BAP & ${pakai.spj} SPJ (TA ${CONFIG.TAHUN_ANGGARAN})`]
+            ],
+            catatan: 'Gunakan hanya untuk koreksi penulisan/penyesuaian nama buku rekening, bukan mengganti ke perusahaan yang berbeda.',
+            labelYa: 'Ya, Simpan & Selaraskan',
+            tipe: 'warning'
+        });
+        if (!ok) return;
+    }
+
+    const btn = document.getElementById('btnSimpanPenyedia');
+    const asli = btn ? btn.innerHTML : 'Simpan';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
+
+    apiPost({
+        action: 'penyedia_simpan',
+        pelaksanaLama: editPelaksanaLama,
+        pelaksana, direktur, jabatan, npwp, bank, noRek, alamat, aktaNo, aktaTgl
+    })
+        .then(res => {
+            if (res.status !== 'success') { showToast('Gagal menyimpan penyedia: ' + res.message, 'error'); return; }
+            const infoSinkron = (res.diubahBap || res.diubahSpj)
+                ? ` (${res.diubahBap || 0} BAP & ${res.diubahSpj || 0} SPJ ikut diselaraskan)` : '';
+            resetFormPenyedia();
+            return tarikDataDariServer().then(() => {
+                renderTabelPenyediaAdmin();
+                showToast('Data penyedia tersimpan' + infoSinkron + '.', 'success');
+            });
+        })
+        .catch(e => { if (String(e.message) !== 'Sesi berakhir') showToast('Koneksi gagal: ' + e.message, 'error'); })
+        .finally(() => { if (btn) { btn.disabled = false; btn.innerHTML = asli; } });
+}
+
+async function hapusDataPenyedia(namaPelaksana) {
+    if (sesiAktif.role !== 'SUPER_ADMIN') { showToast('Hapus penyedia hanya untuk SUPER_ADMIN.', 'warning'); return; }
+    const pakai = hitungPakaiPenyediaLokal(namaPelaksana);
+    if (pakai.bap > 0 || pakai.spj > 0) {
+        showToast(`Penyedia "${namaPelaksana}" masih dipakai pada ${pakai.bap} BAP dan ${pakai.spj} SPJ sehingga tidak dapat dihapus.`, 'warning');
+        return;
+    }
+    const ok = await tanyaKonfirmasi({
+        judul: 'Hapus Penyedia dari Master?',
+        pesan: `Data "${namaPelaksana}" akan dihapus permanen dari DB_PENYEDIA.`,
+        labelYa: 'Ya, Hapus',
+        tipe: 'danger'
+    });
+    if (!ok) return;
+    apiPost({ action: 'penyedia_hapus', pelaksana: namaPelaksana })
+        .then(res => {
+            if (res.status !== 'success') { showToast('Gagal menghapus: ' + res.message, 'error'); return; }
+            if (editPelaksanaLama && editPelaksanaLama.toUpperCase() === String(namaPelaksana).toUpperCase()) resetFormPenyedia();
+            return tarikDataDariServer().then(() => {
+                renderTabelPenyediaAdmin();
+                showToast('Penyedia berhasil dihapus.');
+            });
+        })
+        .catch(e => { if (String(e.message) !== 'Sesi berakhir') showToast('Koneksi gagal: ' + e.message, 'error'); });
+}
+
+// ============================================================================
+// TAB 4: MASTER PROGRAM / KEGIATAN / SUB KEGIATAN (DB_CONTROL J:L)
+// ============================================================================
+let editReferensiLama = null;
+
+function daftarReferensiFlat() {
+    const out = [];
+    const ref = referensiData || {};
+    Object.keys(ref).sort((a, b) => a.localeCompare(b, 'id')).forEach(prog => {
+        const kegObj = ref[prog] || {};
+        Object.keys(kegObj).sort((a, b) => a.localeCompare(b, 'id')).forEach(keg => {
+            const subs = Array.isArray(kegObj[keg]) ? [...kegObj[keg]] : [];
+            subs.sort((a, b) => a.localeCompare(b, 'id')).forEach(sub => {
+                out.push({ program: prog, kegiatan: keg, subKegiatan: sub });
+            });
+        });
+    });
+    return out;
+}
+
+function hitungPakaiReferensiLokal(prog, keg, sub) {
+    const spj = (spjData || []).filter(x =>
+        String(x.program || '').trim() === prog &&
+        String(x.kegiatan || '').trim() === keg &&
+        String(x.subKegiatan || '').trim() === sub
+    ).length;
+    const bap = (window.DATABASE_KONTRAK || []).filter(k =>
+        (!k.program || String(k.program).trim() === prog) &&
+        String(k.kegiatan || '').trim() === keg &&
+        String(k.subKegiatan || '').trim() === sub
+    ).length;
+    return { spj, bap };
+}
+
+function isiDatalistReferensi() {
+    const dlP = document.getElementById('datalistRefProgram');
+    const dlK = document.getElementById('datalistRefKegiatan');
+    const ref = referensiData || {};
+    if (dlP) {
+        dlP.innerHTML = Object.keys(ref).sort((a, b) => a.localeCompare(b, 'id'))
+            .map(p => `<option value="${escapeHtml(p)}"></option>`).join('');
+    }
+    if (dlK) {
+        const kegSet = new Set();
+        Object.keys(ref).forEach(p => Object.keys(ref[p] || {}).forEach(k => kegSet.add(k)));
+        dlK.innerHTML = Array.from(kegSet).sort((a, b) => a.localeCompare(b, 'id'))
+            .map(k => `<option value="${escapeHtml(k)}"></option>`).join('');
+    }
+}
+
+function renderTabelReferensiAdmin() {
+    const tbody = document.getElementById('tabelReferensiBody');
+    if (!tbody) return;
+    isiDatalistReferensi();
+    const semua = daftarReferensiFlat();
+    const countEl = document.getElementById('countMasterReferensi');
+    if (countEl) countEl.textContent = `${semua.length} Sub Kegiatan`;
+
+    const q = (document.getElementById('cariMasterReferensi') ? document.getElementById('cariMasterReferensi').value : '').trim().toLowerCase();
+    const tampil = semua.filter(x => !q || `${x.program} ${x.kegiatan} ${x.subKegiatan}`.toLowerCase().includes(q));
+
+    if (tampil.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400 font-medium">${q ? 'Tidak ada nomenklatur yang cocok dengan pencarian.' : 'Belum ada data Program/Kegiatan/Sub Kegiatan.'}</td></tr>`;
+        return;
+    }
+
+    window._cacheRefAdmin = tampil;
+    tbody.innerHTML = tampil.map((x, idx) => {
+        const pakai = hitungPakaiReferensiLokal(x.program, x.kegiatan, x.subKegiatan);
+        const terpakai = (pakai.spj > 0 || pakai.bap > 0);
+        const badgePakai = terpakai
+            ? `<span class="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[9px] font-bold">${pakai.spj} SPJ &middot; ${pakai.bap} BAP</span>`
+            : `<span class="text-[10px] text-slate-400">Belum</span>`;
+        return `<tr class="hover:bg-emerald-50/30 transition-colors">
+            <td class="p-2.5 align-top font-bold text-slate-800 max-w-[200px] whitespace-normal break-words">${escapeHtml(x.program)}</td>
+            <td class="p-2.5 align-top text-slate-600 max-w-[220px] whitespace-normal break-words">${escapeHtml(x.kegiatan)}</td>
+            <td class="p-2.5 align-top text-slate-700 font-medium max-w-[240px] whitespace-normal break-words">${escapeHtml(x.subKegiatan)}</td>
+            <td class="p-2.5 text-center align-top whitespace-nowrap">${badgePakai}</td>
+            <td class="p-2.5 text-center align-top whitespace-nowrap">
+                <button type="button" onclick="editDataReferensi(${idx})" title="Edit nomenklatur" class="px-2 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded text-[10px] font-bold hover:bg-amber-100"><i class="fa-solid fa-pen"></i></button>
+                <button type="button" onclick="hapusDataReferensi(${idx})" title="${terpakai ? 'Tidak bisa dihapus karena masih dipakai transaksi' : 'Hapus'}" class="px-2 py-1 ${terpakai ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'} border rounded text-[10px] font-bold ml-1"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function editDataReferensi(idx) {
+    const x = (window._cacheRefAdmin || [])[idx];
+    if (!x) return;
+    editReferensiLama = { program: x.program, kegiatan: x.kegiatan, subKegiatan: x.subKegiatan };
+    const jdl = document.getElementById('titleFormReferensi');
+    if (jdl) jdl.innerHTML = '<i class="fa-solid fa-pen text-amber-600 me-1"></i> Edit Nomenklatur Program / Kegiatan / Sub Kegiatan';
+    document.getElementById('refProgram').value = x.program;
+    document.getElementById('refKegiatan').value = x.kegiatan;
+    document.getElementById('refSubKegiatan').value = x.subKegiatan;
+    const wrap = document.getElementById('wrapRefSinkron');
+    if (wrap) wrap.classList.remove('hidden');
+    const chk = document.getElementById('chkRefSinkron');
+    if (chk) chk.checked = true;
+    const tabScroll = document.querySelector('#tab-content-referensi .overflow-y-auto');
+    if (tabScroll) tabScroll.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resetFormReferensi() {
+    editReferensiLama = null;
+    const jdl = document.getElementById('titleFormReferensi');
+    if (jdl) jdl.innerHTML = '<i class="fa-solid fa-plus-circle text-emerald-600 me-1"></i> Tambah / Edit Program, Kegiatan &amp; Sub Kegiatan';
+    ['refProgram', 'refKegiatan', 'refSubKegiatan'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    const wrap = document.getElementById('wrapRefSinkron');
+    if (wrap) wrap.classList.add('hidden');
+}
+
+async function simpanDataReferensi() {
+    if (sesiAktif.role !== 'SUPER_ADMIN') { showToast('Hanya SUPER_ADMIN yang dapat mengubah Master Program.', 'warning'); return; }
+    const program = (document.getElementById('refProgram').value || '').trim();
+    const kegiatan = (document.getElementById('refKegiatan').value || '').trim();
+    const subKegiatan = (document.getElementById('refSubKegiatan').value || '').trim();
+    if (!program || !kegiatan || !subKegiatan) {
+        showToast('Program, Kegiatan, dan Sub Kegiatan wajib diisi semua!', 'warning');
+        return;
+    }
+    const sinkronTransaksi = editReferensiLama ? !!(document.getElementById('chkRefSinkron') && document.getElementById('chkRefSinkron').checked) : false;
+
+    if (editReferensiLama && sinkronTransaksi) {
+        const pakai = hitungPakaiReferensiLokal(editReferensiLama.program, editReferensiLama.kegiatan, editReferensiLama.subKegiatan);
+        if (pakai.spj > 0 || pakai.bap > 0) {
+            const ok = await tanyaKonfirmasi({
+                judul: 'Simpan & Selaraskan Nomenklatur?',
+                pesan: `Perubahan ini akan ikut memperbarui ${pakai.spj} SPJ dan ${pakai.bap} BAP pada TA ${CONFIG.TAHUN_ANGGARAN}.`,
+                detailList: [
+                    ['Program', program],
+                    ['Kegiatan', kegiatan],
+                    ['Sub Kegiatan', subKegiatan]
+                ],
+                labelYa: 'Ya, Simpan',
+                tipe: 'warning'
+            });
+            if (!ok) return;
+        }
+    }
+
+    const btn = document.getElementById('btnSimpanReferensi');
+    const asli = btn ? btn.innerHTML : 'Simpan';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
+
+    apiPost({
+        action: 'referensi_simpan',
+        program, kegiatan, subKegiatan,
+        lama: editReferensiLama,
+        sinkronTransaksi
+    })
+        .then(res => {
+            if (res.status !== 'success') { showToast('Gagal menyimpan: ' + res.message, 'error'); return; }
+            const infoS = (res.diubahSpj || res.diubahBap) ? ` (${res.diubahSpj || 0} SPJ & ${res.diubahBap || 0} BAP diselaraskan)` : '';
+            resetFormReferensi();
+            return tarikDataDariServer().then(() => {
+                renderTabelReferensiAdmin();
+                showToast('Master Program & Sub Kegiatan tersimpan' + infoS + '.', 'success');
+            });
+        })
+        .catch(e => { if (String(e.message) !== 'Sesi berakhir') showToast('Koneksi gagal: ' + e.message, 'error'); })
+        .finally(() => { if (btn) { btn.disabled = false; btn.innerHTML = asli; } });
+}
+
+async function hapusDataReferensi(idx) {
+    if (sesiAktif.role !== 'SUPER_ADMIN') return;
+    const x = (window._cacheRefAdmin || [])[idx];
+    if (!x) return;
+    const pakai = hitungPakaiReferensiLokal(x.program, x.kegiatan, x.subKegiatan);
+    if (pakai.spj > 0 || pakai.bap > 0) {
+        showToast(`Sub Kegiatan ini masih dipakai pada ${pakai.spj} SPJ dan ${pakai.bap} BAP sehingga tidak dapat dihapus.`, 'warning');
+        return;
+    }
+    const ok = await tanyaKonfirmasi({
+        judul: 'Hapus Sub Kegiatan dari Master?',
+        pesan: 'Nomenklatur ini akan dihapus dari daftar pilihan Program/Kegiatan/Sub Kegiatan.',
+        detailList: [
+            ['Program', x.program],
+            ['Kegiatan', x.kegiatan],
+            ['Sub Kegiatan', x.subKegiatan]
+        ],
+        labelYa: 'Ya, Hapus',
+        tipe: 'danger'
+    });
+    if (!ok) return;
+    apiPost({ action: 'referensi_hapus', program: x.program, kegiatan: x.kegiatan, subKegiatan: x.subKegiatan })
+        .then(res => {
+            if (res.status !== 'success') { showToast('Gagal menghapus: ' + res.message, 'error'); return; }
+            resetFormReferensi();
+            return tarikDataDariServer().then(() => {
+                renderTabelReferensiAdmin();
+                showToast('Sub Kegiatan berhasil dihapus dari master.');
+            });
+        })
+        .catch(e => { if (String(e.message) !== 'Sesi berakhir') showToast('Koneksi gagal: ' + e.message, 'error'); });
+}
+
+// ============================================================================
+// TAB 5: LOG AKTIVITAS & AUDIT (LOG_SISTEM — MUAT ON-DEMAND)
+// ============================================================================
+let cacheLogSistem = [];
+let totalLogServer = 0;
+
+const LOG_RISIKO_TINGGI = ['ERROR', 'LOGIN_GAGAL', 'AKSES_DITOLAK', 'SPJ_HAPUS', 'BAP_HAPUS', 'HAPUS_BERKAS', 'PENYEDIA_HAPUS', 'REFERENSI_HAPUS', 'OTP_HANGUS', 'OTP_ERROR', 'UPLOAD_ERROR', 'ARSIP_ERROR'];
+const LOG_RISIKO_SEDANG = ['PENYEDIA_EDIT', 'RESET_PASSWORD', 'RESET_PASSWORD_OTP', 'CABUT_SESI', 'AKUN_STATUS', 'LOGIN_NONAKTIF', 'OTP_SALAH', 'OTP_DITOLAK_ADMIN', 'GANTI_PASSWORD_GAGAL', 'UPLOAD_DITOLAK'];
+const LOG_POSITIF = ['LOGIN', 'SPJ_BARU', 'BAP_BARU', 'PENYEDIA_BARU', 'REFERENSI_BARU', 'GANTI_PASSWORD'];
+
+function muatLogSistemAdmin() {
+    if (sesiAktif.role !== 'SUPER_ADMIN') return;
+    const tbody = document.getElementById('tabelLogBody');
+    const ic = document.getElementById('ikonRefreshLog');
+    const btn = document.getElementById('btnMuatLog');
+    const lim = Number(document.getElementById('limitLogSistem') ? document.getElementById('limitLogSistem').value : 250) || 250;
+    if (ic) ic.classList.add('animate-spin');
+    if (btn) btn.disabled = true;
+    if (tbody) tbody.innerHTML = skeletonRowsHtml(4, 6);
+
+    apiPost({ action: 'log_baca', limit: lim })
+        .then(res => {
+            if (res.status !== 'success') {
+                if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-red-500 font-medium">${escapeHtml(res.message || 'Gagal memuat log.')}</td></tr>`;
+                return;
+            }
+            cacheLogSistem = res.logs || [];
+            totalLogServer = Number(res.totalBaris) || cacheLogSistem.length;
+            const sel = document.getElementById('filterJenisLog');
+            if (sel) {
+                const prev = sel.value || 'ALL';
+                sel.innerHTML = '<option value="ALL">Semua Aktivitas</option><option value="__RISIKO__">⚠ Hanya Risiko &amp; Hapus</option>' +
+                    (res.jenisList || []).map(j => `<option value="${escapeHtml(j)}">${escapeHtml(j)}</option>`).join('');
+                if (Array.from(sel.options).some(o => o.value === prev)) sel.value = prev;
+            }
+            renderTabelLogAdmin();
+        })
+        .catch(e => {
+            if (String(e.message) !== 'Sesi berakhir') {
+                if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-red-500">Koneksi terputus saat memuat log.</td></tr>`;
+            }
+        })
+        .finally(() => {
+            if (ic) ic.classList.remove('animate-spin');
+            if (btn) btn.disabled = false;
+        });
+}
+
+function getFilteredLogAdmin() {
+    const q = (document.getElementById('cariLogSistem') ? document.getElementById('cariLogSistem').value : '').trim().toLowerCase();
+    const fJenis = document.getElementById('filterJenisLog') ? document.getElementById('filterJenisLog').value : 'ALL';
+    return (cacheLogSistem || []).filter(item => {
+        if (fJenis === '__RISIKO__') {
+            if (!LOG_RISIKO_TINGGI.includes(item.jenis) && !LOG_RISIKO_SEDANG.includes(item.jenis)) return false;
+        } else if (fJenis !== 'ALL' && item.jenis !== fJenis) {
+            return false;
+        }
+        if (q && !`${item.waktu} ${item.jenis} ${item.pelaku} ${item.detail}`.toLowerCase().includes(q)) return false;
+        return true;
+    });
+}
+
+function badgeJenisLogHtml(jenis) {
+    let cls = 'bg-slate-100 text-slate-700 border-slate-200';
+    if (LOG_RISIKO_TINGGI.includes(jenis)) cls = 'bg-red-50 text-red-700 border-red-200';
+    else if (LOG_RISIKO_SEDANG.includes(jenis)) cls = 'bg-amber-50 text-amber-800 border-amber-200';
+    else if (LOG_POSITIF.includes(jenis)) cls = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    else if (jenis.indexOf('BAP') === 0 || jenis === 'REKAP_LS') cls = 'bg-purple-50 text-purple-700 border-purple-200';
+    else if (jenis.indexOf('UPLOAD') === 0 || jenis === 'STATUS') cls = 'bg-blue-50 text-blue-700 border-blue-200';
+    return `<span class="px-2 py-0.5 border rounded font-mono font-bold text-[9px] whitespace-nowrap ${cls}">${escapeHtml(jenis || '-')}</span>`;
+}
+
+function renderTabelLogAdmin() {
+    const tbody = document.getElementById('tabelLogBody');
+    if (!tbody) return;
+    const rows = getFilteredLogAdmin();
+    const info = document.getElementById('infoLogSistem');
+    if (info) info.textContent = `Menampilkan ${rows.length} dari ${cacheLogSistem.length} log terbaru (total arsip LOG_SISTEM: ${totalLogServer} baris).`;
+
+    if (rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-slate-400 font-medium">Tidak ada catatan log yang cocok.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = rows.map(r => `<tr class="hover:bg-slate-50 transition-colors">
+        <td class="p-2 align-top font-mono text-[10px] text-slate-500 whitespace-nowrap">${escapeHtml(r.waktu || '-')}</td>
+        <td class="p-2 align-top whitespace-nowrap">${badgeJenisLogHtml(r.jenis)}</td>
+        <td class="p-2 align-top text-[11px] font-semibold text-slate-700 max-w-[200px] whitespace-normal break-words">${escapeHtml(r.pelaku || '-')}</td>
+        <td class="p-2 align-top text-[11px] text-slate-600 whitespace-normal break-words">${escapeHtml(r.detail || '-')}</td>
+    </tr>`).join('');
+}
+
+function exportLogSistemExcel() {
+    const rows = getFilteredLogAdmin();
+    if (!rows.length) { showToast('Tidak ada data log untuk diekspor.', 'warning'); return; }
+    const ta = String(CONFIG.TAHUN_ANGGARAN || '2026');
+    const head = ['No', 'Waktu', 'Jenis Aktivitas', 'Pelaku', 'Detail'];
+    const data = rows.map((r, i) => [i + 1, r.waktu, r.jenis, r.pelaku, r.detail]);
+    const namaFile = `LOG_AKTIVITAS_ERP_${ta}`;
+    if (typeof XLSX !== 'undefined') {
+        const ws = XLSX.utils.aoa_to_sheet([head, ...data]);
+        ws['!cols'] = [{ wch: 6 }, { wch: 18 }, { wch: 22 }, { wch: 30 }, { wch: 70 }];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'LOG_SISTEM');
+        XLSX.writeFile(wb, namaFile + '.xlsx');
+        showToast('File Excel ' + namaFile + '.xlsx berhasil diunduh.');
+    } else {
+        const csv = [head, ...data].map(r => r.map(v => '"' + String(v || '').replace(/"/g, '""') + '"').join(',')).join('\n');
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = namaFile + '.csv';
+        document.body.appendChild(a); a.click(); a.remove();
+        showToast('File CSV ' + namaFile + '.csv berhasil diunduh.');
+    }
+}
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
 // ================== TOAST MULTI-WARNA & MODAL KONFIRMASI KUSTOM ==================
