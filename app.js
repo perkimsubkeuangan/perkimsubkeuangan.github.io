@@ -59,7 +59,108 @@ function formatTanggalIndo(dateStr) {
     return dateStr;
 }
 
-function inisialisasiServer() { updateSapaanWaktu(); }
+let filterStatus = 'ALL';
+
+// ---------- Manajemen Tahun Anggaran (Multi-Server / Multi-Folder Drive) ----------
+function daftarServerTahun() {
+    if (window.SERVER_TAHUN && typeof window.SERVER_TAHUN === 'object' && Object.keys(window.SERVER_TAHUN).length > 0) {
+        return window.SERVER_TAHUN;
+    }
+    // Fallback otomatis bila config.js belum ditambahkan SERVER_TAHUN
+    const taDef = String((typeof CONFIG !== 'undefined' && CONFIG.TAHUN_ANGGARAN) ? CONFIG.TAHUN_ANGGARAN : 2026);
+    const taNext = String(Number(taDef) + 1);
+    const peta = {};
+    peta[taDef] = {
+        label: `TA ${taDef} (Aktif)`,
+        appsScriptUrl: (typeof CONFIG !== 'undefined' && CONFIG.APPS_SCRIPT_URL) ? CONFIG.APPS_SCRIPT_URL : '',
+        forms: null
+    };
+    peta[taNext] = {
+        label: `TA ${taNext} (Siap Diaktifkan)`,
+        appsScriptUrl: '',
+        forms: null
+    };
+    return peta;
+}
+
+function terapkanTahunAnggaran(tahun) {
+    const peta = daftarServerTahun();
+    const keys = Object.keys(peta);
+    const t = peta[String(tahun)] ? String(tahun) : (keys[0] || '2026');
+    const cfg = peta[t] || {};
+    if (typeof CONFIG !== 'undefined') {
+        if (cfg.appsScriptUrl) CONFIG.APPS_SCRIPT_URL = cfg.appsScriptUrl;
+        CONFIG.TAHUN_ANGGARAN = Number(t) || 2026;
+        CONFIG._TAHUN_TERPILIH = t;
+        CONFIG._TAHUN_SIAP = !!cfg.appsScriptUrl;
+        CONFIG._ACTIVE_FORMS = (cfg.forms && typeof cfg.forms === 'object') ? cfg.forms : null;
+    }
+    const hv = document.getElementById('header-tahun-val'); if (hv) hv.innerText = t;
+    const sv = document.getElementById('sidebar-tahun-txt'); if (sv) sv.innerText = 'TA ' + t;
+    return { tahun: t, cfg };
+}
+
+function initPilihTahunLogin() {
+    const sel = document.getElementById('tahun-input');
+    if (!sel) return;
+    const peta = daftarServerTahun();
+    const saved = sessionStorage.getItem('sesi_tahun');
+    const keys = Object.keys(peta).sort((a, b) => Number(b) - Number(a));
+    // Default ke tahun terakhir yang URL servernya sudah aktif
+    const defKey = (saved && peta[saved]) ? saved : (keys.find(k => peta[k] && peta[k].appsScriptUrl) || keys[0] || '2026');
+    sel.innerHTML = keys.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(peta[k].label || ('TA ' + k))}</option>`).join('');
+    sel.value = defKey;
+    ubahTahunLogin();
+}
+
+function ubahTahunLogin() {
+    const sel = document.getElementById('tahun-input');
+    const info = document.getElementById('tahun-status-info');
+    if (!sel) return;
+    const { tahun, cfg } = terapkanTahunAnggaran(sel.value);
+    if (info) {
+        if (!cfg.appsScriptUrl) {
+            info.className = 'text-[10px] text-amber-600 mt-1 font-semibold';
+            info.textContent = `Server & folder penyimpanan TA ${tahun} belum diisi pada config.js.`;
+        } else {
+            info.className = 'text-[10px] text-emerald-600 mt-1';
+            info.textContent = `Terhubung ke server database TA ${tahun}.`;
+        }
+    }
+}
+
+function urlFormUploadAktif(jenis, idSpj) {
+    if (typeof CONFIG !== 'undefined' && CONFIG._ACTIVE_FORMS) {
+        const key = String(jenis || 'GU').toUpperCase();
+        const raw = CONFIG._ACTIVE_FORMS[key] || CONFIG._ACTIVE_FORMS[key.toLowerCase()];
+        if (raw) {
+            return raw.indexOf('{ID}') > -1
+                ? raw.replace(/\{ID\}/g, encodeURIComponent(String(idSpj || '')))
+                : raw + encodeURIComponent(String(idSpj || ''));
+        }
+    }
+    return typeof urlFormUpload === 'function' ? urlFormUpload(jenis, idSpj) : '#';
+}
+
+// ---------- Mobile Sidebar Drawer ----------
+function toggleMobileSidebar() {
+    const sb = document.getElementById('appSidebar');
+    const bd = document.getElementById('mobileSidebarBackdrop');
+    if (!sb) return;
+    const buka = sb.classList.contains('hidden');
+    sb.classList.toggle('hidden', !buka);
+    sb.classList.toggle('flex', buka);
+    if (bd) bd.classList.toggle('hidden', !buka);
+}
+function tutupMobileSidebar() {
+    if (window.innerWidth >= 768) return;
+    const sb = document.getElementById('appSidebar');
+    const bd = document.getElementById('mobileSidebarBackdrop');
+    if (sb) { sb.classList.add('hidden'); sb.classList.remove('flex'); }
+    if (bd) bd.classList.add('hidden');
+}
+
+function inisialisasiServer() { updateSapaanWaktu(); initPilihTahunLogin(); }
 inisialisasiServer();
 
 // Login diperiksa di SERVER. Browser tidak lagi memegang daftar akun/password.
@@ -67,7 +168,11 @@ function checkLogin() {
     const uname = document.getElementById('username-input').value.trim().toLowerCase();
     const pass = document.getElementById('password-input').value;
     const pe = document.getElementById('pin-error');
+    const selTh = document.getElementById('tahun-input');
+    const { tahun, cfg } = terapkanTahunAnggaran(selTh ? selTh.value : '2026');
+    if (!cfg.appsScriptUrl) { pe.innerText = `Server Tahun Anggaran ${tahun} belum diaktifkan oleh Admin.`; pe.classList.remove('hidden'); return; }
     if (!uname || !pass) { pe.innerText = "Username dan Password wajib diisi!"; pe.classList.remove('hidden'); return; }
+    sessionStorage.setItem('sesi_tahun', tahun);
 
     const btn = document.querySelector('button[onclick="checkLogin()"]');
     const teksAsli = btn ? btn.innerHTML : '';
@@ -154,6 +259,10 @@ function masukSistem() {
     } else {
         if(sidebarSuperAdmin) { sidebarSuperAdmin.classList.add('hidden'); sidebarSuperAdmin.classList.remove('flex'); }
     }
+    const liRekapLs = document.getElementById('li-menu-rekap-ls');
+    if (liRekapLs) liRekapLs.classList.toggle('hidden', !bisaRekapPencairanLs());
+    const hv = document.getElementById('header-tahun-val'); if (hv) hv.innerText = String(CONFIG.TAHUN_ANGGARAN || '2026');
+    const sv = document.getElementById('sidebar-tahun-txt'); if (sv) sv.innerText = 'TA ' + String(CONFIG.TAHUN_ANGGARAN || '2026');
     
     // Atur Pagu: hanya SUPER_ADMIN
     document.querySelectorAll('.btn-edit-pagu').forEach(btn => btn.style.display = (sesiAktif.role === 'SUPER_ADMIN') ? 'block' : 'none');
@@ -170,6 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedName = sessionStorage.getItem('sesiAktif_namaLengkap');
     
     if (savedRole && savedName && sessionStorage.getItem('sesi_token')) {
+        terapkanTahunAnggaran(sessionStorage.getItem('sesi_tahun') || '2026');
         const loader = document.getElementById('global-loader');
         if (loader) { loader.classList.remove('hidden'); loader.classList.add('flex'); }
         document.getElementById('login-screen').style.display = 'none';
@@ -200,13 +310,19 @@ function tarikDataDariServer() {
             window.DATABASE_AKUN = data.akun || [];
             window.DATABASE_KONTRAK = data.kontrakLS || [];
             window.DATABASE_PENYEDIA = data.penyediaCV || [];
+            window.DATABASE_REKAP_LS = data.rekapPencairanLs || [];
             if (data.pagu) { CONFIG.PAGU_TAHUNAN = data.pagu.tahunan || 0; CONFIG.PAGU_TW = data.pagu.tw || [0, 0, 0, 0]; }
             spjData = (data.spj || []).reverse();
             realisasiPagu = data.realisasi || null;
-            if (data.tahunAnggaran) CONFIG.TAHUN_ANGGARAN = data.tahunAnggaran;
+            if (data.tahunAnggaran) {
+                CONFIG.TAHUN_ANGGARAN = data.tahunAnggaran;
+                const hv = document.getElementById('header-tahun-val'); if (hv) hv.innerText = String(data.tahunAnggaran);
+                const sv = document.getElementById('sidebar-tahun-txt'); if (sv) sv.innerText = 'TA ' + String(data.tahunAnggaran);
+            }
             referensiData = data.referensi || {};
             renderTabelSpj(); hitungAnggaran(); isiDropdownProgram(); isiDropdownPptkUtama();
             if (typeof BAP !== 'undefined') BAP.setelahLoad();
+            if (typeof REKAP_LS !== 'undefined') REKAP_LS.render();
             const tbAkun = document.getElementById('tabelAkunBody'); if (tbAkun && tbAkun.innerHTML !== '') renderTabelAkunAdmin();
         })
         .catch(e => console.error(e))
@@ -288,30 +404,43 @@ function simpanPaguBaru() {
 
 // ---------- Hak akses di tampilan (penegakan sebenarnya ada di server / Code.gs) ----------
 function bisaBuatSpj() { return sesiAktif.role === 'PPTK' || sesiAktif.role === 'SUPER_ADMIN'; }
-function bisaVerifikasi() { return sesiAktif.role === 'VERIFIKATOR' || sesiAktif.role === 'SUPER_ADMIN'; }
+function bisaVerifikasi() { return sesiAktif.role === 'VERIFIKATOR' || sesiAktif.role === 'BENDAHARA' || sesiAktif.role === 'SUPER_ADMIN'; }
+function bisaRekapPencairanLs() { return sesiAktif.role === 'BENDAHARA' || sesiAktif.role === 'SUPER_ADMIN'; }
 function bisaEditItem(item) {
     if (sesiAktif.role === 'SUPER_ADMIN') return true;
     return sesiAktif.role === 'PPTK' && String(item.pptk).trim() === String(sesiAktif.namaLengkap).trim() && (item.status === 'BELUM_DIPROSES' || item.status === 'REVISI');
 }
 function setJenisTampilan(jenis) {
+    if (jenis === 'REKAP_LS' && !bisaRekapPencairanLs()) {
+        alert('Menu Rekap Pencairan LS khusus untuk role BENDAHARA dan SUPER_ADMIN.');
+        return;
+    }
+    tutupMobileSidebar();
     const modeBap = (jenis === 'BAP');
-    if (!modeBap) filterJenis = jenis;      // BAP bukan filter SPJ: filterJenis tetap pada nilai SPJ terakhir
+    const modeRekapLs = (jenis === 'REKAP_LS');
+    if (!modeBap && !modeRekapLs) {
+        filterJenis = jenis;
+        filterStatus = 'ALL';
+        const selSt = document.getElementById('selectStatusSpj'); if (selSt) selSt.value = 'ALL';
+    }
     currentPage = 1;
 
     const temaMenu = {
-        ALL: { aktif: ['bg-emerald-50', 'text-emerald-700', 'border-emerald-100'], ikon: 'text-emerald-500', dot: 'bg-emerald-500' },
-        GU:  { aktif: ['bg-indigo-50', 'text-indigo-700', 'border-indigo-100'],   ikon: 'text-indigo-600',  dot: 'bg-indigo-600' },
-        LS:  { aktif: ['bg-purple-50', 'text-purple-700', 'border-purple-100'],   ikon: 'text-purple-600',  dot: 'bg-purple-600' },
-        BAP: { aktif: ['bg-blue-50', 'text-blue-700', 'border-blue-100'],         ikon: 'text-blue-600',    dot: 'bg-blue-600' }
+        ALL:      { aktif: ['bg-emerald-50', 'text-emerald-700', 'border-emerald-100'], ikon: 'text-emerald-500', dot: 'bg-emerald-500' },
+        GU:       { aktif: ['bg-indigo-50', 'text-indigo-700', 'border-indigo-100'],   ikon: 'text-indigo-600',  dot: 'bg-indigo-600' },
+        LS:       { aktif: ['bg-purple-50', 'text-purple-700', 'border-purple-100'],   ikon: 'text-purple-600',  dot: 'bg-purple-600' },
+        BAP:      { aktif: ['bg-blue-50', 'text-blue-700', 'border-blue-100'],         ikon: 'text-blue-600',    dot: 'bg-blue-600' },
+        REKAP_LS: { aktif: ['bg-teal-50', 'text-teal-700', 'border-teal-200'],         ikon: 'text-teal-600',    dot: 'bg-teal-600' }
     };
     const semuaKelasAktif = [
         'bg-emerald-50', 'text-emerald-700', 'border-emerald-100', 'text-sipd-emerald',
         'bg-indigo-50', 'text-indigo-700', 'border-indigo-100',
         'bg-purple-50', 'text-purple-700', 'border-purple-100',
         'bg-blue-50', 'text-blue-700', 'border-blue-100',
+        'bg-teal-50', 'text-teal-700', 'border-teal-200',
         'active-menu', 'font-bold', 'justify-between'
     ];
-    const semuaKelasIkon = ['text-emerald-500', 'text-indigo-600', 'text-purple-600', 'text-blue-600'];
+    const semuaKelasIkon = ['text-emerald-500', 'text-indigo-600', 'text-purple-600', 'text-blue-600', 'text-teal-600'];
 
     document.querySelectorAll('.menu-item').forEach(el => {
         el.classList.remove(...semuaKelasAktif);
@@ -338,6 +467,20 @@ function setJenisTampilan(jenis) {
     const sub = document.getElementById('page-subtitle');
     const breadcrumb = document.getElementById('breadcrumb-text');
     const tbTitle = document.getElementById('tabel-judul-jenis');
+
+    const vRekap = document.getElementById('viewRekapLs');
+    if (vRekap) vRekap.classList.toggle('hidden', !modeRekapLs);
+
+    if (modeRekapLs) {
+        const vSpj = document.getElementById('viewSpj'); if (vSpj) vSpj.classList.add('hidden');
+        const vBap = document.getElementById('viewBap'); if (vBap) vBap.classList.add('hidden');
+        const hAksi = document.getElementById('headerAksiSpj'); if (hAksi) hAksi.classList.add('hidden');
+        if (title) title.innerText = 'Rekap Pencairan LS';
+        if (sub) sub.innerText = 'Monitoring SPM UM, SPM Termin, potongan pajak, dan nilai bersih kontrak LS disetujui';
+        if (breadcrumb) breadcrumb.innerText = 'Rekap Pencairan LS';
+        if (typeof REKAP_LS !== 'undefined') REKAP_LS.render();
+        return;
+    }
 
     BAP.tampilkanTab(modeBap);              // BAP: tampilkan panel BAP, sembunyikan dashboard/tabel SPJ (tanpa reload halaman)
     if (modeBap) {
@@ -512,7 +655,7 @@ function infoPasswordAkun(akun) {
     let html = `<span class="px-2 py-0.5 ${f[0]} border rounded text-[9px] font-bold">${f[1]}</span>`;
     if (akun.passwordDefault) html += ` <span class="px-2 py-0.5 bg-red-600 text-white rounded text-[9px] font-bold">Password default</span>`;
     html += `<div class="text-[9px] text-slate-400 mt-0.5">${akun.passwordDiubah ? 'Diubah: ' + escapeHtml(akun.passwordDiubah) + (akun.passwordDiubahOleh ? '<br>oleh ' + escapeHtml(akun.passwordDiubahOleh) : '') : 'Perubahan belum tercatat'}</div>`;
-    if (akun.roleValid === false) html += '<div class="text-[9px] text-red-600 font-bold mt-0.5">ROLE TIDAK VALID — ubah ke salah satu dari 4 role</div>';
+    if (akun.roleValid === false) html += '<div class="text-[9px] text-red-600 font-bold mt-0.5">ROLE TIDAK VALID — ubah ke salah satu dari 5 role</div>';
     return html;
 }
 
@@ -547,7 +690,7 @@ function renderTabelAkunAdmin() {
                 </td>
             </tr>`;
         }
-        const warna = { SUPER_ADMIN: 'bg-amber-50 text-amber-700 border-amber-200', PPTK: 'bg-blue-50 text-blue-700 border-blue-200', VERIFIKATOR: 'bg-emerald-50 text-emerald-700 border-emerald-200' }[akun.role] || 'bg-slate-100 text-slate-700 border-slate-200';
+        const warna = { SUPER_ADMIN: 'bg-amber-50 text-amber-700 border-amber-200', PPTK: 'bg-blue-50 text-blue-700 border-blue-200', VERIFIKATOR: 'bg-emerald-50 text-emerald-700 border-emerald-200', BENDAHARA: 'bg-teal-50 text-teal-700 border-teal-200' }[akun.role] || 'bg-slate-100 text-slate-700 border-slate-200';
         const roleBadge = `<span class="px-2.5 py-1 ${warna} text-[10px] font-bold rounded-md border">${escapeHtml(akun.role)}</span>`;
         const infoPw = infoPasswordAkun(akun);
         const tombolUji = akun.username ? `<button onclick="bukaUjiPassword(${index})" title="Uji kecocokan password" class="px-2 py-1 bg-sky-50 text-sky-700 border border-sky-200 rounded text-[10px] font-bold hover:bg-sky-100 mr-1"><i class="fa-solid fa-key"></i></button>` : '';
@@ -940,3 +1083,401 @@ function prosesResetPasswordOtp(ev) {
         .catch(e => { tampilPesanLupa('Gagal terhubung ke server. Periksa koneksi lalu coba lagi.', 'err'); })
         .finally(() => { btn.disabled = false; btn.textContent = teksAsli; });
 }
+
+
+// ============================================================================
+// MODUL REKAP PENCAIRAN LS (Khusus Role BENDAHARA & SUPER_ADMIN)
+// Menggabungkan SPJ LS yang berstatus DISETUJUI dengan data kontrak BAP (UM & Termin)
+// serta isian manual Bendahara (SPM UM, SPM Termin, dan koreksi pajak opsional).
+// ============================================================================
+const REKAP_LS = (function () {
+    'use strict';
+
+    const $ = (id) => document.getElementById(id);
+    const rp = (n) => formatRupiah(Math.round(Number(n) || 0));
+    const isUm = (t) => t === 'UM' || t === 'UM JASA';
+    const isJasa = (t) => t === 'UM JASA' || t === '100 JASA';
+
+    let cacheBaris = [];
+    let aktifRow = null;
+
+    // Bangun daftar 1 baris per nomor kontrak, HANYA dari kontrak yang SPJ LS-nya sudah DISETUJUI
+    function susunData() {
+        const semuaSpj = spjData || [];
+        const semuaKontrak = window.DATABASE_KONTRAK || [];
+        const tersimpanMap = {};
+        (window.DATABASE_REKAP_LS || []).forEach(r => {
+            if (r && r.noKontrak) tersimpanMap[String(r.noKontrak).trim()] = r;
+        });
+
+        // Cari semua SPJ LS yang sudah disetujui (termasuk data lama berstatus SUDAH DIPINDAHBUKUKAN bila ada)
+        const spjDisetujui = semuaSpj.filter(x =>
+            String(x.jenisSurat || '').trim() === 'LS' &&
+            (x.status === 'DISETUJUI' || x.status === 'SUDAH DIPINDAHBUKUKAN')
+        );
+
+        const grup = {};
+        const urutan = [];
+
+        spjDisetujui.forEach(s => {
+            // Cocokkan dengan baris BAP di DB_KONTRAK_LS
+            const k = semuaKontrak.find(b =>
+                (s.kodeBap && String(b.kodeSpj) === String(s.kodeBap)) ||
+                (String(b.noKontrak).trim() === String(s.npd).trim() && String(b.tahapBayar).trim() === String(s.tahap).trim())
+            );
+            const noK = String((k && k.noKontrak) || s.npd || '').trim();
+            if (!noK) return;
+
+            if (!grup[noK]) {
+                grup[noK] = {
+                    noKontrak: noK,
+                    kodeBerkas: '',
+                    pelaksana: (k && k.pelaksana) || s.namaCv || '-',
+                    uraian: (k && k.uraian) || s.uraian || '-',
+                    pptk: (k && k.pptk) || s.pptk || '-',
+                    nilaiKontrak: 0,
+                    nilaiUm: 0,
+                    autoPpnUm: 0,
+                    autoPphUm: 0,
+                    nilaiTermin: 0,
+                    autoPpnTermin: 0,
+                    autoPphTermin: 0,
+                    jenisPph: '',
+                    tahapList: []
+                };
+                urutan.push(noK);
+            }
+
+            const g = grup[noK];
+            const tahap = String((k && k.tahapBayar) || s.tahap || '').trim();
+            const nilaiAktif = k ? (Number(k.nilaiKontrakAktif) || Number(k.nilaiKontrak) || 0) : (Number(s.nominal) || 0);
+            if (nilaiAktif > g.nilaiKontrak) g.nilaiKontrak = Math.round(nilaiAktif);
+            if (k && k.kodeBerkas && !g.kodeBerkas) g.kodeBerkas = String(k.kodeBerkas).trim();
+            if (tahap && g.tahapList.indexOf(tahap) === -1) g.tahapList.push(tahap);
+
+            const bayar = Math.round(Number(k ? k.pembayaranBapIni : s.nominal) || 0);
+            const ppn = Math.round(Number(k ? k.ppn : Math.round(bayar - bayar / 1.11)) || 0);
+            const pph = Math.round(Number(k ? k.nilaiPph : 0) || 0);
+
+            if (isUm(tahap)) {
+                g.nilaiUm += bayar;
+                g.autoPpnUm += ppn;
+                g.autoPphUm += pph;
+            } else {
+                g.nilaiTermin += bayar;
+                g.autoPpnTermin += ppn;
+                g.autoPphTermin += pph;
+            }
+            if (!g.jenisPph) {
+                g.jenisPph = isJasa(tahap) || String((k && k.jenisPph) || '').includes('23') ? '23' : '4(2)';
+            }
+        });
+
+        return urutan.map((noK, idx) => {
+            const g = grup[noK];
+            const saved = tersimpanMap[noK] || {};
+            const kode = saved.kodeBerkas || g.kodeBerkas || '';
+            const ppnUm = (saved.ppnUm !== null && saved.ppnUm !== undefined) ? Number(saved.ppnUm) : g.autoPpnUm;
+            const pphUm = (saved.pphUm !== null && saved.pphUm !== undefined) ? Number(saved.pphUm) : g.autoPphUm;
+            const ppnTermin = (saved.ppnTermin !== null && saved.ppnTermin !== undefined) ? Number(saved.ppnTermin) : g.autoPpnTermin;
+            const pphTermin = (saved.pphTermin !== null && saved.pphTermin !== undefined) ? Number(saved.pphTermin) : g.autoPphTermin;
+
+            const bersihUm = g.nilaiUm - ppnUm - pphUm;
+            const bersihTermin = g.nilaiTermin - ppnTermin - pphTermin;
+            const selisih = g.nilaiKontrak - g.nilaiUm - g.nilaiTermin;
+
+            return {
+                no: idx + 1,
+                noKontrak: g.noKontrak,
+                kodeBerkas: kode,
+                pelaksana: g.pelaksana,
+                uraian: g.uraian,
+                pptk: g.pptk,
+                tahapList: g.tahapList,
+                nilaiKontrak: g.nilaiKontrak,
+                spmUm: saved.spmUm || '',
+                nilaiUm: g.nilaiUm,
+                spmTermin: saved.spmTermin || '',
+                nilaiTermin: g.nilaiTermin,
+                selisih: selisih,
+                autoPpnUm: g.autoPpnUm,
+                autoPphUm: g.autoPphUm,
+                ppnUm: ppnUm,
+                pphUm: pphUm,
+                bersihUm: bersihUm,
+                autoPpnTermin: g.autoPpnTermin,
+                autoPphTermin: g.autoPphTermin,
+                ppnTermin: ppnTermin,
+                pphTermin: pphTermin,
+                bersihTermin: bersihTermin,
+                jenisPph: g.jenisPph || '4(2)',
+                overrideUm: (saved.ppnUm !== null && saved.ppnUm !== undefined) || (saved.pphUm !== null && saved.pphUm !== undefined),
+                overrideTermin: (saved.ppnTermin !== null && saved.ppnTermin !== undefined) || (saved.pphTermin !== null && saved.pphTermin !== undefined),
+                catatan: saved.catatan || '',
+                diubah: saved.diubah || '',
+                oleh: saved.oleh || ''
+            };
+        });
+    }
+
+    function render() {
+        const tbody = $('tabelRekapLsBody');
+        const tfoot = $('tabelRekapLsFoot');
+        if (!tbody) return;
+        const jTh = $('rlsJudulTahun'); if (jTh) jTh.innerText = 'TA ' + String(CONFIG.TAHUN_ANGGARAN || '2026');
+
+        const semua = susunData();
+        cacheBaris = semua;
+
+        // Ringkasan kartu
+        let totKontrak = 0, totUm = 0, totTermin = 0, totSelisih = 0;
+        let totPpn = 0, totPph = 0, totBersih = 0, belumSpm = 0;
+        semua.forEach(r => {
+            totKontrak += r.nilaiKontrak;
+            totUm += r.nilaiUm;
+            totTermin += r.nilaiTermin;
+            totSelisih += r.selisih;
+            totPpn += r.ppnUm + r.ppnTermin;
+            totPph += r.pphUm + r.pphTermin;
+            totBersih += r.bersihUm + r.bersihTermin;
+            const butuhSpmUm = r.nilaiUm > 0 && !r.spmUm;
+            const butuhSpmTermin = r.nilaiTermin > 0 && !r.spmTermin;
+            if (butuhSpmUm || butuhSpmTermin) belumSpm++;
+        });
+        const setT = (id, t) => { const el = $(id); if (el) el.innerText = t; };
+        setT('rlsStatKontrak', String(semua.length));
+        setT('rlsStatBelumSpm', `Belum input SPM: ${belumSpm}`);
+        setT('rlsStatNilaiKontrak', rp(totKontrak));
+        setT('rlsStatSelisih', `Sisa / Selisih: ${rp(totSelisih)}`);
+        setT('rlsStatBruto', rp(totUm + totTermin));
+        setT('rlsStatUmTermin', `UM ${rp(totUm)} · Termin ${rp(totTermin)}`);
+        setT('rlsStatPajak', rp(totPpn + totPph));
+        setT('rlsStatPpnPph', `PPN ${rp(totPpn)} · PPh ${rp(totPph)}`);
+        setT('rlsStatBersih', rp(totBersih));
+
+        const q = ($('cariRekapLs') ? $('cariRekapLs').value : '').trim().toLowerCase();
+        const fSpm = $('filterSpmRekapLs') ? $('filterSpmRekapLs').value : 'ALL';
+
+        const tampilData = semua.filter(r => {
+            const adaSpm = !!(r.spmUm || r.spmTermin);
+            const lengkapSpm = (r.nilaiUm === 0 || !!r.spmUm) && (r.nilaiTermin === 0 || !!r.spmTermin);
+            if (fSpm === 'BELUM_SPM' && lengkapSpm) return false;
+            if (fSpm === 'SUDAH_SPM' && !adaSpm) return false;
+            if (q) {
+                const hay = `${r.kodeBerkas} ${r.noKontrak} ${r.pelaksana} ${r.uraian} ${r.spmUm} ${r.spmTermin} ${r.pptk}`.toLowerCase();
+                if (!hay.includes(q)) return false;
+            }
+            return true;
+        });
+
+        if (tampilData.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="16" class="text-center py-10 text-slate-400 font-medium">Belum ada kontrak SPJ LS berstatus DISETUJUI yang cocok.</td></tr>`;
+            if (tfoot) tfoot.innerHTML = '';
+            return;
+        }
+
+        let sKontrak = 0, sUm = 0, sTermin = 0, sSelisih = 0, sPpnUm = 0, sPphUm = 0, sBersihUm = 0, sPpnT = 0, sPphT = 0, sBersihT = 0;
+
+        tbody.innerHTML = tampilData.map((r, i) => {
+            sKontrak += r.nilaiKontrak; sUm += r.nilaiUm; sTermin += r.nilaiTermin; sSelisih += r.selisih;
+            sPpnUm += r.ppnUm; sPphUm += r.pphUm; sBersihUm += r.bersihUm;
+            sPpnT += r.ppnTermin; sPphT += r.pphTermin; sBersihT += r.bersihTermin;
+
+            const kodeBadge = r.kodeBerkas
+                ? `<span class="px-2 py-0.5 bg-teal-50 text-teal-800 border border-teal-200 rounded font-mono font-bold text-[10px]">${escapeHtml(r.kodeBerkas)}</span>`
+                : `<span class="text-[10px] text-amber-600 italic">Belum ada kode</span>`;
+            const spmUmHtml = r.spmUm
+                ? `<span class="font-mono text-[10px] text-slate-700 break-all">${escapeHtml(r.spmUm)}</span>`
+                : (r.nilaiUm > 0 ? `<span class="text-[10px] text-amber-600 italic">Belum diisi</span>` : `<span class="text-slate-300">-</span>`);
+            const spmTerminHtml = r.spmTermin
+                ? `<span class="font-mono text-[10px] text-slate-700 break-all">${escapeHtml(r.spmTermin)}</span>`
+                : (r.nilaiTermin > 0 ? `<span class="text-[10px] text-amber-600 italic">Belum diisi</span>` : `<span class="text-slate-300">-</span>`);
+
+            return `<tr class="hover:bg-teal-50/30 transition-colors">
+                <td class="py-3 px-3 text-center text-slate-500 font-medium">${i + 1}</td>
+                <td class="py-3 px-3 align-top max-w-[240px] whitespace-normal">
+                    <div class="mb-1">${kodeBadge}</div>
+                    <div class="font-bold text-slate-800 text-[11px] break-words">${escapeHtml(r.noKontrak)}</div>
+                    <div class="text-[10px] text-purple-700 font-semibold">${escapeHtml(r.pelaksana)}</div>
+                    <div class="text-[10px] text-slate-400 truncate max-w-[220px]" title="${escapeHtml(r.uraian)}">${escapeHtml(r.uraian)}</div>
+                </td>
+                <td class="py-3 px-3 text-right font-mono font-bold text-slate-800 whitespace-nowrap">${rp(r.nilaiKontrak)}</td>
+                <td class="py-3 px-3 max-w-[170px] whitespace-normal">${spmUmHtml}</td>
+                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${r.nilaiUm ? rp(r.nilaiUm) : '-'}</td>
+                <td class="py-3 px-3 max-w-[170px] whitespace-normal">${spmTerminHtml}</td>
+                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${r.nilaiTermin ? rp(r.nilaiTermin) : '-'}</td>
+                <td class="py-3 px-3 text-right font-mono whitespace-nowrap ${r.selisih < 0 ? 'text-red-600 font-bold' : (r.selisih > 0 ? 'text-amber-700' : 'text-slate-400')}">${rp(r.selisih)}</td>
+                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${r.ppnUm ? rp(r.ppnUm) : '-'}</td>
+                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${r.pphUm ? rp(r.pphUm) : '-'}</td>
+                <td class="py-3 px-3 text-right font-mono font-bold text-emerald-700 bg-emerald-50/40 whitespace-nowrap">${r.nilaiUm ? rp(r.bersihUm) : '-'}</td>
+                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${r.ppnTermin ? rp(r.ppnTermin) : '-'}</td>
+                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${r.pphTermin ? rp(r.pphTermin) : '-'}</td>
+                <td class="py-3 px-3 text-right font-mono font-bold text-emerald-700 bg-emerald-50/40 whitespace-nowrap">${r.nilaiTermin ? rp(r.bersihTermin) : '-'}</td>
+                <td class="py-3 px-3 text-center whitespace-nowrap"><span class="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded font-bold text-[10px] text-slate-700">${escapeHtml(r.jenisPph)}</span></td>
+                <td class="py-3 px-3 text-center whitespace-nowrap sticky right-0 bg-white/95 border-l border-slate-100 z-10">
+                    <button type="button" data-rls-kontrak="${escapeHtml(r.noKontrak)}" onclick="REKAP_LS.bukaModal(this.getAttribute('data-rls-kontrak'))" class="px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded text-[10px] font-bold shadow-sm transition-colors"><i class="fa-solid fa-pen-to-square me-1"></i>Input / Edit</button>
+                </td>
+            </tr>`;
+        }).join('');
+
+        if (tfoot) {
+            tfoot.innerHTML = `<tr>
+                <td colspan="2" class="py-3 px-3 text-right uppercase tracking-wider text-[10px]">Total (${tampilData.length} Kontrak)</td>
+                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${rp(sKontrak)}</td>
+                <td class="py-3 px-3"></td>
+                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${rp(sUm)}</td>
+                <td class="py-3 px-3"></td>
+                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${rp(sTermin)}</td>
+                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${rp(sSelisih)}</td>
+                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${rp(sPpnUm)}</td>
+                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${rp(sPphUm)}</td>
+                <td class="py-3 px-3 text-right font-mono text-emerald-800 bg-emerald-100/60 whitespace-nowrap">${rp(sBersihUm)}</td>
+                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${rp(sPpnT)}</td>
+                <td class="py-3 px-3 text-right font-mono whitespace-nowrap">${rp(sPphT)}</td>
+                <td class="py-3 px-3 text-right font-mono text-emerald-800 bg-emerald-100/60 whitespace-nowrap">${rp(sBersihT)}</td>
+                <td colspan="2" class="py-3 px-3"></td>
+            </tr>`;
+        }
+    }
+
+    function bukaModal(noKontrak) {
+        if (!bisaRekapPencairanLs()) { alert('Hanya BENDAHARA atau SUPER_ADMIN yang dapat mengubah data ini.'); return; }
+        const r = cacheBaris.find(x => x.noKontrak === noKontrak);
+        if (!r) { alert('Data kontrak tidak ditemukan. Muat ulang data.'); return; }
+        aktifRow = r;
+        $('rlsNoKontrak').value = r.noKontrak;
+        $('rlsModalSub').textContent = `${r.noKontrak} · Tahap disetujui: ${r.tahapList.join(', ')}`;
+        $('rlsInfoCv').textContent = r.pelaksana;
+        $('rlsInfoNilai').textContent = rp(r.nilaiKontrak);
+        $('rlsInfoPph').textContent = 'PPh ' + r.jenisPph;
+        $('rlsValUm').textContent = rp(r.nilaiUm);
+        $('rlsValTermin').textContent = rp(r.nilaiTermin);
+
+        $('rlsKodeBerkas').value = r.kodeBerkas || '';
+        $('rlsSpmUm').value = r.spmUm || '';
+        $('rlsSpmTermin').value = r.spmTermin || '';
+        $('rlsPpnUm').value = r.nilaiUm > 0 ? String(r.ppnUm) : '';
+        $('rlsPphUm').value = r.nilaiUm > 0 ? String(r.pphUm) : '';
+        $('rlsPpnTermin').value = r.nilaiTermin > 0 ? String(r.ppnTermin) : '';
+        $('rlsPphTermin').value = r.nilaiTermin > 0 ? String(r.pphTermin) : '';
+        $('rlsCatatan').value = r.catatan || '';
+
+        hitungModal();
+        openModal('modalRekapLs');
+    }
+
+    function resetPajakOtomatis() {
+        if (!aktifRow) return;
+        $('rlsPpnUm').value = aktifRow.nilaiUm > 0 ? String(aktifRow.autoPpnUm) : '';
+        $('rlsPphUm').value = aktifRow.nilaiUm > 0 ? String(aktifRow.autoPphUm) : '';
+        $('rlsPpnTermin').value = aktifRow.nilaiTermin > 0 ? String(aktifRow.autoPpnTermin) : '';
+        $('rlsPphTermin').value = aktifRow.nilaiTermin > 0 ? String(aktifRow.autoPphTermin) : '';
+        hitungModal();
+        showToast('Nominal pajak dikembalikan ke hitungan otomatis BAP.');
+    }
+
+    function hitungModal() {
+        if (!aktifRow) return;
+        const val = (id, def) => {
+            const raw = ($(id) ? $(id).value : '').trim();
+            return raw === '' ? def : (Number(raw) || 0);
+        };
+        const ppnUm = aktifRow.nilaiUm > 0 ? val('rlsPpnUm', aktifRow.autoPpnUm) : 0;
+        const pphUm = aktifRow.nilaiUm > 0 ? val('rlsPphUm', aktifRow.autoPphUm) : 0;
+        const ppnT = aktifRow.nilaiTermin > 0 ? val('rlsPpnTermin', aktifRow.autoPpnTermin) : 0;
+        const pphT = aktifRow.nilaiTermin > 0 ? val('rlsPphTermin', aktifRow.autoPphTermin) : 0;
+
+        $('rlsBersihUm').textContent = rp(aktifRow.nilaiUm - ppnUm - pphUm);
+        $('rlsBersihTermin').textContent = rp(aktifRow.nilaiTermin - ppnT - pphT);
+        $('rlsSelisihModal').textContent = rp(aktifRow.selisih);
+    }
+
+    function simpan(ev) {
+        ev.preventDefault();
+        if (!aktifRow || !bisaRekapPencairanLs()) return;
+        const btn = $('btnSimpanRekapLs');
+        const asli = btn.innerHTML;
+        btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Menyimpan...';
+
+        // Kirim "" bila sama dengan otomatis BAP (agar tetap otomatis bila BAP diperbarui), kirim angka bila dikoreksi manual
+        const pajakKirim = (id, autoVal, adaNilai) => {
+            if (!adaNilai) return '';
+            const raw = ($(id).value || '').trim();
+            if (raw === '') return '';
+            const n = Math.round(Number(raw) || 0);
+            return n === autoVal ? '' : n;
+        };
+
+        const payload = {
+            action: 'rekap_ls_simpan',
+            noKontrak: aktifRow.noKontrak,
+            kodeBerkas: $('rlsKodeBerkas').value.trim(),
+            spmUm: $('rlsSpmUm').value.trim(),
+            ppnUm: pajakKirim('rlsPpnUm', aktifRow.autoPpnUm, aktifRow.nilaiUm > 0),
+            pphUm: pajakKirim('rlsPphUm', aktifRow.autoPphUm, aktifRow.nilaiUm > 0),
+            spmTermin: $('rlsSpmTermin').value.trim(),
+            ppnTermin: pajakKirim('rlsPpnTermin', aktifRow.autoPpnTermin, aktifRow.nilaiTermin > 0),
+            pphTermin: pajakKirim('rlsPphTermin', aktifRow.autoPphTermin, aktifRow.nilaiTermin > 0),
+            catatan: $('rlsCatatan').value.trim()
+        };
+
+        apiPost(payload)
+            .then(res => {
+                if (res.status !== 'success') { alert('Gagal menyimpan: ' + res.message); return; }
+                closeModal('modalRekapLs');
+                showToast('Data Rekap Pencairan LS tersimpan.');
+                tarikDataDariServer();
+            })
+            .catch(e => { if (String(e.message) !== 'Sesi berakhir') alert('Koneksi gagal: ' + e.message); })
+            .finally(() => { btn.disabled = false; btn.innerHTML = asli; });
+    }
+
+    function exportExcel() {
+        const data = susunData();
+        if (!data.length) { alert('Belum ada data kontrak LS yang disetujui untuk diekspor.'); return; }
+        const ta = String(CONFIG.TAHUN_ANGGARAN || '2026');
+        const head = [
+            'NO', 'KODE', 'NO KONTRAK', 'PENYEDIA', 'URAIAN PEKERJAAN',
+            'NILAI', 'SPM UM', 'NILAI UM', 'SPM TERMIN', 'NILAI TERMIN', 'SELISIH',
+            'Nilai PPN UM', 'Nilai PPh UM', 'NILAI BERSIH UM',
+            'Nilai PPN Termin', 'Nilai PPh Termin', 'NILAI BERSIH TERMIN', 'PPh', 'CATATAN'
+        ];
+        const rows = data.map((r, i) => [
+            i + 1, r.kodeBerkas || '-', r.noKontrak, r.pelaksana, r.uraian,
+            r.nilaiKontrak, r.spmUm, r.nilaiUm, r.spmTermin, r.nilaiTermin, r.selisih,
+            r.ppnUm, r.pphUm, r.bersihUm,
+            r.ppnTermin, r.pphTermin, r.bersihTermin, r.jenisPph, r.catatan
+        ]);
+        const sum = (fn) => data.reduce((a, r) => a + fn(r), 0);
+        rows.push([
+            '', 'TOTAL', '', '', '',
+            sum(r => r.nilaiKontrak), '', sum(r => r.nilaiUm), '', sum(r => r.nilaiTermin), sum(r => r.selisih),
+            sum(r => r.ppnUm), sum(r => r.pphUm), sum(r => r.bersihUm),
+            sum(r => r.ppnTermin), sum(r => r.pphTermin), sum(r => r.bersihTermin), '', ''
+        ]);
+
+        const namaSheet = 'PENCAIRAN ' + ta.slice(-2);
+        const namaFile = `REKAP_PENCAIRAN_LS_${ta}`;
+        if (typeof XLSX !== 'undefined') {
+            const ws = XLSX.utils.aoa_to_sheet([head, ...rows]);
+            ws['!cols'] = [
+                { wch: 5 }, { wch: 16 }, { wch: 30 }, { wch: 28 }, { wch: 38 },
+                { wch: 16 }, { wch: 34 }, { wch: 16 }, { wch: 34 }, { wch: 16 }, { wch: 16 },
+                { wch: 15 }, { wch: 15 }, { wch: 17 },
+                { wch: 15 }, { wch: 15 }, { wch: 17 }, { wch: 8 }, { wch: 24 }
+            ];
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, namaSheet);
+            XLSX.writeFile(wb, namaFile + '.xlsx');
+            showToast('File Excel ' + namaFile + '.xlsx berhasil diunduh.');
+        } else {
+            const csv = [head, ...rows].map(r => r.map(v => '"' + String(v === null || v === undefined ? '' : v).replace(/"/g, '""') + '"').join(',')).join('\n');
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = namaFile + '.csv';
+            document.body.appendChild(a); a.click(); a.remove();
+            showToast('File CSV ' + namaFile + '.csv berhasil diunduh.');
+        }
+    }
+
+    return { render, bukaModal, hitungModal, resetPajakOtomatis, simpan, exportExcel };
+})();

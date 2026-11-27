@@ -37,7 +37,7 @@ const BAP = (function () {
     const formatTgl = (s) => { const t = pecahTgl(s); return t ? `${String(t.d).padStart(2, '0')}/${String(t.m).padStart(2, '0')}/${t.y}` : '-'; };
 
     // ---------- Hak akses di tampilan (penegakan sebenarnya ada di server) ----------
-    const bolehInput = () => ['PPTK', 'VERIFIKATOR', 'SUPER_ADMIN'].includes(sesiAktif.role);          // PIMPINAN: hanya melihat
+    const bolehInput = () => ['PPTK', 'VERIFIKATOR', 'BENDAHARA', 'SUPER_ADMIN'].includes(sesiAktif.role);          // PIMPINAN: hanya melihat
     const bolehEdit = (k) => bolehInput() && (sesiAktif.role !== 'PPTK' || String(k.pptk).trim() === String(sesiAktif.namaLengkap).trim());
     const adalahAdmin = () => sesiAktif.role === 'SUPER_ADMIN';                                         // tombol Hapus: SUPER_ADMIN saja
 
@@ -138,7 +138,7 @@ const BAP = (function () {
         const tbody = $('tabelBapBody');
         if (!tbody) return;
         const q = ($('cariBap').value || '').toLowerCase();
-        const data = daftar().filter(k => `${k.pelaksana} ${k.noKontrak} ${k.uraian} ${k.tahapBayar} ${k.noBap}`.toLowerCase().includes(q));
+        const data = daftar().filter(k => `${k.pelaksana} ${k.noKontrak} ${k.kodeBerkas || ''} ${k.uraian} ${k.tahapBayar} ${k.noBap}`.toLowerCase().includes(q));
         if (data.length === 0) {
             tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400 font-medium">Belum ada riwayat BAP.</td></tr>`;
             return;
@@ -154,7 +154,7 @@ const BAP = (function () {
             if (adalahAdmin()) aksi += ` <button type="button" data-aksi="hapus" data-kode="${kode}" class="${tb} bg-red-600 hover:bg-red-700"><i class="fa-solid fa-trash"></i> Hapus</button>`;
             return `
             <tr class="hover:bg-blue-50/30 border-b border-slate-100">
-                <td class="py-3 px-4 font-bold text-slate-700">${e(k.noKontrak || '-')}<br><span class="text-[10px] text-slate-400 font-normal">Tgl: ${formatTgl(k.tglKontrak)} &middot; ${e(k.noBap || '-')}</span></td>
+                <td class="py-3 px-4 font-bold text-slate-700">${k.kodeBerkas ? `<span class="px-1.5 py-0.5 mr-1.5 bg-teal-50 text-teal-800 border border-teal-200 rounded font-mono text-[10px]">${e(k.kodeBerkas)}</span>` : ''}${e(k.noKontrak || '-')}<br><span class="text-[10px] text-slate-400 font-normal">Tgl: ${formatTgl(k.tglKontrak)} &middot; ${e(k.noBap || '-')}</span></td>
                 <td class="py-3 px-4 font-bold text-purple-700">${e(k.pelaksana || '-')}<br><span class="text-[10px] text-slate-500 font-normal block max-w-xs lg:max-w-md xl:max-w-2xl truncate" title="${e(k.uraian)}">${e(k.uraian || '-')}</span></td>
                 <td class="py-3 px-4 font-bold text-slate-800">${rpTeks(k.pembayaranBapIni)}${adaPotongan ? `<br><span class="text-[10px] text-slate-400 font-normal">Bruto ${rpTeks(k.nilaiBayar)} &minus; potongan ${rpTeks(k.jumlahPotongan)}</span>` : ''}</td>
                 <td class="py-3 px-4 font-bold text-blue-600 text-xs">${e(k.tahapBayar || '-')}</td>
@@ -417,6 +417,7 @@ const BAP = (function () {
         const terakhirAdd = riw.filter(x => x.addNo && x.addNo !== '-').pop();
         $('bapTglKontrak').value = ref.tglKontrak || '';
         $('bapNilaiKontrak').value = ref.nilaiKontrak || '';
+        if ($('bapKodeBerkas') && !v('bapKodeBerkas')) $('bapKodeBerkas').value = ref.kodeBerkas || '';
         if (terakhirAdd) {
             $('bapAddNo').value = terakhirAdd.addNo; $('bapAddTgl').value = terakhirAdd.addTgl || ''; $('bapAddNilai').value = terakhirAdd.addNilai || '';
             $('detAddendum').open = true;
@@ -449,6 +450,7 @@ const BAP = (function () {
         pilihAnggaran(k.program, k.kegiatan, k.subKegiatan);
         $('bapUraian').value = k.uraian || '';
         $('bapNoKontrak').value = k.noKontrak || ''; $('bapTglKontrak').value = k.tglKontrak || ''; $('bapNilaiKontrak').value = k.nilaiKontrak || '';
+        if ($('bapKodeBerkas')) $('bapKodeBerkas').value = k.kodeBerkas || '';
         $('bapAddNo').value = (k.addNo && k.addNo !== '-') ? k.addNo : ''; $('bapAddTgl').value = k.addTgl || ''; $('bapAddNilai').value = k.addNilai || '';
         $('detAddendum').open = !!(k.addNo && k.addNo !== '-');
         $('bapTglBap').value = k.tglBap || ''; $('bapNoBap').value = k.noBap || '';
@@ -511,7 +513,7 @@ const BAP = (function () {
             kodeSpj: edit ? editKode : '',
             pptk: (sesiAktif.role === 'PPTK' || edit) ? '' : v('bapPptk'),
             program: v('bapProgram'), kegiatan: v('bapKegiatan'), subKegiatan: v('bapSubKegiatan'), uraian: v('bapUraian'),
-            noKontrak: v('bapNoKontrak'), tglKontrak: v('bapTglKontrak'), nilaiKontrak,
+            noKontrak: v('bapNoKontrak'), tglKontrak: v('bapTglKontrak'), nilaiKontrak, kodeBerkas: v('bapKodeBerkas'),
             tahapBayar: c.tahap, persen: t.persenBebas ? c.persen : 100, skemaRetensi: c.skema,
             tglBap: v('bapTglBap'), dak: c.dak,
             addNo: v('bapAddNo'), addTgl: v('bapAddTgl'), addNilai: Number(v('bapAddNilai')) || 0,

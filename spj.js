@@ -271,14 +271,86 @@ function cetakNomorUrut(noUrut, npd, tglUpload) {
     printWindow.document.close();
 }
 
+function getFilteredSpjData() {
+    let data = [...spjData];
+    if (filterJenis !== 'ALL') {
+        data = data.filter(item => String(item.jenisSurat || 'GU') === filterJenis);
+    }
+    if (filterStatus === 'DISETUJUI_GU') {
+        data = data.filter(item => String(item.jenisSurat || 'GU') === 'GU' && item.status === 'DISETUJUI');
+    } else if (filterStatus && filterStatus !== 'ALL') {
+        data = data.filter(item => String(item.status || '') === filterStatus);
+    }
+    if (searchQuery) {
+        data = data.filter(item => {
+            const textToSearch = `${item.npd} ${item.kegiatan} ${item.pptk} ${item.uraian} ${item.namaCv} ${item.tahap}`.toLowerCase();
+            return textToSearch.includes(searchQuery);
+        });
+    }
+    data.sort((a, b) => {
+        let valA = Number(a.nominal) || 0;
+        let valB = Number(b.nominal) || 0;
+        let dateA = new Date(a.createdAt);
+        let dateB = new Date(b.createdAt);
+        if (sortType === 'NOMINAL_DESC') return valB - valA;
+        if (sortType === 'NOMINAL_ASC') return valA - valB;
+        if (sortType === 'TGL_ASC') return dateA - dateB;
+        return dateB - dateA;
+    });
+    return data;
+}
+
+function setFilterStatus(st) {
+    filterStatus = (filterStatus === st && st !== 'ALL') ? 'ALL' : (st || 'ALL');
+    const sel = document.getElementById('selectStatusSpj');
+    if (sel) sel.value = (filterStatus === 'DISETUJUI_GU') ? 'DISETUJUI' : filterStatus;
+    currentPage = 1;
+    renderTabelSpj();
+}
+
 function gantiPageSize() { rowsPerPage = parseInt(document.getElementById('selectPageSize').value); currentPage = 1; renderTabelSpj(); }
-function gantiHalaman(arah) { const tData = spjData.filter(i => filterJenis === 'ALL' || String(i.jenisSurat || 'GU') === filterJenis); const totalPages = Math.ceil(tData.length / rowsPerPage); currentPage += arah; if (currentPage < 1) currentPage = 1; if (currentPage > totalPages) currentPage = totalPages; renderTabelSpj(); }
+function gantiHalaman(arah) {
+    const totalPages = Math.ceil(getFilteredSpjData().length / rowsPerPage) || 1;
+    currentPage += arah;
+    if (currentPage < 1) currentPage = 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+    renderTabelSpj();
+}
 
 function terapkanFilterDanSort() {
     searchQuery = document.getElementById('inputSearchSpj') ? document.getElementById('inputSearchSpj').value.toLowerCase() : '';
     sortType = document.getElementById('selectSortSpj') ? document.getElementById('selectSortSpj').value : 'TGL_DESC';
-    currentPage = 1; 
+    const selSt = document.getElementById('selectStatusSpj');
+    if (selSt) filterStatus = selSt.value || 'ALL';
+    currentPage = 1;
     renderTabelSpj();
+}
+
+function exportSpjExcel() {
+    const data = getFilteredSpjData();
+    if (!data.length) { alert('Tidak ada data SPJ untuk diekspor.'); return; }
+    const ta = String(CONFIG.TAHUN_ANGGARAN || '2026');
+    const head = ['No', 'Tanggal', 'Jenis', 'No. NPD / Kontrak', 'PPTK', 'Unit Kerja', 'Program', 'Kegiatan', 'Sub Kegiatan', 'Penyedia / CV', 'Tahap', 'Uraian', 'Nominal (Rp)', 'Status', 'No. PB', 'Tanggal PB'];
+    const rows = data.map((x, i) => [
+        i + 1, formatTanggalIndo(x.createdAt), x.jenisSurat || 'GU', x.npd || '-', x.pptk || '-', x.unitKerja || '-',
+        x.program || '-', x.kegiatan || '-', x.subKegiatan || '-', x.namaCv || '-', x.tahap || '-', x.uraian || '-',
+        Number(x.nominal) || 0, x.status || '-', x.noPb || '-', x.tglPb ? formatTanggalIndo(String(x.tglPb)) : '-'
+    ]);
+    const namaFile = `DATA_SPJ_${filterJenis}_${ta}`;
+    if (typeof XLSX !== 'undefined') {
+        const ws = XLSX.utils.aoa_to_sheet([head, ...rows]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'SPJ_' + filterJenis);
+        XLSX.writeFile(wb, namaFile + '.xlsx');
+        showToast('File Excel ' + namaFile + '.xlsx berhasil diunduh.');
+    } else {
+        const csv = [head, ...rows].map(r => r.map(v => '"' + String(v === null || v === undefined ? '' : v).replace(/"/g, '""') + '"').join(',')).join('
+');
+        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = namaFile + '.csv';
+        document.body.appendChild(a); a.click(); a.remove();
+        showToast('File CSV ' + namaFile + '.csv berhasil diunduh.');
+    }
 }
 
 function renderTabelSpj() {
@@ -349,27 +421,7 @@ function renderTabelSpj() {
     setT('lsCountDisetujui', String(lsDisetujui));
     setT('lsNominalDisetujui', formatRupiah(lsNominalDisetujui));
 
-    let filteredData = [...spjData];
-    if (filterJenis !== 'ALL') {
-        filteredData = filteredData.filter(item => String(item.jenisSurat || 'GU') === filterJenis);
-    }
-    if (searchQuery) {
-        filteredData = filteredData.filter(item => {
-            const textToSearch = `${item.npd} ${item.kegiatan} ${item.pptk} ${item.uraian} ${item.namaCv}`.toLowerCase();
-            return textToSearch.includes(searchQuery);
-        });
-    }
-
-    filteredData.sort((a, b) => {
-        let valA = Number(a.nominal) || 0;
-        let valB = Number(b.nominal) || 0;
-        let dateA = new Date(a.createdAt);
-        let dateB = new Date(b.createdAt);
-        if (sortType === 'NOMINAL_DESC') return valB - valA;
-        if (sortType === 'NOMINAL_ASC') return valA - valB;
-        if (sortType === 'TGL_ASC') return dateA - dateB;
-        return dateB - dateA;
-    });
+    const filteredData = getFilteredSpjData();
 
     const totalData = filteredData.length; const totalPages = Math.ceil(totalData / rowsPerPage) || 1;
     const startIndex = (currentPage - 1) * rowsPerPage; const endIndex = Math.min(startIndex + rowsPerPage, totalData);
@@ -429,7 +481,7 @@ function renderTabelSpj() {
                 ${tdTglPbHtml}
                 <td class="py-4 px-4 text-xs align-top text-slate-600 max-w-[220px] whitespace-normal break-words">${uraianPekerjaan}</td>
                 <td class="py-4 px-4 text-xs text-right font-bold align-top whitespace-nowrap text-slate-800">${formatRupiah(item.nominal)}</td>
-                <td class="py-4 px-4 text-center align-top whitespace-nowrap">${badge}</td>
+                <td class="py-4 px-4 text-center align-top whitespace-nowrap">${badge}${(!item.linkKeuangan || item.linkKeuangan === '-') && (!item.linkSpj || item.linkSpj === '-') ? '<div class="mt-1"><span class="px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 border border-rose-200 text-[9px] font-bold">Belum Upload Berkas</span></div>' : ''}</td>
                 <td class="py-4 px-4 text-center align-top whitespace-nowrap sticky right-0 bg-white/90 backdrop-blur-sm shadow-[-8px_0_15px_rgba(0,0,0,0.02)] z-10 border-l border-slate-100">
                     <button onclick="bukaModalVerifikasi('${escapeHtml(item.id)}')" class="px-4 py-1.5 ${actionBtnColor} text-white rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer">${actionBtnText}</button>
                     ${sesiAktif.role === 'SUPER_ADMIN' ? `<button type="button" data-hapus-id="${escapeHtml(item.id)}" onclick="hapusPengajuan(this.getAttribute('data-hapus-id'), this)" class="ml-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer" title="Hapus pengajuan (khusus Super Admin)"><i class="fa-solid fa-trash"></i> Hapus</button>` : ''}
@@ -451,7 +503,7 @@ function jadikanLink(textUrl, idItem, formType, slot, boleh) {
     // Dua pilihan unggah: langsung (<= 10 MB) atau lewat Google Form (> 10 MB, ID Pengajuan terisi otomatis)
     const duaTombol = () => `<div class="flex flex-wrap gap-1.5 mt-2">
         <button type="button" onclick="pilihBerkas('${idq}','${slot}')" class="px-2.5 py-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded text-[10px] font-bold shadow-sm"><i class="fa-solid fa-cloud-arrow-up me-1"></i> Upload Langsung <span class="font-normal opacity-80">(&le; 10 MB)</span></button>
-        <a href="${escapeHtml(urlFormUpload(formType, idItem))}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1.5 bg-white text-blue-700 hover:bg-blue-50 border border-blue-300 rounded text-[10px] font-bold"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Via Google Form <span class="font-normal opacity-80">(&gt; 10 MB)</span></a>
+        <a href="${escapeHtml(urlFormUploadAktif(formType, idItem))}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1.5 bg-white text-blue-700 hover:bg-blue-50 border border-blue-300 rounded text-[10px] font-bold"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Via Google Form <span class="font-normal opacity-80">(&gt; 10 MB)</span></a>
     </div>`;
     if (!textUrl || textUrl === "-" || textUrl === "") {
         return `<span class="text-slate-400 italic block">Belum dilampirkan</span>` + (boleh ? duaTombol() : '');
@@ -543,7 +595,7 @@ function bukaModalVerifikasi(id) {
     document.getElementById('linkDokSpj').innerHTML = jadikanLink(item.linkSpj, item.id, item.jenisSurat, 'spj', bolehUnggah(item)); 
     document.getElementById('linkDokRevisi').innerHTML = renderListRevisi(item.linkRevisi) + (sesiAktif.role === 'SUPER_ADMIN'
         ? `<div class="flex flex-wrap gap-1.5 mt-2"><button type="button" onclick="pilihBerkas('${escapeHtml(String(item.id))}','revisi')" class="px-2.5 py-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded text-[10px] font-bold shadow-sm"><i class="fa-solid fa-cloud-arrow-up me-1"></i> Upload Revisi <span class="font-normal opacity-80">(admin, &le; 10 MB)</span></button>
-           <a href="${escapeHtml(urlFormUpload('REVISI', item.id))}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1.5 bg-white text-blue-700 hover:bg-blue-50 border border-blue-300 rounded text-[10px] font-bold"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Via Google Form <span class="font-normal opacity-80">(&gt; 10 MB)</span></a></div>` : '');
+           <a href="${escapeHtml(urlFormUploadAktif('REVISI', item.id))}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1.5 bg-white text-blue-700 hover:bg-blue-50 border border-blue-300 rounded text-[10px] font-bold"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Via Google Form <span class="font-normal opacity-80">(&gt; 10 MB)</span></a></div>` : '');
 
     const buktiPbBox = document.getElementById('detailBuktiPbBox');
     if (item.status === 'SUDAH DIPINDAHBUKUKAN' && item.buktiPb) {
@@ -668,9 +720,20 @@ function bukaModalVerifikasi(id) {
     // Edit teks pengajuan milik PPTK: hanya SUPER_ADMIN (koreksi); VERIFIKATOR tidak boleh
     const btnEditVerif = document.getElementById('btnEditTeksVerif'); if (btnEditVerif) btnEditVerif.style.display = (sesiAktif.role === 'SUPER_ADMIN') ? 'flex' : 'none';
 
-    let cleanPhone = String(item.wa || '').replace(/[^0-9]/g, ''); if (cleanPhone.startsWith('0')) { cleanPhone = '62' + cleanPhone.slice(1); } else if (cleanPhone.startsWith('8')) { cleanPhone = '62' + cleanPhone; }        
-    let waText = `Yth. PPTK,\nUpdate SPJ (NPD: ${item.npd}):\n*Status: ${item.status}*\n`; if(item.status === 'REVISI' || item.status === 'DITOLAK') waText += `Catatan:\n${String(item.catatanRevisi).replace(/<br>/g, '\n')}\n`;
-    const btnSendWa = document.getElementById('btnSendWa'); if (btnSendWa) btnSendWa.href = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(waText)}`;
+    let cleanPhone = String(item.wa || '').replace(/[^0-9]/g, '');
+    if (cleanPhone.startsWith('0')) { cleanPhone = '62' + cleanPhone.slice(1); } else if (cleanPhone.startsWith('8')) { cleanPhone = '62' + cleanPhone; }
+    const lblRefWa = String(item.jenisSurat || 'GU').trim() === 'LS' ? 'No. Kontrak' : 'NPD';
+    let waText = `Yth. PPTK,\nUpdate SPJ ${item.jenisSurat || 'GU'} (${lblRefWa}: ${item.npd}):\n*Status: ${item.status}*\n`;
+    if (item.status === 'REVISI' || item.status === 'DITOLAK') waText += `Catatan:\n${String(item.catatanRevisi).replace(/<br>/g, '\n')}\n`;
+    const btnSendWa = document.getElementById('btnSendWa');
+    if (btnSendWa) {
+        if (cleanPhone.length >= 9) {
+            btnSendWa.style.display = 'flex';
+            btnSendWa.href = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(waText)}`;
+        } else {
+            btnSendWa.style.display = 'none';
+        }
+    }
 } else {
         document.getElementById('panelAksiVerifikator').classList.add('hidden'); 
         // Panel tindakan PPTK: hanya PPTK pemilik. PIMPINAN (hanya lihat) tidak mendapat tombol apa pun.
@@ -679,7 +742,7 @@ function bukaModalVerifikasi(id) {
             if(item.status === 'BELUM_DIPROSES') document.getElementById('teksRevisiPptk').innerText = "Anda masih dapat mengubah data teks atau mengunggah ulang berkas.";
             if(item.status === 'REVISI') document.getElementById('teksRevisiPptk').innerHTML = "Catatan Verifikator: <br>" + teksCatatan(item.catatanRevisi || "-");
             const btnRev = document.getElementById('btnUploadRevisi'); btnRev.setAttribute('href', '#'); btnRev.removeAttribute('target'); btnRev.onclick = (ev) => { ev.preventDefault(); pilihBerkas(item.id, 'revisi'); };
-            const btnRevForm = document.getElementById('btnUploadRevisiForm'); if (btnRevForm) btnRevForm.setAttribute('href', urlFormUpload('REVISI', item.id));
+            const btnRevForm = document.getElementById('btnUploadRevisiForm'); if (btnRevForm) btnRevForm.setAttribute('href', urlFormUploadAktif('REVISI', item.id));
             let existingEditBtnPptk = document.getElementById('btnEditDataPptk'); if(existingEditBtnPptk) existingEditBtnPptk.remove();
             const editBtnPptkHtml = `<button id="btnEditDataPptk" onclick="bukaFormEdit()" class="w-full mt-2 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded font-bold text-xs shadow-sm transition-colors flex items-center justify-center gap-1.5"><i class="fa-solid fa-pen-to-square"></i> EDIT DATA TEKS</button>`;
             document.getElementById('panelPptkRevisi').insertAdjacentHTML('beforeend', editBtnPptkHtml);
@@ -894,7 +957,7 @@ function panelUploadHtml(idSpj, jenis) {
         <button type="button" id="btnUnggahPanel" onclick="unggahDariPanel('${escapeHtml(idSpj)}')" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md text-sm"><i class="fa-solid fa-cloud-arrow-up me-2"></i> Unggah Berkas</button>
         <div class="flex items-center gap-2 text-[10px] text-slate-400"><div class="flex-1 h-px bg-slate-200"></div>ATAU<div class="flex-1 h-px bg-slate-200"></div></div>
         <div class="text-[11px] font-bold text-slate-600">Pilihan 2 &mdash; Untuk file lebih dari 10 MB</div>
-        <a href="${escapeHtml(urlFormUpload(jenis, idSpj))}" target="_blank" rel="noopener noreferrer" class="block w-full text-center py-2.5 bg-white border-2 border-blue-600 text-blue-700 hover:bg-blue-50 font-bold rounded-lg text-sm"><i class="fa-solid fa-arrow-up-right-from-square me-2"></i> Upload via Google Form</a>
+        <a href="${escapeHtml(urlFormUploadAktif(jenis, idSpj))}" target="_blank" rel="noopener noreferrer" class="block w-full text-center py-2.5 bg-white border-2 border-blue-600 text-blue-700 hover:bg-blue-50 font-bold rounded-lg text-sm"><i class="fa-solid fa-arrow-up-right-from-square me-2"></i> Upload via Google Form</a>
         <p class="text-[10px] text-slate-500 leading-relaxed">ID Pengajuan terisi otomatis. Setelah mengirim Form, tunggu &plusmn; 1 menit lalu tekan tombol <b>Refresh</b> pada tabel agar berkas tampil.</p>
         <button type="button" onclick="closeModal('modalNewSpj')" class="w-full text-xs text-slate-500 hover:text-slate-800 underline">Unggah nanti (lewat tombol Detail pada tabel)</button>
     </div>`;
@@ -964,7 +1027,6 @@ function hapusPengajuan(id, btn) {
 }
 // Bila halaman aktif menjadi kosong setelah penghapusan, mundur satu halaman
 function koreksiHalamanSpj() {
-    const total = spjData.filter(i => filterJenis === 'ALL' || String(i.jenisSurat || 'GU') === filterJenis).length;
-    const maks = Math.max(1, Math.ceil(total / rowsPerPage));
+    const maks = Math.max(1, Math.ceil(getFilteredSpjData().length / rowsPerPage));
     if (currentPage > maks) currentPage = maks;
 }
