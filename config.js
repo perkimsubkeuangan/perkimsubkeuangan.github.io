@@ -65,3 +65,16 @@ function apiPost(payload) {
             return res;
         });
 }
+
+window.SERVER_TAHUN = {
+    "2026": {
+        label: "TA 2026 (Aktif)",
+        appsScriptUrl: CONFIG.APPS_SCRIPT_URL,
+        forms: null
+    },
+    "2027": {
+        label: "TA 2027 (Uji Coba)",
+        appsScriptUrl: "https://script.google.com/macros/s/AKfycbx7aY0g06f8WC2RE2i0-IP14TpV9oqKLTkCexKTOaM95STTk10gcV-dVw3aBzpONf_cQA/exec",
+        forms: null // isi 3 link Google Form akun 2027 jika nanti butuh upload file > 10 MB
+    }
+};
